@@ -1,0 +1,172 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: /Users/taeyoung/work/payment-challenge/load-test/ch02/lookup-while-confirming.js
+        output: -
+
+     scenarios: (100.00%) 2 scenarios, 420 max VUs, 1m0s max duration (incl. graceful stop):
+              * confirm: 20 looping VUs for 30s (exec: confirm, gracefulStop: 30s)
+              * lookup: 20.00 iterations/s for 30s (maxVUs: 50-400, exec: lookup, gracefulStop: 30s)
+
+
+running (0m01.0s), 039/070 VUs, 1 complete and 0 interrupted iterations
+confirm   [   3% ] 20 VUs       01.0s/30s 
+lookup    [   3% ] 019/050 VUs  01.0s/30s  20.00 iters/s
+
+running (0m02.0s), 059/070 VUs, 11 complete and 0 interrupted iterations
+confirm   [   7% ] 20 VUs       02.0s/30s 
+lookup    [   7% ] 039/050 VUs  02.0s/30s  20.00 iters/s
+
+running (0m03.0s), 037/070 VUs, 63 complete and 0 interrupted iterations
+confirm   [  10% ] 20 VUs       03.0s/30s 
+lookup    [  10% ] 017/050 VUs  03.0s/30s  20.00 iters/s
+
+running (0m04.0s), 037/070 VUs, 93 complete and 0 interrupted iterations
+confirm   [  13% ] 20 VUs       04.0s/30s 
+lookup    [  13% ] 017/050 VUs  04.0s/30s  20.00 iters/s
+
+running (0m05.0s), 036/070 VUs, 124 complete and 0 interrupted iterations
+confirm   [  17% ] 20 VUs       05.0s/30s 
+lookup    [  17% ] 016/050 VUs  05.0s/30s  20.00 iters/s
+
+running (0m06.0s), 034/070 VUs, 156 complete and 0 interrupted iterations
+confirm   [  20% ] 20 VUs       06.0s/30s 
+lookup    [  20% ] 014/050 VUs  06.0s/30s  20.00 iters/s
+
+running (0m07.0s), 053/070 VUs, 167 complete and 0 interrupted iterations
+confirm   [  23% ] 20 VUs       07.0s/30s 
+lookup    [  23% ] 033/050 VUs  07.0s/30s  20.00 iters/s
+
+running (0m08.0s), 035/070 VUs, 215 complete and 0 interrupted iterations
+confirm   [  27% ] 20 VUs       08.0s/30s 
+lookup    [  27% ] 015/050 VUs  08.0s/30s  20.00 iters/s
+
+running (0m09.0s), 034/070 VUs, 246 complete and 0 interrupted iterations
+confirm   [  30% ] 20 VUs       09.0s/30s 
+lookup    [  30% ] 014/050 VUs  09.0s/30s  20.00 iters/s
+
+running (0m10.0s), 031/070 VUs, 279 complete and 0 interrupted iterations
+confirm   [  33% ] 20 VUs       10.0s/30s 
+lookup    [  33% ] 011/050 VUs  10.0s/30s  20.00 iters/s
+
+running (0m11.0s), 049/070 VUs, 291 complete and 0 interrupted iterations
+confirm   [  37% ] 20 VUs       11.0s/30s 
+lookup    [  37% ] 029/050 VUs  11.0s/30s  20.00 iters/s
+
+running (0m12.0s), 033/070 VUs, 337 complete and 0 interrupted iterations
+confirm   [  40% ] 20 VUs       12.0s/30s 
+lookup    [  40% ] 013/050 VUs  12.0s/30s  20.00 iters/s
+
+running (0m13.0s), 032/070 VUs, 368 complete and 0 interrupted iterations
+confirm   [  43% ] 20 VUs       13.0s/30s 
+lookup    [  43% ] 012/050 VUs  13.0s/30s  20.00 iters/s
+
+running (0m14.0s), 031/070 VUs, 399 complete and 0 interrupted iterations
+confirm   [  47% ] 20 VUs       14.0s/30s 
+lookup    [  47% ] 011/050 VUs  14.0s/30s  20.00 iters/s
+
+running (0m15.0s), 029/070 VUs, 431 complete and 0 interrupted iterations
+confirm   [  50% ] 20 VUs       15.0s/30s 
+lookup    [  50% ] 009/050 VUs  15.0s/30s  20.00 iters/s
+
+running (0m16.0s), 030/070 VUs, 460 complete and 0 interrupted iterations
+confirm   [  53% ] 20 VUs       16.0s/30s 
+lookup    [  53% ] 010/050 VUs  16.0s/30s  20.00 iters/s
+
+running (0m17.0s), 030/070 VUs, 490 complete and 0 interrupted iterations
+confirm   [  57% ] 20 VUs       17.0s/30s 
+lookup    [  57% ] 010/050 VUs  17.0s/30s  20.00 iters/s
+
+running (0m18.0s), 027/070 VUs, 523 complete and 0 interrupted iterations
+confirm   [  60% ] 20 VUs       18.0s/30s 
+lookup    [  60% ] 007/050 VUs  18.0s/30s  20.00 iters/s
+
+running (0m19.0s), 029/070 VUs, 551 complete and 0 interrupted iterations
+confirm   [  63% ] 20 VUs       19.0s/30s 
+lookup    [  63% ] 009/050 VUs  19.0s/30s  20.00 iters/s
+
+running (0m20.0s), 028/070 VUs, 582 complete and 0 interrupted iterations
+confirm   [  67% ] 20 VUs       20.0s/30s 
+lookup    [  67% ] 008/050 VUs  20.0s/30s  20.00 iters/s
+
+running (0m21.0s), 028/070 VUs, 612 complete and 0 interrupted iterations
+confirm   [  70% ] 20 VUs       21.0s/30s 
+lookup    [  70% ] 008/050 VUs  21.0s/30s  20.00 iters/s
+
+running (0m22.0s), 026/070 VUs, 644 complete and 0 interrupted iterations
+confirm   [  73% ] 20 VUs       22.0s/30s 
+lookup    [  73% ] 006/050 VUs  22.0s/30s  20.00 iters/s
+
+running (0m23.0s), 023/070 VUs, 677 complete and 0 interrupted iterations
+confirm   [  77% ] 20 VUs       23.0s/30s 
+lookup    [  77% ] 003/050 VUs  23.0s/30s  20.00 iters/s
+
+running (0m24.0s), 027/070 VUs, 703 complete and 0 interrupted iterations
+confirm   [  80% ] 20 VUs       24.0s/30s 
+lookup    [  80% ] 007/050 VUs  24.0s/30s  20.00 iters/s
+
+running (0m25.0s), 026/070 VUs, 734 complete and 0 interrupted iterations
+confirm   [  83% ] 20 VUs       25.0s/30s 
+lookup    [  83% ] 006/050 VUs  25.0s/30s  20.00 iters/s
+
+running (0m26.0s), 025/070 VUs, 765 complete and 0 interrupted iterations
+confirm   [  87% ] 20 VUs       26.0s/30s 
+lookup    [  87% ] 005/050 VUs  26.0s/30s  20.00 iters/s
+
+running (0m27.0s), 023/070 VUs, 796 complete and 0 interrupted iterations
+confirm   [  90% ] 20 VUs       27.0s/30s 
+lookup    [  90% ] 003/050 VUs  27.0s/30s  20.00 iters/s
+
+running (0m28.0s), 025/070 VUs, 824 complete and 0 interrupted iterations
+confirm   [  93% ] 20 VUs       28.0s/30s 
+lookup    [  93% ] 005/050 VUs  28.0s/30s  20.00 iters/s
+
+running (0m29.0s), 039/070 VUs, 839 complete and 0 interrupted iterations
+confirm   [  97% ] 20 VUs       29.0s/30s 
+lookup    [  97% ] 019/050 VUs  29.0s/30s  20.00 iters/s
+
+running (0m30.0s), 037/070 VUs, 871 complete and 0 interrupted iterations
+confirm   [ 100% ] 20 VUs       30.0s/30s 
+lookup    [ 100% ] 017/050 VUs  30.0s/30s  20.00 iters/s
+
+running (0m31.0s), 010/070 VUs, 898 complete and 0 interrupted iterations
+confirm ↓ [ 100% ] 20 VUs       30s 
+lookup  ✓ [ 100% ] 000/050 VUs  30s  20.00 iters/s
+
+
+  █ TOTAL RESULTS 
+
+    CUSTOM
+    confirm_duration...............: avg=1.66s    min=1.01s  med=1.85s    p(95)=2.04s p(99)=2.06s max=2.09s
+    confirm_failed.................: 0.00%  0 out of 308
+    lookup_duration................: avg=643.62ms min=4.49ms med=622.26ms p(95)=1.4s  p(99)=1.8s  max=1.99s
+    lookup_failed..................: 0.00%  0 out of 600
+
+    HTTP
+    http_req_duration..............: avg=829.65ms min=4.49ms med=776.31ms p(95)=2s    p(99)=2.04s max=2.09s
+      { expected_response:true }...: avg=829.65ms min=4.49ms med=776.31ms p(95)=2s    p(99)=2.04s max=2.09s
+    http_req_failed................: 0.00%  0 out of 1217
+    http_reqs......................: 1217   38.057944/s
+
+    EXECUTION
+    iteration_duration.............: avg=1.11s    min=5.22ms med=882.44ms p(95)=2.08s p(99)=2.15s max=3.12s
+    iterations.....................: 908    28.394916/s
+    vus............................: 10     min=10        max=59
+    vus_max........................: 70     min=70        max=70
+
+    NETWORK
+    data_received..................: 217 kB 6.8 kB/s
+    data_sent......................: 191 kB 6.0 kB/s
+
+
+
+
+running (0m32.0s), 000/070 VUs, 908 complete and 0 interrupted iterations
+confirm ✓ [ 100% ] 20 VUs       30s 
+lookup  ✓ [ 100% ] 000/050 VUs  30s  20.00 iters/s

@@ -35,3 +35,6 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### 부하 테스트 실행 로그(결과 요약만 커밋) ###
+load-test/**/results/*.log
