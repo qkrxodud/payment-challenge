@@ -1,0 +1,48 @@
+package com.example.payment.presentation.payment;
+
+import com.example.payment.application.payment.PaymentConfirmService;
+import com.example.payment.application.payment.PaymentPrepareService;
+import com.example.payment.application.payment.PaymentQueryService;
+import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
+import com.example.payment.application.payment.dto.PreparePaymentCommand;
+import com.example.payment.presentation.payment.dto.ConfirmPaymentRequest;
+import com.example.payment.presentation.payment.dto.PaymentResponse;
+import com.example.payment.presentation.payment.dto.PreparePaymentRequest;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/v1/payments")
+public class PaymentController {
+
+    private final PaymentPrepareService paymentPrepareService;
+    private final PaymentConfirmService paymentConfirmService;
+    private final PaymentQueryService paymentQueryService;
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public PaymentResponse prepare(@RequestBody PreparePaymentRequest request) {
+        return PaymentResponse.from(paymentPrepareService.prepare(
+                new PreparePaymentCommand(request.orderId(), request.amount())));
+    }
+
+    // 결제창 인증을 마친 고객이 돌아오면 PG 가 준 paymentKey 로 승인을 요청한다
+    @PostMapping("/{orderId}/confirm")
+    public PaymentResponse confirm(@PathVariable String orderId, @RequestBody ConfirmPaymentRequest request) {
+        return PaymentResponse.from(paymentConfirmService.confirm(
+                new ConfirmPaymentCommand(orderId, request.paymentKey())));
+    }
+
+    @GetMapping("/{orderId}")
+    public PaymentResponse find(@PathVariable String orderId) {
+        return PaymentResponse.from(paymentQueryService.find(orderId));
+    }
+}

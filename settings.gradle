@@ -1,1 +1,4 @@
 rootProject.name = 'payment-challenge'
+
+// 2장부터: 지연·거절을 조작할 수 있는 가짜 PG 서버
+include 'mock-pg'

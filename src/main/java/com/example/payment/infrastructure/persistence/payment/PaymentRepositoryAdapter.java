@@ -21,4 +21,9 @@ public class PaymentRepositoryAdapter implements PaymentRepository {
     public Optional<Payment> findById(Long id) {
         return springDataPaymentRepository.findById(id);
     }
+
+    @Override
+    public Optional<Payment> findByOrderId(String orderId) {
+        return springDataPaymentRepository.findByOrderId(orderId);
+    }
 }

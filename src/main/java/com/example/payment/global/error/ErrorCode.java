@@ -10,8 +10,20 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum ErrorCode {
 
+    // 요청 본문을 읽을 수 없음(JSON 모양이 틀림, 값의 형식이 틀림)
+    INVALID_INPUT(ErrorType.INVALID_INPUT, "The request could not be read."),
+    // 웹 계층이 거절한 요청(지원하지 않는 HTTP 방식 등). 상태 코드는 그 거절의 것을 그대로 쓴다
+    INVALID_REQUEST(ErrorType.INVALID_INPUT, "This request is not supported."),
+    PAYMENT_NOT_FOUND(ErrorType.NOT_FOUND, "No payment was found for this order."),
     // 지금 결제 상태에서는 할 수 없는 요청(승인 전 매입, 취소 후 재승인 등)
-    INVALID_PAYMENT_TRANSITION(ErrorType.CONFLICT, "This payment cannot be changed in its current status.");
+    INVALID_PAYMENT_TRANSITION(ErrorType.CONFLICT, "This payment cannot be changed in its current status."),
+    PAYMENT_DECLINED(ErrorType.DECLINED, "The card company declined this payment."),
+    // PG 가 승인도 거절도 아닌 답(5xx 등)을 줬다
+    PAYMENT_GATEWAY_FAILED(ErrorType.UPSTREAM_FAILED, "The card company could not process this payment."),
+    // PG 의 답을 정해진 시간 안에 받지 못했다. 승인됐는지 알 수 없다
+    PAYMENT_GATEWAY_NO_RESPONSE(ErrorType.UPSTREAM_NO_RESPONSE,
+            "The card company did not answer in time. Check the payment status before trying again."),
+    INTERNAL_ERROR(ErrorType.INTERNAL, "Something went wrong on the server.");
 
     private final ErrorType type;
     private final String clientMessage;

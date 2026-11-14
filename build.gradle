@@ -37,6 +37,9 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
 	testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
 	testImplementation 'org.testcontainers:testcontainers-mysql'
+	testImplementation 'org.awaitility:awaitility'
+	// 2장부터: 테스트 안에서 Mock PG 를 임의 포트로 띄운다
+	testImplementation project(':mock-pg')
 	// 1장 비교 구현용. 2026-07 저장소 보관(archived), 더 이상 유지보수되지 않는다
 	testImplementation 'org.springframework.statemachine:spring-statemachine-core:4.0.2'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
