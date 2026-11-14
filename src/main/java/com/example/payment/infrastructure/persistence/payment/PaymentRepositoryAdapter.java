@@ -1,0 +1,24 @@
+package com.example.payment.infrastructure.persistence.payment;
+
+import com.example.payment.domain.payment.Payment;
+import com.example.payment.domain.payment.PaymentRepository;
+import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Repository;
+
+@Repository
+@RequiredArgsConstructor
+public class PaymentRepositoryAdapter implements PaymentRepository {
+
+    private final SpringDataPaymentRepository springDataPaymentRepository;
+
+    @Override
+    public Payment save(Payment payment) {
+        return springDataPaymentRepository.save(payment);
+    }
+
+    @Override
+    public Optional<Payment> findById(Long id) {
+        return springDataPaymentRepository.findById(id);
+    }
+}
