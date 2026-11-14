@@ -50,30 +50,34 @@ public class Payment {
     }
 
     public void authenticate() {
-        this.status = PaymentStatus.AUTHENTICATED;
+        changeStatus(PaymentAction.AUTHENTICATE);
     }
 
     public void failAuthentication() {
-        this.status = PaymentStatus.AUTH_FAILED;
+        changeStatus(PaymentAction.FAIL_AUTHENTICATION);
     }
 
     public void approve() {
-        this.status = PaymentStatus.APPROVED;
+        changeStatus(PaymentAction.APPROVE);
     }
 
     public void failApproval() {
-        this.status = PaymentStatus.APPROVAL_FAILED;
+        changeStatus(PaymentAction.FAIL_APPROVAL);
     }
 
     public void expire() {
-        this.status = PaymentStatus.EXPIRED;
+        changeStatus(PaymentAction.EXPIRE);
     }
 
     public void capture() {
-        this.status = PaymentStatus.CAPTURED;
+        changeStatus(PaymentAction.CAPTURE);
     }
 
     public void cancel() {
-        this.status = PaymentStatus.APPROVAL_CANCELED;
+        changeStatus(PaymentAction.CANCEL);
+    }
+
+    private void changeStatus(PaymentAction action) {
+        this.status = status.next(action);
     }
 }

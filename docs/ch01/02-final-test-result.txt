@@ -1,0 +1,13 @@
+결제 서버: tests=1 failures=0 errors=0
+결제 상태 바꾸기 — 허용 전이 표: tests=70 failures=0 errors=0
+결제 상태 바꾸기 — State 패턴(비교 구현): tests=70 failures=0 errors=0
+결제 상태 바꾸기 — Spring Statemachine(비교 구현): tests=70 failures=0 errors=0
+저장 구조를 서버가 직접 만들게 두면: tests=1 failures=0 errors=0
+    hibernate status column_type = enum('APPROVAL_CANCELED','APPROVAL_FAILED','APPROVED','AUTHENTICATED','AUTH_FAILED','CAPTURED','CAPTURE_CANCELED','EXPIRED','READY')
+결제 기록 — 실제 보관함에서: tests=2 failures=0 errors=0
+    status column_type = varchar(30)
+상태를 남기는 방식 비교 — 실제 보관함에서: tests=4 failures=0 errors=0
+    stored ordinal=1, V2 ordinal=AUTHENTICATED, V2 string=APPROVED
+    enum insert error: Data truncated for column 'enum_status' at row 1
+total 218
+coverage INSTRUCTION 100%, BRANCH 100%, LINE 100%, COMPLEXITY 100%, METHOD 100%, CLASS 100%
