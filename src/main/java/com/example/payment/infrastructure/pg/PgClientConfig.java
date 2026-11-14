@@ -14,9 +14,14 @@ public class PgClientConfig {
 
     @Bean
     RestClient pgRestClient(PgProperties pgProperties) {
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(pgProperties.getConnectTimeout())
+                .build();
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(pgProperties.getReadTimeout());
         return RestClient.builder()
                 .baseUrl(pgProperties.getBaseUrl())
-                .requestFactory(new JdkClientHttpRequestFactory(HttpClient.newHttpClient()))
+                .requestFactory(requestFactory)
                 .build();
     }
 }

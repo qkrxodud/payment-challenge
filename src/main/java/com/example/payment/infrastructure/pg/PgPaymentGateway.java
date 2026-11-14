@@ -6,12 +6,12 @@ import com.example.payment.global.error.exception.PaymentGatewayFailedException;
 import com.example.payment.global.error.exception.PaymentGatewayNoResponseException;
 import com.example.payment.infrastructure.pg.dto.PgConfirmRequest;
 import com.example.payment.infrastructure.pg.dto.PgErrorResponse;
+import java.io.IOException;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse;
 
 /**
  * PG 승인 API 호출. 2xx 는 승인, 4xx 는 거절로 읽는다.
@@ -35,8 +35,8 @@ public class PgPaymentGateway implements PaymentGateway {
         }
     }
 
-    private static PaymentApproval toApproval(String orderId, ConvertibleClientHttpResponse response)
-            throws java.io.IOException {
+    private static PaymentApproval toApproval(String orderId, RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse response)
+            throws IOException {
         if (response.getStatusCode().is2xxSuccessful()) {
             return PaymentApproval.approved();
         }

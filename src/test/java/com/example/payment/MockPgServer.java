@@ -44,6 +44,10 @@ public class MockPgServer {
         scenarios().change(Scenario.of(Duration.ZERO, Outcome.DECLINE));
     }
 
+    public void fail() {
+        scenarios().change(Scenario.of(Duration.ZERO, Outcome.FAIL));
+    }
+
     public void reset() {
         scenarios().reset();
     }

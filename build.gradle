@@ -52,8 +52,22 @@ jacoco {
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+	useJUnitPlatform {
+		// 계약을 지키지 못하는 비교 구현은 기본 빌드에서 빼고 knownFailingTest 로 따로 돌린다
+		excludeTags 'known-failing'
+	}
 	finalizedBy jacocoTestReport
+}
+
+tasks.register('knownFailingTest', Test) {
+	description = '계약 테스트를 지키지 못하는 비교 구현을 같은 테스트로 돌려 실패를 기록한다'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'known-failing'
+	}
+	ignoreFailures = true
 }
 
 def jacocoExcludes = ['com/example/payment/PaymentChallengeApplication*']

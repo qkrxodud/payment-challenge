@@ -7,7 +7,6 @@ public enum ErrorType {
     INVALID_INPUT,
     NOT_FOUND,
     CONFLICT,
-    DECLINED,
     UPSTREAM_FAILED,
     UPSTREAM_NO_RESPONSE,
     INTERNAL

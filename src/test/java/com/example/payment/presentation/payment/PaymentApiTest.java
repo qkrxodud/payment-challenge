@@ -94,6 +94,19 @@ class PaymentApiTest {
     }
 
     @Test
+    @DisplayName("카드사가 승인도 거절도 아닌 오류로 답하면 처리하지 못했다고 답한다")
+    void cardCompanyFailed() {
+        String orderId = newOrderId();
+        api.prepare(orderId, 15000);
+        mockPg.fail();
+
+        PaymentApi.Answer answer = api.confirm(orderId);
+
+        assertThat(answer.status()).isEqualTo(502);
+        assertThat(answer.field("code")).isEqualTo("PAYMENT_GATEWAY_FAILED");
+    }
+
+    @Test
     @DisplayName("없는 주문의 결제를 승인하려 하면 찾을 수 없다고 답한다")
     void confirmUnknown() {
         PaymentApi.Answer answer = api.confirm(newOrderId());
@@ -131,6 +144,28 @@ class PaymentApiTest {
 
         assertThat(answer.status()).isEqualTo(400);
         assertThat(answer.field("code")).isEqualTo("INVALID_INPUT");
+    }
+
+    @Test
+    @DisplayName("지원하지 않는 방식의 요청은 그 사유의 상태로 받지 않는다")
+    void unsupportedMethod() {
+        PaymentApi.Answer answer = api.delete(newOrderId());
+
+        assertThat(answer.status()).isEqualTo(405);
+        assertThat(answer.field("code")).isEqualTo("INVALID_REQUEST");
+    }
+
+    // 같은 요청을 같은 결과로 돌려주는 처리(멱등성)는 3장에서 다룬다. 지금은 주문번호 중복이 서버 오류로 끝난다
+    @Test
+    @DisplayName("같은 주문번호로 다시 준비하면 지금은 서버 오류로 답한다")
+    void prepareTwice() {
+        String orderId = newOrderId();
+        api.prepare(orderId, 15000);
+
+        PaymentApi.Answer answer = api.prepare(orderId, 15000);
+
+        assertThat(answer.status()).isEqualTo(500);
+        assertThat(answer.field("code")).isEqualTo("INTERNAL_ERROR");
     }
 
     private static String newOrderId() {

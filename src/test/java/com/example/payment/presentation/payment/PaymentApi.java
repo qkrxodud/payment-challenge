@@ -33,6 +33,10 @@ class PaymentApi {
         return send(HttpRequest.newBuilder(URI.create(baseUrl + "/" + orderId)).GET());
     }
 
+    Answer delete(String orderId) {
+        return send(HttpRequest.newBuilder(URI.create(baseUrl + "/" + orderId)).DELETE());
+    }
+
     Answer post(String path, String json) {
         return send(HttpRequest.newBuilder(URI.create(baseUrl + path))
                 .header("Content-Type", "application/json")

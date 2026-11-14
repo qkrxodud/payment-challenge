@@ -17,7 +17,6 @@ public enum ErrorCode {
     PAYMENT_NOT_FOUND(ErrorType.NOT_FOUND, "No payment was found for this order."),
     // 지금 결제 상태에서는 할 수 없는 요청(승인 전 매입, 취소 후 재승인 등)
     INVALID_PAYMENT_TRANSITION(ErrorType.CONFLICT, "This payment cannot be changed in its current status."),
-    PAYMENT_DECLINED(ErrorType.DECLINED, "The card company declined this payment."),
     // PG 가 승인도 거절도 아닌 답(5xx 등)을 줬다
     PAYMENT_GATEWAY_FAILED(ErrorType.UPSTREAM_FAILED, "The card company could not process this payment."),
     // PG 의 답을 정해진 시간 안에 받지 못했다. 승인됐는지 알 수 없다

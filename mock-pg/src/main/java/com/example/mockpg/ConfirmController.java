@@ -26,6 +26,10 @@ public class ConfirmController {
         } finally {
             scenarioStore.leave(request.orderId());
         }
+        if (scenario.getOutcome().isFail()) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("FAILED_INTERNAL_SYSTEM_PROCESSING", "The gateway failed to process this request."));
+        }
         if (scenario.getOutcome().isDecline()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ErrorResponse("CARD_REJECTED", "The card company rejected this payment."));

@@ -1,0 +1,18 @@
+tests=13 failures=6 errors=0 time=43.868s
+## 결제 승인 — 비교 A: 하나로 묶고 거절은 실패로 알림
+FAIL 카드사 답을 기다리는 승인이 연결 수만큼 있어도 다른 결제를 조회할 수 있다 (1.746s) | org.opentest4j.AssertionFailedError: expected: null but was: org.springframework.transaction.CannotCreateTransactionException: Could not open JPA EntityManager for transaction at o
+PASS 카드사 답이 정해진 시간 안에 오지 않으면 기다리지 않고 응답 없음을 알린다 (1.029s)
+PASS 카드사가 승인하면 결제는 승인 상태가 된다 (0.024s)
+FAIL 카드사가 승인을 거절하면 결제는 승인 거절 상태로 남는다 (0.02s) | org.opentest4j.AssertionFailedError: expected: APPROVAL_FAILED but was: READY
+## 결제 승인 — 비교 A': 하나로 묶되 거절로 실패해도 기록은 남김
+FAIL 카드사 답을 기다리는 승인이 연결 수만큼 있어도 다른 결제를 조회할 수 있다 (0.846s) | org.opentest4j.AssertionFailedError: expected: null but was: org.springframework.transaction.CannotCreateTransactionException: Could not open JPA EntityManager for transaction at o
+PASS 카드사 답이 정해진 시간 안에 오지 않으면 기다리지 않고 응답 없음을 알린다 (1.021s)
+PASS 카드사가 승인하면 결제는 승인 상태가 된다 (0.031s)
+PASS 카드사가 승인을 거절하면 결제는 승인 거절 상태로 남는다 (0.025s)
+## 결제 승인 — 비교: 같은 클래스 안에서 기록 메서드 부르기
+PASS 카드사 답을 기다리는 승인이 연결 수만큼 있어도 다른 결제를 조회할 수 있다 (0.861s)
+PASS 카드사 답이 정해진 시간 안에 오지 않으면 기다리지 않고 응답 없음을 알린다 (1.023s)
+FAIL 카드사가 승인하면 결제는 승인 상태가 된다 (0.031s) | com.example.payment.global.error.exception.InvalidPaymentTransitionException: Cannot APPROVE a payment in READY status.
+FAIL 카드사가 승인을 거절하면 결제는 승인 거절 상태로 남는다 (0.02s) | org.opentest4j.AssertionFailedError: expected: APPROVAL_FAILED but was: READY
+## 승인 대기 중 조회 — 비교: Open Session In View 켬
+FAIL 카드사 답을 기다리는 승인 요청이 연결 수만큼 있어도 다른 결제를 조회할 수 있다 (0.885s) | org.opentest4j.AssertionFailedError: expected: 200 but was: 500
