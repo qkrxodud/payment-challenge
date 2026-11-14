@@ -7,14 +7,16 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.web.firewall.RequestRejectedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * 모든 오류를 한 곳에서 {code, message} 응답으로 바꾼다.
- * - 업무 예외: ErrorCode 의 오류 종류로 상태 코드를 정한다.
+ * - 업무 예외: ErrorCode 의 오류 종류로 상태 코드를 정한다. 예외 문장에는 주문번호가 들어 있어 기록에는 오류 코드와 종류만 남긴다.
  * - 요청을 읽지 못함: 400. 해석 오류 문장에는 받은 글이 들어 있어 기록에는 종류만 남긴다.
+ * - 보안 방화벽이 요청을 거절함: 400, 기록에는 거절 종류만.
  * - 웹 계층이 거절한 요청(지원하지 않는 방식 등): 그 거절의 상태 코드 그대로.
  * - 그 밖의 문제: 500, 내부 사정은 로그에만 남긴다.
  */
@@ -25,7 +27,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(PaymentChallengeException.class)
     public ResponseEntity<ErrorResponse> handlePaymentChallenge(PaymentChallengeException refused) {
         ErrorCode errorCode = refused.getErrorCode();
-        log.info("Request refused with {}: {}", errorCode, refused.getMessage());
+        log.info("Request refused with {}: {}.", errorCode, refused.getClass().getSimpleName());
         return respond(statusOf(errorCode.getType()), errorCode);
     }
 
@@ -34,6 +36,14 @@ public class GlobalExceptionHandler {
         Throwable cause = NestedExceptionUtils.getMostSpecificCause(unreadable);
         log.info("Request could not be read: {}.", cause.getClass().getSimpleName());
         return respond(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_INPUT);
+    }
+
+    // 보안 방화벽(StrictHttpFirewall)이 경로·칸 이름·머리 값을 거절했다.
+    // 거절 문장에 받은 값이 그대로 들어 있으므로 기록에는 거절 종류만 남긴다
+    @ExceptionHandler(RequestRejectedException.class)
+    public ResponseEntity<ErrorResponse> handleFirewallRejected(RequestRejectedException rejected) {
+        log.info("Request rejected by the firewall: {}.", rejected.getClass().getSimpleName());
+        return respond(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_REQUEST);
     }
 
     @ExceptionHandler(Exception.class)
