@@ -34,7 +34,7 @@ public class Payment {
     @Column(name = "status", nullable = false, length = 30)
     private PaymentStatus status;
 
-    @Builder
+    @Builder(access = AccessLevel.PRIVATE)
     private Payment(String orderId, BigDecimal amount, PaymentStatus status) {
         this.orderId = orderId;
         this.amount = amount;
