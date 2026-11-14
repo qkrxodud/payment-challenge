@@ -14,6 +14,7 @@
 - `01-start-structure-test-result.txt`: 태그 `ch02-start`(트랜잭션 하나로 묶은 승인)에서 2장 테스트를 돌린 결과
 - `02-final-test-result.txt`: 태그 `ch02`에서 전체 테스트(`./gradlew check`)를 돌린 결과와 커버리지
 - `03-comparison-known-failing-result.txt`: 태그 `ch02`에서 `./gradlew knownFailingTest`로 계약을 못 지키는 비교 구현을 돌린 결과
+- `04-open-session-in-view-log.txt`: 같은 실행에서 Open Session In View 를 켠 비교의 결제 서버 로그 발췌(조회가 500 이 된 원인)
 
 계약 테스트(`PaymentConfirmContract`)와 승인 대기 중 조회 테스트(`PendingApprovalApiTest`)는 DB 연결을 2개, 연결 대기 시간을 250ms(Hikari 최솟값)로 줄여 돌린다.
 

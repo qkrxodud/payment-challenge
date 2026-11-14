@@ -1,0 +1,5 @@
+# OpenSessionInViewApiTest(spring.jpa.open-in-view=true) 실행 중 결제 서버 로그 발췌 — ./gradlew knownFailingTest
+2026-11-15T00:49:18.653+09:00 ERROR 29301 --- [payment-challenge] [o-auto-4-exec-6] c.e.p.g.error.GlobalExceptionHandler     : Unexpected server error.
+org.springframework.transaction.CannotCreateTransactionException: Could not open JPA EntityManager for transaction
+Caused by: org.hibernate.exception.JDBCConnectionException: Unable to acquire JDBC Connection [HikariPool-4 - Connection is not available, request timed out after 260ms (total=2, active=2, idle=0, waiting=0)] [n/a]
+Caused by: java.sql.SQLTransientConnectionException: HikariPool-4 - Connection is not available, request timed out after 260ms (total=2, active=2, idle=0, waiting=0)
