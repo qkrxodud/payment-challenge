@@ -113,7 +113,8 @@ public class Payment {
         }
     }
 
-    // 이 결제 키로 승인을 요청해 카드사 답까지 기록한 결제인가. 답을 기록하기 전(AUTHENTICATED)은 아니다
+    // 이 결제 키로 승인을 요청해 결과를 남긴 결제인가. 답을 받지 못한 결과 모름(APPROVAL_UNKNOWN)도 남긴 결과로 본다.
+    // 답을 기록하기 전(AUTHENTICATED)은 아니다
     public boolean isConfirmedWith(String requestedKey) {
         return Objects.nonNull(paymentKey)
                 && paymentKey.equals(requestedKey)

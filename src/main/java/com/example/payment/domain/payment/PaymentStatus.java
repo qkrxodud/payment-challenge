@@ -7,6 +7,7 @@ import static com.example.payment.domain.payment.PaymentAction.CAPTURE;
 import static com.example.payment.domain.payment.PaymentAction.EXPIRE;
 import static com.example.payment.domain.payment.PaymentAction.FAIL_APPROVAL;
 import static com.example.payment.domain.payment.PaymentAction.FAIL_AUTHENTICATION;
+import static com.example.payment.domain.payment.PaymentAction.MARK_APPROVAL_UNKNOWN;
 
 import com.example.payment.global.error.exception.InvalidPaymentTransitionException;
 import java.util.Collections;
@@ -37,7 +38,12 @@ public enum PaymentStatus {
 
         allow(AUTHENTICATED, APPROVE, APPROVED);
         allow(AUTHENTICATED, FAIL_APPROVAL, APPROVAL_FAILED);
+        allow(AUTHENTICATED, MARK_APPROVAL_UNKNOWN, APPROVAL_UNKNOWN);
         allow(AUTHENTICATED, EXPIRE, EXPIRED);
+
+        // 결과 모름은 카드사에 확인한 결과로만 닫는다. 승인이 남았을 수 있어 만료로 닫지 않는다
+        allow(APPROVAL_UNKNOWN, APPROVE, APPROVED);
+        allow(APPROVAL_UNKNOWN, FAIL_APPROVAL, APPROVAL_FAILED);
 
         allow(APPROVED, CAPTURE, CAPTURED);
         allow(APPROVED, CANCEL, APPROVAL_CANCELED);

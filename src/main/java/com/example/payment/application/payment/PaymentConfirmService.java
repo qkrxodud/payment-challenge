@@ -5,6 +5,7 @@ import com.example.payment.application.payment.dto.PaymentResult;
 import com.example.payment.domain.payment.Payment;
 import com.example.payment.domain.payment.PaymentApproval;
 import com.example.payment.domain.payment.PaymentGateway;
+import com.example.payment.global.error.exception.PaymentGatewayNoResponseException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
  * 거절도 결과로 기록하고 커밋한다 — 예외로 알리면 거절 기록까지 롤백된다.
  * PG 에는 요청 금액이 아니라 준비할 때 저장한 금액을 보낸다. 둘이 다르면 인증 단계에서 이미 거부된다.
  * 같은 결제 키의 요청이 다시 오면 PG 를 다시 부르지 않고 기록해 둔 결과로 답한다.
+ * PG 답을 정해진 시간 안에 받지 못하면 결과 모름으로 기록하고 응답 없음을 그대로 알린다(4장).
  */
 @Service
 @RequiredArgsConstructor
@@ -27,7 +29,17 @@ public class PaymentConfirmService {
         if (payment.isConfirmedWith(command.paymentKey())) {
             return PaymentResult.from(payment);
         }
-        PaymentApproval approval = paymentGateway.approve(command.paymentKey(), payment.getOrderId(), payment.getAmount());
+        PaymentApproval approval = requestApproval(command.paymentKey(), payment);
         return paymentRecorder.recordApproval(command.orderId(), approval);
+    }
+
+    // 답을 받지 못했어도 카드사에는 승인이 남았을 수 있다. 인증 상태로 두지 않고 결과 모름으로 남긴다
+    private PaymentApproval requestApproval(String paymentKey, Payment payment) {
+        try {
+            return paymentGateway.approve(paymentKey, payment.getOrderId(), payment.getAmount());
+        } catch (PaymentGatewayNoResponseException noResponse) {
+            paymentRecorder.recordApprovalUnknown(payment.getOrderId());
+            throw noResponse;
+        }
     }
 }

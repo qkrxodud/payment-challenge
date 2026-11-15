@@ -7,8 +7,10 @@ import static com.example.payment.domain.payment.PaymentAction.CAPTURE;
 import static com.example.payment.domain.payment.PaymentAction.EXPIRE;
 import static com.example.payment.domain.payment.PaymentAction.FAIL_APPROVAL;
 import static com.example.payment.domain.payment.PaymentAction.FAIL_AUTHENTICATION;
+import static com.example.payment.domain.payment.PaymentAction.MARK_APPROVAL_UNKNOWN;
 import static com.example.payment.domain.payment.PaymentStatus.APPROVAL_CANCELED;
 import static com.example.payment.domain.payment.PaymentStatus.APPROVAL_FAILED;
+import static com.example.payment.domain.payment.PaymentStatus.APPROVAL_UNKNOWN;
 import static com.example.payment.domain.payment.PaymentStatus.APPROVED;
 import static com.example.payment.domain.payment.PaymentStatus.AUTHENTICATED;
 import static com.example.payment.domain.payment.PaymentStatus.AUTH_FAILED;
@@ -55,7 +57,10 @@ public class StatemachinePayment {
                     .withExternal().source(READY).target(EXPIRED).event(EXPIRE).and()
                     .withExternal().source(AUTHENTICATED).target(APPROVED).event(APPROVE).and()
                     .withExternal().source(AUTHENTICATED).target(APPROVAL_FAILED).event(FAIL_APPROVAL).and()
+                    .withExternal().source(AUTHENTICATED).target(APPROVAL_UNKNOWN).event(MARK_APPROVAL_UNKNOWN).and()
                     .withExternal().source(AUTHENTICATED).target(EXPIRED).event(EXPIRE).and()
+                    .withExternal().source(APPROVAL_UNKNOWN).target(APPROVED).event(APPROVE).and()
+                    .withExternal().source(APPROVAL_UNKNOWN).target(APPROVAL_FAILED).event(FAIL_APPROVAL).and()
                     .withExternal().source(APPROVED).target(CAPTURED).event(CAPTURE).and()
                     .withExternal().source(APPROVED).target(APPROVAL_CANCELED).event(CANCEL).and()
                     .withExternal().source(CAPTURED).target(CAPTURE_CANCELED).event(CANCEL);

@@ -84,7 +84,15 @@ public class StatePatternPayment {
         PaymentStatus status() { return PaymentStatus.AUTHENTICATED; }
         State approve() { return new Approved(); }
         State failApproval() { return new Terminal(PaymentStatus.APPROVAL_FAILED); }
+        State markApprovalUnknown() { return new ApprovalUnknown(); }
         State expire() { return new Terminal(PaymentStatus.EXPIRED); }
+    }
+
+    /** 4장: 카드사 답을 받지 못한 결제. 카드사에 확인한 결과로만 닫는다 */
+    static class ApprovalUnknown extends State {
+        PaymentStatus status() { return PaymentStatus.APPROVAL_UNKNOWN; }
+        State approve() { return new Approved(); }
+        State failApproval() { return new Terminal(PaymentStatus.APPROVAL_FAILED); }
     }
 
     static class Approved extends State {

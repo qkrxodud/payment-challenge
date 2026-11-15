@@ -43,6 +43,12 @@ public class PaymentRecorder {
         return PaymentResult.from(payment);
     }
 
+    // 카드사 답을 받지 못했다. 승인됐는지 모른다는 것을 남겨 두고 나중에 카드사에 확인한다
+    @Transactional
+    public void recordApprovalUnknown(String orderId) {
+        find(orderId).markApprovalUnknown();
+    }
+
     private Payment find(String orderId) {
         return paymentRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new PaymentNotFoundException(orderId));
