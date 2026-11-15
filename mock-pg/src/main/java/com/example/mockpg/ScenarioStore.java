@@ -59,9 +59,13 @@ public class ScenarioStore {
                 || Optional.ofNullable(cancelsInFlight.get(orderId)).map(AtomicInteger::get).orElse(0) > 0;
     }
 
-    // 5장부터: 취소 요청을 받았다. 결제를 찾을 수 없는 요청은 세지 않는다
-    public void enterCancel(String orderId) {
+    // 5장부터: 취소 요청을 받았다. 같은 멱등키로 다시 와서 처음 응답을 돌려준 요청도 센다. 결제를 찾을 수 없는 요청은 세지 않는다
+    public void countCancelRequest(String orderId) {
         cancelRequests.computeIfAbsent(orderId, key -> new AtomicInteger()).incrementAndGet();
+    }
+
+    // 취소를 처리하기 시작한다(처리를 마칠 때까지 처리 중으로 본다)
+    public void enterCancel(String orderId) {
         cancelsInFlight.computeIfAbsent(orderId, key -> new AtomicInteger()).incrementAndGet();
     }
 

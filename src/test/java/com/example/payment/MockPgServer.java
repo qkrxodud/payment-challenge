@@ -103,7 +103,7 @@ public class MockPgServer {
         return scenarios().cancelCount(orderId);
     }
 
-    // 5장부터: 결과와 상관없이 취소 요청을 받은 횟수
+    // 5장부터: 결과와 상관없이 취소 요청을 받은 횟수(같은 멱등키로 다시 와 처음 응답을 돌려준 요청도 센다)
     public int cancelRequestCount(String orderId) {
         return scenarios().cancelRequestCount(orderId);
     }

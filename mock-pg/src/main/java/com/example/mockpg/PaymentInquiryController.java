@@ -47,6 +47,7 @@ public class PaymentInquiryController {
             waitFollowUpDelay();
             return notFound();
         }
+        scenarioStore.countCancelRequest(record.getOrderId());
         if (Objects.isNull(idempotencyKey)) {
             return cancel(record.getOrderId(), request);
         }
