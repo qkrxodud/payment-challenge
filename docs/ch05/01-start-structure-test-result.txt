@@ -1,0 +1,40 @@
+tests=37 failures=29 errors=0 time=36.572s
+## 결제 취소 — 운영 구현
+PASS 승인된 결제를 전액 취소하면 결제는 승인 취소 상태가 된다 (1.161s)
+FAIL 부분 취소를 두 번 하면 남은 금액이 카드사 잔액과 같다 (0.058s) | com.example.payment.global.error.exception.InvalidPaymentTransitionException: Cannot CANCEL a payment in APPROVAL_CANCELED status.
+FAIL 시간 제한을 넘긴 취소가 같은 Idempotency-Key 로 다시 와도 카드사에서 두 번 취소되지 않는다 (1.649s) | org.opentest4j.AssertionFailedError:  expected: 1  but was: 2
+FAIL 결과를 모르는 취소는 보정 뒤 남은 금액이 카드사 잔액과 같다 (1.606s) | com.example.payment.global.error.exception.CancelNotFoundException: No cancel with this idempotency key for order order-dddc1277-3c68-4f52-91d1-0784b90be53c.
+FAIL 같은 Idempotency-Key 로 다시 온 취소는 처음과 같은 답을 받는다 (0.064s) | com.example.payment.global.error.exception.InvalidPaymentTransitionException: Cannot CANCEL a payment in APPROVAL_CANCELED status.
+FAIL 남은 금액보다 큰 취소는 받지 않는다 (0.056s) | org.opentest4j.AssertionFailedError:  expected: CANCEL_AMOUNT_EXCEEDS_BALANCE  but was: PAYMENT_GATEWAY_FAILED
+PASS 전액 취소한 결제는 카드사에도 취소로 남는다 (0.046s)
+PASS 매입된 결제를 전액 취소하면 결제는 매입 취소 상태가 된다 (0.053s)
+FAIL 같은 Idempotency-Key 로 다시 온 취소는 카드사에 한 번만 보낸다 (0.049s) | org.opentest4j.AssertionFailedError:  expected: 1  but was: 2
+FAIL 부분 취소 뒤 남은 금액이 있으면 결제는 승인 상태 그대로다 (0.041s) | org.opentest4j.AssertionFailedError:  expected: APPROVED  but was: APPROVAL_CANCELED
+FAIL 승인 전 결제 (0.043s) | org.opentest4j.AssertionFailedError:  expected: INVALID_PAYMENT_TRANSITION  but was: PAYMENT_GATEWAY_FAILED
+FAIL 승인이 거절된 결제 (0.042s) | org.opentest4j.AssertionFailedError:  expected: INVALID_PAYMENT_TRANSITION  but was: PAYMENT_GATEWAY_FAILED
+PASS 승인 결과를 모르는 결제 (1.621s)
+FAIL 남은 금액보다 큰 취소는 카드사에 보내지 않는다 (0.049s) | org.opentest4j.AssertionFailedError:  expected: 1  but was: 2
+FAIL Idempotency-Key 가 다르면 같은 금액의 부분 취소도 두 번 모두 카드사에서 취소된다 (0.046s) | com.example.payment.global.error.exception.InvalidPaymentTransitionException: Cannot CANCEL a payment in APPROVAL_CANCELED status.
+FAIL 시간 제한을 넘긴 취소가 같은 Idempotency-Key 로 다시 오면 카드사 잔액과 같은 남은 금액으로 답한다 (1.62s) | org.opentest4j.AssertionFailedError:  expected: 5000.00  but was: 10000.00
+FAIL 카드사 취소 답이 시간 제한을 넘기면 그 취소는 결과 모름으로 남는다 (1.058s) | com.example.payment.global.error.exception.CancelNotFoundException: No cancel with this idempotency key for order order-70b38f9d-2d72-444f-8ee6-31052735a4a9.
+PASS 승인 전 결제 (0.021s)
+FAIL 승인이 거절된 결제 (0.035s) | org.opentest4j.AssertionFailedError:  expected: 0  but was: 1
+FAIL 승인 결과를 모르는 결제 (1.627s) | org.opentest4j.AssertionFailedError:  expected: 0  but was: 1
+FAIL 카드사 취소 뒤 결과 기록이 실패해도, 보정 뒤 남은 금액이 카드사 잔액과 같다 (0.053s) | org.springframework.jdbc.BadSqlGrammarException: StatementCallback; bad SQL grammar [create trigger block_cancel_record_update before update on payment_cancel for each row begin     if new.status = 'D
+FAIL 같은 Idempotency-Key 에 다른 금액이 오면 받지 않는다 (0.045s) | org.opentest4j.AssertionFailedError:  expected: IDEMPOTENCY_KEY_REUSED  but was: INVALID_PAYMENT_TRANSITION
+FAIL 부분 취소로 남은 금액이 0원이 되면 결제는 승인 취소 상태가 된다 (0.043s) | com.example.payment.global.error.exception.InvalidPaymentTransitionException: Cannot CANCEL a payment in APPROVAL_CANCELED status.
+FAIL 이미 전액 취소된 결제의 새 취소는 받지 않는다 (0.038s) | org.opentest4j.AssertionFailedError:  expected: INVALID_PAYMENT_TRANSITION  but was: PAYMENT_GATEWAY_FAILED
+## 결제 취소 API
+FAIL 같은 Idempotency-Key 로 다시 온 취소에는 처음과 같은 답을 준다 (0.098s) | org.opentest4j.AssertionFailedError:  expected: 200  but was: 409
+FAIL Idempotency-Key 없이 온 취소는 받지 않는다 (0.042s) | org.opentest4j.AssertionFailedError:  expected: 400  but was: 200
+FAIL 300자를 넘는 Idempotency-Key 로 온 취소는 받지 않는다 (0.039s) | org.opentest4j.AssertionFailedError:  expected: 400  but was: 200
+FAIL 승인 전 결제의 취소는 지금 상태에서는 할 수 없다고 답한다 (0.021s) | org.opentest4j.AssertionFailedError:  expected: 409  but was: 502
+FAIL 0원 이하의 취소 금액은 올바르지 않다고 답한다 (0.036s) | org.opentest4j.AssertionFailedError:  expected: 400  but was: 502
+FAIL 금액 없이 취소하면 남은 금액을 모두 취소한다 (0.057s) | org.opentest4j.AssertionFailedError:  expected: 200  but was: 502
+PASS 없는 주문의 결제를 취소하려 하면 찾을 수 없다고 답한다 (0.01s)
+FAIL 남은 금액보다 큰 취소는 지금 남은 금액으로는 할 수 없다고 답한다 (0.051s) | org.opentest4j.AssertionFailedError:  expected: 409  but was: 502
+FAIL 취소 사유 없이 온 취소는 받지 않는다 (0.042s) | org.opentest4j.AssertionFailedError:  expected: 400  but was: 200
+PASS 카드사 취소 답이 정해진 시간 안에 오지 않으면 결과를 알 수 없다고 답한다 (1.623s)
+PASS 승인된 결제를 부분 취소하면 취소한 금액과 남은 금액으로 답한다 (0.048s)
+FAIL 같은 Idempotency-Key 에 다른 금액이 오면 처리할 수 없는 요청이라고 답한다 (0.052s) | org.opentest4j.AssertionFailedError:  expected: 422  but was: 409
+FAIL 카드사가 아직 앞 취소를 처리하는 중에 같은 Idempotency-Key 로 다시 오면 확인 중이라고 답한다 (1.06s) | org.opentest4j.AssertionFailedError:  expected: 202  but was: 504
