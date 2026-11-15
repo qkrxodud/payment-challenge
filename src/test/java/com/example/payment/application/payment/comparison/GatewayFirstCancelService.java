@@ -19,7 +19,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * 비교 구현 C(5장 결정 4): 카드사 먼저 부르고 기록. 같은 키 확인과 받을 수 있는 취소인지 확인하는 규칙은 운영 구현과 같지만
  * 카드사에 보내기 전에는 아무것도 남기지 않고, 카드사가 답한 뒤에야 취소 한 건을 남긴다. 카드사 답을 받지 못하면 남는 것이 없다.
- * 카드사 호출은 트랜잭션 밖에서 한다.
+ * 카드사 호출은 트랜잭션 밖에서 하고, 카드사에 멱등키를 넘기는 것(결정 5)은 운영 구현과 같다.
  */
 @RequiredArgsConstructor
 public class GatewayFirstCancelService {
@@ -34,8 +34,8 @@ public class GatewayFirstCancelService {
         if (attempt.isRepeated()) {
             return attempt.repeated();
         }
-        CancelOutcome outcome = paymentGateway.cancel(attempt.paymentKey(), command.orderId(), attempt.amount(),
-                command.cancelReason());
+        CancelOutcome outcome = paymentGateway.cancel(attempt.paymentKey(), command.orderId(), command.idempotencyKey(),
+                attempt.amount(), command.cancelReason());
         return transactionTemplate.execute(status -> record(command, outcome));
     }
 

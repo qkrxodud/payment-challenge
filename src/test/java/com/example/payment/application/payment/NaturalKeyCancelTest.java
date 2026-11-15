@@ -17,12 +17,17 @@ class NaturalKeyCancelTest extends CancelContract {
     @Autowired
     NaturalKeyCancelService service;
 
+    @Autowired
+    PaymentCancelReconciler paymentCancelReconciler;
+
     @Override
     CancelResult cancel(CancelPaymentCommand command) {
         return service.cancel(command);
     }
 
+    // 같은 요청을 가리는 방법만 다르고 보정은 운영 구현과 같다
     @Override
     void reconcile() {
+        paymentCancelReconciler.reconcile(afterWaiting());
     }
 }

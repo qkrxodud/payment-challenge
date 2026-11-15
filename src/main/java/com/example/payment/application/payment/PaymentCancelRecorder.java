@@ -28,20 +28,25 @@ public class PaymentCancelRecorder {
     private final PaymentRepository paymentRepository;
     private final Clock clock;
 
-    // 같은 Idempotency-Key 로 이미 받은 취소면 그 결과를 돌려준다. 새 취소면 받을 수 있는지 보고 카드사 답을 기다리는 취소로 남긴다
+    // 같은 Idempotency-Key 로 이미 받은 취소가 결과를 남겼으면 그 결과를 돌려준다.
+    // 아직 카드사 답을 남기지 못한 취소면 같은 키로 카드사에 다시 보낸다(5장 결정 5 — 카드사도 같은 키에는 다시 취소하지 않는다).
+    // 새 취소면 받을 수 있는지 보고 카드사 답을 기다리는 취소로 남긴다
     @Transactional
     public CancelAttempt request(CancelPaymentCommand command) {
         Payment payment = find(command.orderId());
         CancelRequest request = requestOf(command);
         PaymentCancel repeated = payment.findRepeatedCancel(request).orElse(null);
-        if (Objects.nonNull(repeated)) {
-            return CancelAttempt.repeat(CancelResults.of(payment, repeated));
+        if (Objects.isNull(repeated)) {
+            PaymentCancel cancel = payment.requestCancel(request, clock.instant());
+            return CancelAttempt.send(payment.getPaymentKey(), cancel.getAmount());
         }
-        PaymentCancel cancel = payment.requestCancel(request, clock.instant());
-        return CancelAttempt.send(payment.getPaymentKey(), cancel.getAmount());
+        if (repeated.isAwaitingResult()) {
+            return CancelAttempt.send(payment.getPaymentKey(), repeated.getAmount());
+        }
+        return CancelAttempt.repeat(CancelResults.of(payment, repeated));
     }
 
-    // 카드사 답(취소 또는 거절)을 남긴다
+    // 카드사 답(취소 또는 거절)을 남긴다. 카드사가 같은 키의 앞 요청을 아직 처리 중이면 그대로 둔다
     @Transactional
     public CancelResult recordOutcome(String orderId, String idempotencyKey, CancelOutcome outcome) {
         Payment payment = find(orderId);
@@ -62,6 +67,9 @@ public class PaymentCancelRecorder {
     }
 
     private static PaymentCancel closeWith(Payment payment, String idempotencyKey, CancelOutcome outcome) {
+        if (outcome.isInProgress()) {
+            return payment.findCancel(idempotencyKey).orElseThrow();
+        }
         if (outcome.isCanceled()) {
             return payment.completeCancel(idempotencyKey, outcome.getCanceled());
         }
