@@ -4,6 +4,7 @@ import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
 import com.example.payment.application.payment.dto.PaymentResult;
 import com.example.payment.domain.payment.Payment;
 import com.example.payment.domain.payment.PaymentApproval;
+import com.example.payment.domain.payment.PaymentInquiry;
 import com.example.payment.domain.payment.PaymentRepository;
 import com.example.payment.global.error.exception.PaymentNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,15 @@ public class PaymentRecorder {
     @Transactional
     public void recordApprovalUnknown(String orderId) {
         find(orderId).markApprovalUnknown();
+    }
+
+    // 카드사에 확인한 결과를 남긴다. 그 사이 다른 길로 결과가 남은 결제는 건드리지 않는다
+    @Transactional
+    public void recordInquiry(String orderId, PaymentInquiry inquiry) {
+        Payment payment = find(orderId);
+        if (payment.isAwaitingApprovalResult()) {
+            payment.settle(inquiry);
+        }
     }
 
     private Payment find(String orderId) {

@@ -9,4 +9,7 @@ import java.math.BigDecimal;
 public interface PaymentGateway {
 
     PaymentApproval approve(String paymentKey, String orderId, BigDecimal amount);
+
+    // 4장부터: 주문번호로 카드사에 남은 결제 결과를 묻는다. 시간 안에 답이 없으면 승인과 같은 예외를 던진다
+    PaymentInquiry inquire(String orderId);
 }

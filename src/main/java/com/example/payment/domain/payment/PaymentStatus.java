@@ -55,6 +55,11 @@ public enum PaymentStatus {
         TRANSITIONS.computeIfAbsent(from, status -> new EnumMap<>(PaymentAction.class)).put(action, to);
     }
 
+    // 승인을 요청했지만 카드사 답을 아직 남기지 못한 상태인가(기록 전 인증, 결과 모름)
+    public boolean isAwaitingApprovalResult() {
+        return this == AUTHENTICATED || this == APPROVAL_UNKNOWN;
+    }
+
     public PaymentStatus next(PaymentAction action) {
         PaymentStatus to = TRANSITIONS.getOrDefault(this, Collections.emptyMap()).get(action);
         if (Objects.isNull(to)) {

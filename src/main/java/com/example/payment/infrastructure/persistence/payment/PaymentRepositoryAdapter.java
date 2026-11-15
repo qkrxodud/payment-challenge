@@ -2,6 +2,8 @@ package com.example.payment.infrastructure.persistence.payment;
 
 import com.example.payment.domain.payment.Payment;
 import com.example.payment.domain.payment.PaymentRepository;
+import com.example.payment.domain.payment.PaymentStatus;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -25,5 +27,10 @@ public class PaymentRepositoryAdapter implements PaymentRepository {
     @Override
     public Optional<Payment> findByOrderId(String orderId) {
         return springDataPaymentRepository.findByOrderId(orderId);
+    }
+
+    @Override
+    public List<Payment> findAllByStatus(PaymentStatus status) {
+        return springDataPaymentRepository.findAllByStatus(status);
     }
 }

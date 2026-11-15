@@ -2,10 +2,12 @@ package com.example.payment.infrastructure.pg;
 
 import com.example.payment.domain.payment.PaymentApproval;
 import com.example.payment.domain.payment.PaymentGateway;
+import com.example.payment.domain.payment.PaymentInquiry;
 import com.example.payment.global.error.exception.PaymentGatewayFailedException;
 import com.example.payment.global.error.exception.PaymentGatewayNoResponseException;
 import com.example.payment.infrastructure.pg.dto.PgConfirmRequest;
 import com.example.payment.infrastructure.pg.dto.PgErrorResponse;
+import com.example.payment.infrastructure.pg.dto.PgPaymentResponse;
 import java.io.IOException;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
@@ -16,10 +18,13 @@ import org.springframework.web.client.RestClient;
 /**
  * PG 승인 API 호출. 2xx 는 승인, 4xx 는 거절로 읽는다.
  * 연결·읽기 중 입출력 실패(시간 초과 포함)는 승인됐는지 알 수 없는 상태라 거절과 구분해 알린다.
+ * 4장부터 주문번호로 결제를 조회한다. 결제가 없다는 404(NOT_FOUND_PAYMENT)는 승인 요청이 닿지 않은 것으로 읽는다.
  */
 @Component
 @RequiredArgsConstructor
 public class PgPaymentGateway implements PaymentGateway {
+
+    private static final String PAYMENT_NOT_FOUND = "NOT_FOUND_PAYMENT";
 
     private final RestClient pgRestClient;
 
@@ -35,6 +40,17 @@ public class PgPaymentGateway implements PaymentGateway {
         }
     }
 
+    @Override
+    public PaymentInquiry inquire(String orderId) {
+        try {
+            return pgRestClient.get()
+                    .uri("/v1/payments/orders/{orderId}", orderId)
+                    .exchange((request, response) -> toInquiry(orderId, response));
+        } catch (ResourceAccessException noResponse) {
+            throw new PaymentGatewayNoResponseException(orderId);
+        }
+    }
+
     private static PaymentApproval toApproval(String orderId, RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse response)
             throws IOException {
         if (response.getStatusCode().is2xxSuccessful()) {
@@ -44,5 +60,23 @@ public class PgPaymentGateway implements PaymentGateway {
             return PaymentApproval.declined(response.bodyTo(PgErrorResponse.class).code());
         }
         throw new PaymentGatewayFailedException(orderId, response.getStatusCode().value());
+    }
+
+    private static PaymentInquiry toInquiry(String orderId, RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse response)
+            throws IOException {
+        if (response.getStatusCode().is2xxSuccessful()) {
+            return PgPaymentStatus.inquiryOf(response.bodyTo(PgPaymentResponse.class).status());
+        }
+        if (isPaymentNotFound(response)) {
+            return PaymentInquiry.NOT_APPROVED;
+        }
+        throw new PaymentGatewayFailedException(orderId, response.getStatusCode().value());
+    }
+
+    // 404 라도 결제가 없다는 답일 때만 기록 없음으로 읽는다. 주소를 잘못 부른 404 를 승인 없음으로 읽으면 안 된다
+    private static boolean isPaymentNotFound(RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse response)
+            throws IOException {
+        return response.getStatusCode().value() == 404
+                && PAYMENT_NOT_FOUND.equals(response.bodyTo(PgErrorResponse.class).code());
     }
 }

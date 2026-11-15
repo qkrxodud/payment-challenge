@@ -81,6 +81,17 @@ public class Payment {
         changeStatus(PaymentAction.MARK_APPROVAL_UNKNOWN);
     }
 
+    // 카드사에 확인한 결과로 결제를 닫는다. 카드사도 아직 처리 중이면 그대로 둔다
+    public void settle(PaymentInquiry inquiry) {
+        if (inquiry.isApproved()) {
+            approve();
+            return;
+        }
+        if (inquiry.isNotApproved()) {
+            failApproval();
+        }
+    }
+
     public void expire() {
         changeStatus(PaymentAction.EXPIRE);
     }
@@ -119,6 +130,10 @@ public class Payment {
         return Objects.nonNull(paymentKey)
                 && paymentKey.equals(requestedKey)
                 && status != PaymentStatus.AUTHENTICATED;
+    }
+
+    public boolean isAwaitingApprovalResult() {
+        return status.isAwaitingApprovalResult();
     }
 
     private boolean isDifferentAmount(BigDecimal requested) {

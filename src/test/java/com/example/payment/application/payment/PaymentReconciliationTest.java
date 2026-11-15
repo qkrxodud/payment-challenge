@@ -11,6 +11,9 @@ class PaymentReconciliationTest extends ReconciliationContract {
     @Autowired
     PaymentConfirmService paymentConfirmService;
 
+    @Autowired
+    PaymentReconciler paymentReconciler;
+
     @Override
     PaymentResult confirm(ConfirmPaymentCommand command) {
         return paymentConfirmService.confirm(command);
@@ -18,6 +21,6 @@ class PaymentReconciliationTest extends ReconciliationContract {
 
     @Override
     void reconcile() {
-        // 4장 출발 구조: 서버에는 카드사 기록에 맞추는 보정이 없다
+        paymentReconciler.reconcile();
     }
 }
