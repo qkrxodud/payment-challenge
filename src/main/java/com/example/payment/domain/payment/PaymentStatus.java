@@ -60,6 +60,10 @@ public enum PaymentStatus {
         return this == AUTHENTICATED || this == APPROVAL_UNKNOWN;
     }
 
+    public boolean isApprovalUnknown() {
+        return this == APPROVAL_UNKNOWN;
+    }
+
     public PaymentStatus next(PaymentAction action) {
         PaymentStatus to = TRANSITIONS.getOrDefault(this, Collections.emptyMap()).get(action);
         if (Objects.isNull(to)) {

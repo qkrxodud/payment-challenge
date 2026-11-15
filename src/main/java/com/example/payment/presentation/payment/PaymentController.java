@@ -4,12 +4,14 @@ import com.example.payment.application.payment.PaymentConfirmService;
 import com.example.payment.application.payment.PaymentPrepareService;
 import com.example.payment.application.payment.PaymentQueryService;
 import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
+import com.example.payment.application.payment.dto.PaymentResult;
 import com.example.payment.application.payment.dto.PreparePaymentCommand;
 import com.example.payment.presentation.payment.dto.ConfirmPaymentRequest;
 import com.example.payment.presentation.payment.dto.PaymentResponse;
 import com.example.payment.presentation.payment.dto.PreparePaymentRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,13 +38,23 @@ public class PaymentController {
 
     // 결제창 인증을 마친 고객이 돌아오면 PG 가 준 paymentKey 와 결제창에서 인증한 금액으로 승인을 요청한다
     @PostMapping("/{orderId}/confirm")
-    public PaymentResponse confirm(@PathVariable String orderId, @RequestBody ConfirmPaymentRequest request) {
-        return PaymentResponse.from(paymentConfirmService.confirm(
-                new ConfirmPaymentCommand(orderId, request.paymentKey(), request.amount())));
+    public ResponseEntity<PaymentResponse> confirm(@PathVariable String orderId, @RequestBody ConfirmPaymentRequest request) {
+        PaymentResult result = paymentConfirmService.confirm(
+                new ConfirmPaymentCommand(orderId, request.paymentKey(), request.amount()));
+        return ResponseEntity.status(statusOf(result)).body(PaymentResponse.from(result));
     }
 
     @GetMapping("/{orderId}")
     public PaymentResponse find(@PathVariable String orderId) {
         return PaymentResponse.from(paymentQueryService.find(orderId));
+    }
+
+    // 결과를 모르는 결제에 다시 온 승인 요청: 카드사에 다시 묻지 않고 확인 중이라는 뜻으로 202 를 준다(4장).
+    // 처음 요청이 시간 초과로 끝날 때는 504(PAYMENT_GATEWAY_NO_RESPONSE)를 그대로 준다
+    private static HttpStatus statusOf(PaymentResult result) {
+        if (result.status().isApprovalUnknown()) {
+            return HttpStatus.ACCEPTED;
+        }
+        return HttpStatus.OK;
     }
 }
