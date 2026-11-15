@@ -25,8 +25,14 @@ class PaymentApi {
         return post("", "{\"orderId\":\"" + orderId + "\",\"amount\":" + amount + "}");
     }
 
-    Answer confirm(String orderId) {
-        return post("/" + orderId + "/confirm", "{\"paymentKey\":\"key-" + orderId + "\"}");
+    Answer confirm(String orderId, long amount) {
+        return confirm(orderId, "key-" + orderId, String.valueOf(amount));
+    }
+
+    // 금액은 JSON 에 적힌 그대로 보낸다(빈 값, 소수 자릿수 등을 시험하려고 글자로 받는다)
+    Answer confirm(String orderId, String paymentKey, String amount) {
+        return post("/" + orderId + "/confirm",
+                "{\"paymentKey\":\"" + paymentKey + "\",\"amount\":" + amount + "}");
     }
 
     Answer find(String orderId) {

@@ -62,7 +62,7 @@ abstract class PaymentConfirmContract {
     void approvedByCardCompany() {
         String orderId = prepare();
 
-        confirm(new ConfirmPaymentCommand(orderId, "key-" + orderId));
+        confirm(new ConfirmPaymentCommand(orderId, "key-" + orderId, new BigDecimal("15000")));
 
         assertThat(statusOf(orderId)).isEqualTo(PaymentStatus.APPROVED);
     }
@@ -73,7 +73,7 @@ abstract class PaymentConfirmContract {
         String orderId = prepare();
         mockPg.decline();
 
-        catchThrowable(() -> confirm(new ConfirmPaymentCommand(orderId, "key-" + orderId)));
+        catchThrowable(() -> confirm(new ConfirmPaymentCommand(orderId, "key-" + orderId, new BigDecimal("15000"))));
 
         assertThat(statusOf(orderId)).isEqualTo(PaymentStatus.APPROVAL_FAILED);
     }
@@ -88,7 +88,7 @@ abstract class PaymentConfirmContract {
         CompletableFuture<?>[] approvals = new CompletableFuture<?>[CONNECTIONS];
         for (int i = 0; i < CONNECTIONS; i++) {
             String orderId = waiting[i];
-            approvals[i] = CompletableFuture.runAsync(() -> confirm(new ConfirmPaymentCommand(orderId, "key-" + orderId)));
+            approvals[i] = CompletableFuture.runAsync(() -> confirm(new ConfirmPaymentCommand(orderId, "key-" + orderId, new BigDecimal("15000"))));
         }
         await().atMost(Duration.ofSeconds(5))
                 .until(() -> mockPg.isWaiting(waiting[0]) && mockPg.isWaiting(waiting[1]));
@@ -107,7 +107,7 @@ abstract class PaymentConfirmContract {
         mockPg.respondAfter(Duration.ofSeconds(3));
 
         long started = System.nanoTime();
-        Throwable failure = catchThrowable(() -> confirm(new ConfirmPaymentCommand(orderId, "key-" + orderId)));
+        Throwable failure = catchThrowable(() -> confirm(new ConfirmPaymentCommand(orderId, "key-" + orderId, new BigDecimal("15000"))));
         Duration waited = Duration.ofNanos(System.nanoTime() - started);
 
         assertThat(failure).isInstanceOf(PaymentGatewayNoResponseException.class);

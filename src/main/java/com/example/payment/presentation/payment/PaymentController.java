@@ -34,11 +34,11 @@ public class PaymentController {
                 new PreparePaymentCommand(request.orderId(), request.amount())));
     }
 
-    // 결제창 인증을 마친 고객이 돌아오면 PG 가 준 paymentKey 로 승인을 요청한다
+    // 결제창 인증을 마친 고객이 돌아오면 PG 가 준 paymentKey 와 결제창에서 인증한 금액으로 승인을 요청한다
     @PostMapping("/{orderId}/confirm")
     public PaymentResponse confirm(@PathVariable String orderId, @RequestBody ConfirmPaymentRequest request) {
         return PaymentResponse.from(paymentConfirmService.confirm(
-                new ConfirmPaymentCommand(orderId, request.paymentKey())));
+                new ConfirmPaymentCommand(orderId, request.paymentKey(), request.amount())));
     }
 
     @GetMapping("/{orderId}")

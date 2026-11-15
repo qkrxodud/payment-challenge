@@ -58,8 +58,8 @@ class PendingApprovalApiTest {
         api.prepare(second, 15000);
         mockPg.respondAfter(Duration.ofMillis(800));
 
-        CompletableFuture<?> firstApproval = CompletableFuture.runAsync(() -> api.confirm(first));
-        CompletableFuture<?> secondApproval = CompletableFuture.runAsync(() -> api.confirm(second));
+        CompletableFuture<?> firstApproval = CompletableFuture.runAsync(() -> api.confirm(first, 15000));
+        CompletableFuture<?> secondApproval = CompletableFuture.runAsync(() -> api.confirm(second, 15000));
         await().atMost(Duration.ofSeconds(5)).until(() -> mockPg.isWaiting(first) && mockPg.isWaiting(second));
 
         int lookupStatus = api.find(other).status();

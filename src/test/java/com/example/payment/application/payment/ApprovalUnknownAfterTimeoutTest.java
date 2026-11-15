@@ -53,7 +53,7 @@ class ApprovalUnknownAfterTimeoutTest {
         paymentPrepareService.prepare(new PreparePaymentCommand(orderId, new BigDecimal("15000")));
         mockPg.respondAfter(Duration.ofMillis(1500));
 
-        Throwable failure = catchThrowable(() -> paymentConfirmService.confirm(new ConfirmPaymentCommand(orderId, "key-" + orderId)));
+        Throwable failure = catchThrowable(() -> paymentConfirmService.confirm(new ConfirmPaymentCommand(orderId, "key-" + orderId, new BigDecimal("15000"))));
 
         assertThat(failure).isInstanceOf(PaymentGatewayNoResponseException.class);
         assertThat(paymentQueryService.find(orderId).status()).isEqualTo(PaymentStatus.AUTHENTICATED);

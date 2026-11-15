@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
  * 결제 승인. 트랜잭션을 둘로 나누고 PG 호출은 그 사이, 트랜잭션 밖에서 한다.
  * PG 답을 기다리는 동안 DB 연결을 붙잡지 않기 위해서다.
  * 거절도 결과로 기록하고 커밋한다 — 예외로 알리면 거절 기록까지 롤백된다.
+ * PG 에는 고객이 결제창에서 인증하고 돌아와 보낸 금액으로 승인을 요청한다.
  */
 @Service
 @RequiredArgsConstructor
@@ -22,7 +23,7 @@ public class PaymentConfirmService {
 
     public PaymentResult confirm(ConfirmPaymentCommand command) {
         Payment payment = paymentRecorder.authenticate(command.orderId());
-        PaymentApproval approval = paymentGateway.approve(command.paymentKey(), payment.getOrderId(), payment.getAmount());
+        PaymentApproval approval = paymentGateway.approve(command.paymentKey(), payment.getOrderId(), command.amount());
         return paymentRecorder.recordApproval(command.orderId(), approval);
     }
 }

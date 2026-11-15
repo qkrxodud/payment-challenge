@@ -1,4 +1,6 @@
 package com.example.payment.application.payment.dto;
 
-public record ConfirmPaymentCommand(String orderId, String paymentKey) {
+import java.math.BigDecimal;
+
+public record ConfirmPaymentCommand(String orderId, String paymentKey, BigDecimal amount) {
 }

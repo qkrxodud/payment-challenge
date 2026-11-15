@@ -69,7 +69,7 @@ class ApprovalRecordFailureTest {
     void splitBoundaryLeavesAuthenticated() {
         String orderId = prepare();
 
-        Throwable failure = catchThrowable(() -> paymentConfirmService.confirm(new ConfirmPaymentCommand(orderId, "key-" + orderId)));
+        Throwable failure = catchThrowable(() -> paymentConfirmService.confirm(new ConfirmPaymentCommand(orderId, "key-" + orderId, new BigDecimal("15000"))));
 
         assertThat(failure).isNotNull();
         assertThat(mockPg.approvalCount(orderId)).isEqualTo(1);
@@ -81,7 +81,7 @@ class ApprovalRecordFailureTest {
     void singleBoundaryLeavesReady() {
         String orderId = prepare();
 
-        Throwable failure = catchThrowable(() -> inTransactionConfirmService.confirm(new ConfirmPaymentCommand(orderId, "key-" + orderId)));
+        Throwable failure = catchThrowable(() -> inTransactionConfirmService.confirm(new ConfirmPaymentCommand(orderId, "key-" + orderId, new BigDecimal("15000"))));
 
         assertThat(failure).isNotNull();
         assertThat(mockPg.approvalCount(orderId)).isEqualTo(1);

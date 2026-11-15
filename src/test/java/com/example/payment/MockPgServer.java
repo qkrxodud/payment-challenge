@@ -4,7 +4,9 @@ import com.example.mockpg.MockPgApplication;
 import com.example.mockpg.Outcome;
 import com.example.mockpg.Scenario;
 import com.example.mockpg.ScenarioStore;
+import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.List;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
 
@@ -58,6 +60,10 @@ public class MockPgServer {
 
     public int approvalCount(String orderId) {
         return scenarios().approvalCount(orderId);
+    }
+
+    public List<BigDecimal> approvedAmounts(String orderId) {
+        return scenarios().approvedAmounts(orderId);
     }
 
     public void stop() {
