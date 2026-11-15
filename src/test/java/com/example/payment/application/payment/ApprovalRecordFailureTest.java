@@ -22,8 +22,10 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * 이 장에서 해결하지 않는 한계를 기록한다: PG 가 승인한 뒤 우리 쪽 승인 기록이 실패하는 경우.
+ * 2장이 기록한 한계: PG 가 승인한 뒤 우리 쪽 승인 기록이 실패하는 경우.
  * 승인 상태로 바꾸는 저장을 MySQL 트리거로 막아 기록 실패를 만든다.
+ * 실패 직후의 상태는 4장에서도 같다. 4장부터 인증 상태로 남은 결제는 보정 대기 시간이 지나면 보정 대상이 되어
+ * 카드사 기록에 맞춰진다(ReconciliationContract). 하나로 묶은 구조가 남기는 준비 상태는 보정 대상이 아니다.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @Import({TestcontainersConfiguration.class, MockPgConfiguration.class, InTransactionConfirmService.class})
