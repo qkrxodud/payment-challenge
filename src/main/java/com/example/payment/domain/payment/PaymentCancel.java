@@ -12,6 +12,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -62,28 +64,49 @@ public class PaymentCancel {
     @Column(name = "balance_after", precision = 19, scale = 2)
     private BigDecimal balanceAfter;
 
+    // 카드사에 취소를 요청하려고 기록한 때. 카드사가 처리를 마쳤을 만큼 시간이 지난 취소만 보정한다
+    @Column(name = "requested_at", nullable = false, updatable = false)
+    private Instant requestedAt;
+
     @Builder(access = AccessLevel.PRIVATE)
     private PaymentCancel(Payment payment, String idempotencyKey, String requestDigest, BigDecimal amount, String reason,
-                          CancelStatus status, String transactionKey) {
+                          CancelStatus status, Instant requestedAt) {
         this.payment = payment;
         this.idempotencyKey = idempotencyKey;
         this.requestDigest = requestDigest;
         this.amount = amount;
         this.reason = reason;
         this.status = status;
-        this.transactionKey = transactionKey;
+        this.requestedAt = requestedAt;
     }
 
-    static PaymentCancel done(Payment payment, CancelRequest request, BigDecimal amount, String transactionKey) {
+    static PaymentCancel requested(Payment payment, CancelRequest request, BigDecimal amount, Instant now) {
         return PaymentCancel.builder()
                 .payment(payment)
                 .idempotencyKey(request.getIdempotencyKey())
                 .requestDigest(request.requestDigest())
                 .amount(amount)
                 .reason(request.getReason())
-                .status(CancelStatus.DONE)
-                .transactionKey(transactionKey)
+                .status(CancelStatus.REQUESTED)
+                .requestedAt(now)
                 .build();
+    }
+
+    void complete(String transactionKey) {
+        this.status = CancelStatus.DONE;
+        this.transactionKey = transactionKey;
+    }
+
+    void fail(BigDecimal balance) {
+        this.status = CancelStatus.FAILED;
+        this.balanceAfter = balance;
+    }
+
+    // 이미 결과를 남긴 취소는 결과 모름으로 되돌리지 않는다
+    void markUnknown() {
+        if (isAwaitingResult()) {
+            this.status = CancelStatus.UNKNOWN;
+        }
     }
 
     void keepBalance(BigDecimal balance) {
@@ -92,6 +115,22 @@ public class PaymentCancel {
 
     public boolean isDone() {
         return status.isDone();
+    }
+
+    public boolean isAwaitingResult() {
+        return status.isAwaitingResult();
+    }
+
+    boolean isAwaitingResultBefore(Instant requestedBefore) {
+        return isAwaitingResult() && requestedAt.isBefore(requestedBefore);
+    }
+
+    boolean hasAmount(BigDecimal other) {
+        return amount.compareTo(other) == 0;
+    }
+
+    boolean hasTransactionKey(String other) {
+        return Objects.nonNull(transactionKey) && transactionKey.equals(other);
     }
 
     boolean isRequestedWith(String requestedKey) {

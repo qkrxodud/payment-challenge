@@ -10,4 +10,9 @@ public enum CancelStatus {
     public boolean isDone() {
         return this == DONE;
     }
+
+    // 카드사 답을 아직 남기지 못한 취소(요청 기록 뒤 답 전, 결과 모름)
+    public boolean isAwaitingResult() {
+        return this == REQUESTED || this == UNKNOWN;
+    }
 }

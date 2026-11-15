@@ -5,6 +5,7 @@ import com.example.payment.application.payment.PaymentConfirmService;
 import com.example.payment.application.payment.PaymentPrepareService;
 import com.example.payment.application.payment.PaymentQueryService;
 import com.example.payment.application.payment.dto.CancelPaymentCommand;
+import com.example.payment.application.payment.dto.CancelResult;
 import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
 import com.example.payment.application.payment.dto.PaymentResult;
 import com.example.payment.application.payment.dto.PreparePaymentCommand;
@@ -50,13 +51,15 @@ public class PaymentController {
         return ResponseEntity.status(statusOf(result)).body(PaymentResponse.from(result));
     }
 
-    // 5장: 승인된 결제를 취소한다. 금액이 없으면 남은 금액을 모두 취소한다
+    // 5장: 승인된 결제를 취소한다. 금액이 없으면 남은 금액을 모두 취소한다.
+    // Idempotency-Key 가 없으면 서비스가 400 으로 거부한다(머리가 없을 때도 같은 오류 응답 모양으로 답하려고 여기서 막지 않는다)
     @PostMapping("/{orderId}/cancel")
-    public CancelResponse cancel(@PathVariable String orderId,
-                                 @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
-                                 @RequestBody CancelPaymentRequest request) {
-        return CancelResponse.from(paymentCancelService.cancel(
-                new CancelPaymentCommand(orderId, idempotencyKey, request.cancelAmount(), request.cancelReason())));
+    public ResponseEntity<CancelResponse> cancel(@PathVariable String orderId,
+                                                 @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+                                                 @RequestBody CancelPaymentRequest request) {
+        CancelResult result = paymentCancelService.cancel(
+                new CancelPaymentCommand(orderId, idempotencyKey, request.cancelAmount(), request.cancelReason()));
+        return ResponseEntity.status(statusOf(result)).body(CancelResponse.from(result));
     }
 
     @GetMapping("/{orderId}")
@@ -68,6 +71,14 @@ public class PaymentController {
     // 처음 요청이 시간 초과로 끝날 때는 504(PAYMENT_GATEWAY_NO_RESPONSE)를 그대로 준다
     private static HttpStatus statusOf(PaymentResult result) {
         if (result.status().isApprovalUnknown()) {
+            return HttpStatus.ACCEPTED;
+        }
+        return HttpStatus.OK;
+    }
+
+    // 결과를 모르는 취소에 같은 키로 다시 온 요청: 확인 중이라는 뜻으로 202 를 준다(5장). 처음 요청의 시간 초과는 504 그대로
+    private static HttpStatus statusOf(CancelResult result) {
+        if (result.cancelStatus().isAwaitingResult()) {
             return HttpStatus.ACCEPTED;
         }
         return HttpStatus.OK;

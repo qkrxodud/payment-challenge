@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 class PaymentBalanceTest {
 
     private static final Instant AUTHENTICATED_AT = Instant.parse("2026-11-16T01:00:00Z");
+    private static final Instant REQUESTED_AT = Instant.parse("2026-11-16T02:00:00Z");
     private static final String REASON = "Customer changed their mind";
 
     @Test
@@ -20,7 +21,8 @@ class PaymentBalanceTest {
         Payment payment = approvedPayment();
 
         // when
-        payment.recordCancel(request("cancel-1"), new BigDecimal("5000"), GatewayCancel.of("tx-1", new BigDecimal("5000")));
+        payment.requestCancel(request("cancel-1"), REQUESTED_AT);
+        payment.completeCancel("cancel-1", GatewayCancel.of("tx-1", new BigDecimal("5000")));
 
         // then
         assertThat(payment.balanceAmount()).isEqualByComparingTo("10000");
@@ -33,7 +35,8 @@ class PaymentBalanceTest {
         Payment payment = approvedPayment();
 
         // when
-        payment.recordCancel(request("cancel-1"), new BigDecimal("5000"), GatewayCancel.of("tx-1", new BigDecimal("5000")));
+        payment.requestCancel(request("cancel-1"), REQUESTED_AT);
+        payment.completeCancel("cancel-1", GatewayCancel.of("tx-1", new BigDecimal("5000")));
 
         // then
         assertThat(payment.findCancel("cancel-1")).get()

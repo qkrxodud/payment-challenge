@@ -25,7 +25,10 @@ create table if not exists payment_cancel (
     transaction_key varchar(200),
     -- 이 취소가 끝난 뒤 남은 금액. 같은 키로 다시 온 요청에 처음과 같은 답을 주려고 남긴다
     balance_after   decimal(19, 2),
+    -- 카드사에 취소를 요청하려고 기록한 때. 보정은 상태와 이 시각으로 대상을 고른다
+    requested_at    datetime(6)    not null,
     primary key (id),
     unique key uk_payment_cancel_idempotency_key (payment_id, idempotency_key),
+    key idx_payment_cancel_status_requested_at (status, requested_at),
     constraint fk_payment_cancel_payment foreign key (payment_id) references payment (id)
 );

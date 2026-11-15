@@ -2,6 +2,7 @@ package com.example.payment.domain.payment;
 
 import com.example.payment.global.error.exception.AmountMismatchException;
 import com.example.payment.global.error.exception.CancelAmountExceedsBalanceException;
+import com.example.payment.global.error.exception.CancelNotFoundException;
 import com.example.payment.global.error.exception.DuplicateOrderException;
 import com.example.payment.global.error.exception.IdempotencyKeyReusedException;
 import com.example.payment.global.error.exception.InvalidAmountException;
@@ -22,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Predicate;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -135,30 +137,84 @@ public class Payment {
         throw new IdempotencyKeyReusedException(orderId);
     }
 
-    // 카드사에 보내기 전에 취소를 받을 수 있는지 보고 취소할 금액을 정한다(5장). 금액이 없으면 남은 금액 전부를 취소한다.
-    // 승인이 남은 결제(승인, 매입)만, 남은 금액 안에서만 받는다
-    public BigDecimal checkCancel(CancelRequest request) {
+    // 카드사에 보내기 전에 취소를 받을 수 있는지 보고, 받으면 카드사 답을 기다리는 취소로 남긴다(5장 결정 2·4).
+    // 승인이 남은 결제(승인, 매입)만, 더 취소할 수 있는 금액 안에서만 받는다. 금액이 없으면 그 금액 전부를 취소한다
+    public PaymentCancel requestCancel(CancelRequest request, Instant now) {
+        PaymentCancel cancel = PaymentCancel.requested(this, request, checkCancel(request), now);
+        cancels.add(cancel);
+        return cancel;
+    }
+
+    private BigDecimal checkCancel(CancelRequest request) {
         if (status.refuses(PaymentAction.CANCEL)) {
             throw new InvalidPaymentTransitionException(status.name(), PaymentAction.CANCEL.name());
         }
-        BigDecimal cancelAmount = Objects.requireNonNullElse(request.getRequestedAmount(), balanceAmount());
+        BigDecimal cancelAmount = Objects.requireNonNullElse(request.getRequestedAmount(), cancelableAmount());
         if (isNotPositive(cancelAmount)) {
             throw new InvalidAmountException(orderId);
         }
-        if (cancelAmount.compareTo(balanceAmount()) > 0) {
+        if (cancelAmount.compareTo(cancelableAmount()) > 0) {
             throw new CancelAmountExceedsBalanceException(orderId);
         }
         return cancelAmount;
     }
 
-    // 카드사가 취소한 결과를 취소 한 건으로 남긴다(5장). 결제 상태는 그대로 두고, 남은 금액이 0원이 되면 취소 상태로 바꾼다.
-    // 그때의 남은 금액을 취소 기록에도 남겨 같은 요청이 다시 오면 처음과 같은 답을 준다
-    public PaymentCancel recordCancel(CancelRequest request, BigDecimal cancelAmount, GatewayCancel canceled) {
-        PaymentCancel cancel = PaymentCancel.done(this, request, cancelAmount, canceled.getTransactionKey());
-        cancels.add(cancel);
+    // 카드사가 취소했다. 결제 상태는 그대로 두고, 남은 금액이 0원이 되면 취소 상태로 바꾼다.
+    // 그 사이 보정이 먼저 결과를 남겼으면 건드리지 않는다
+    public PaymentCancel completeCancel(String idempotencyKey, GatewayCancel canceled) {
+        PaymentCancel cancel = awaitingCancel(idempotencyKey);
+        if (cancel.isAwaitingResult()) {
+            complete(cancel, canceled.getTransactionKey());
+        }
+        return cancel;
+    }
+
+    // 카드사가 취소를 거절했다. 남은 금액은 그대로다
+    public PaymentCancel failCancel(String idempotencyKey) {
+        PaymentCancel cancel = awaitingCancel(idempotencyKey);
+        if (cancel.isAwaitingResult()) {
+            cancel.fail(balanceAmount());
+        }
+        return cancel;
+    }
+
+    // 카드사에 취소를 보냈지만 답을 받지 못했다. 취소됐을 수 있어 나중에 카드사 기록으로 맞춘다
+    public void markCancelUnknown(String idempotencyKey) {
+        awaitingCancel(idempotencyKey).markUnknown();
+    }
+
+    // 카드사에 남은 취소로 결과를 기다리는 취소를 닫는다(5장 결정 4). 정한 때보다 먼저 요청한 취소만 본다.
+    // 우리가 아직 모르는 카드사 취소 가운데 같은 금액이 있으면 그 취소로 끝난 것으로, 없으면 카드사가 취소하지 않은 것으로 본다
+    public void settleCancels(List<GatewayCancel> gatewayCancels, Instant requestedBefore) {
+        List<GatewayCancel> unmatched = new ArrayList<>(gatewayCancels.stream()
+                .filter(this::isUnknownTransaction)
+                .toList());
+        cancels.stream()
+                .filter(cancel -> cancel.isAwaitingResultBefore(requestedBefore))
+                .forEach(cancel -> settle(cancel, unmatched));
+    }
+
+    private void settle(PaymentCancel cancel, List<GatewayCancel> unmatched) {
+        GatewayCancel matched = unmatched.stream()
+                .filter(gatewayCancel -> cancel.hasAmount(gatewayCancel.getAmount()))
+                .findFirst()
+                .orElse(null);
+        if (Objects.isNull(matched)) {
+            cancel.fail(balanceAmount());
+            return;
+        }
+        unmatched.remove(matched);
+        complete(cancel, matched.getTransactionKey());
+    }
+
+    private boolean isUnknownTransaction(GatewayCancel gatewayCancel) {
+        return cancels.stream().noneMatch(cancel -> cancel.hasTransactionKey(gatewayCancel.getTransactionKey()));
+    }
+
+    private void complete(PaymentCancel cancel, String transactionKey) {
+        cancel.complete(transactionKey);
         cancel.keepBalance(balanceAmount());
         cancelIfNothingLeft();
-        return cancel;
     }
 
     private void cancelIfNothingLeft() {
@@ -167,9 +223,14 @@ public class Payment {
         }
     }
 
-    // 더 취소할 수 있는 금액: 결제 금액에서 끝난 취소를 뺀 값
+    // 카드사가 취소한 뒤 남은 금액: 결제 금액에서 끝난 취소를 뺀 값
     public BigDecimal balanceAmount() {
-        return amount.subtract(canceledAmount());
+        return amount.subtract(sumOf(PaymentCancel::isDone));
+    }
+
+    // 새 취소로 받을 수 있는 금액: 남은 금액에서 카드사 답을 기다리는 취소까지 뺀 값
+    private BigDecimal cancelableAmount() {
+        return balanceAmount().subtract(sumOf(PaymentCancel::isAwaitingResult));
     }
 
     // 받은 순서대로의 취소. 바꿀 수 없는 사본이다
@@ -183,9 +244,14 @@ public class Payment {
                 .findFirst();
     }
 
-    private BigDecimal canceledAmount() {
+    private PaymentCancel awaitingCancel(String idempotencyKey) {
+        return findCancel(idempotencyKey)
+                .orElseThrow(() -> new CancelNotFoundException(orderId));
+    }
+
+    private BigDecimal sumOf(Predicate<PaymentCancel> condition) {
         return cancels.stream()
-                .filter(PaymentCancel::isDone)
+                .filter(condition)
                 .map(PaymentCancel::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }

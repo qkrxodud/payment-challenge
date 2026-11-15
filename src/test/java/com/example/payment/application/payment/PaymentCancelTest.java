@@ -11,13 +11,16 @@ class PaymentCancelTest extends CancelContract {
     @Autowired
     PaymentCancelService paymentCancelService;
 
+    @Autowired
+    PaymentCancelReconciler paymentCancelReconciler;
+
     @Override
     CancelResult cancel(CancelPaymentCommand command) {
         return paymentCancelService.cancel(command);
     }
 
-    // 출발 구조에는 취소 보정이 없다
     @Override
     void reconcile() {
+        paymentCancelReconciler.reconcile(afterWaiting());
     }
 }

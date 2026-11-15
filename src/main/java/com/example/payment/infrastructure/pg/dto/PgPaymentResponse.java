@@ -8,7 +8,17 @@ public record PgPaymentResponse(String orderId, String status, List<PgCancel> ca
 
     // 취소 응답의 마지막 취소가 방금 요청한 취소다
     public PgCancel lastCancel() {
-        List<PgCancel> known = Objects.requireNonNullElse(cancels, List.of());
+        List<PgCancel> known = knownCancels();
         return known.get(known.size() - 1);
+    }
+
+    public List<PgCancel> doneCancels() {
+        return knownCancels().stream()
+                .filter(PgCancel::isDone)
+                .toList();
+    }
+
+    private List<PgCancel> knownCancels() {
+        return Objects.requireNonNullElse(cancels, List.of());
     }
 }

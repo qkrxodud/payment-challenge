@@ -22,6 +22,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 class CancelRequestTest {
 
     private static final Instant AUTHENTICATED_AT = Instant.parse("2026-11-16T01:00:00Z");
+    private static final Instant REQUESTED_AT = Instant.parse("2026-11-16T02:00:00Z");
     private static final String ORDER_ID = "order-20261116-0001";
     private static final String REASON = "Customer changed their mind";
     private static final BigDecimal PART = new BigDecimal("5000");
@@ -140,8 +141,8 @@ class CancelRequestTest {
     }
 
     private static void cancelDone(Payment payment, CancelRequest request) {
-        BigDecimal amount = payment.checkCancel(request);
-        payment.recordCancel(request, amount, GatewayCancel.of("tx-" + request.getIdempotencyKey(), amount));
+        PaymentCancel cancel = payment.requestCancel(request, REQUESTED_AT);
+        payment.completeCancel(request.getIdempotencyKey(), GatewayCancel.of("tx-" + request.getIdempotencyKey(), cancel.getAmount()));
     }
 
     private static CancelRequest request(String idempotencyKey, BigDecimal amount) {
