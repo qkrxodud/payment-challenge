@@ -20,7 +20,7 @@ class PaymentBalanceTest {
         Payment payment = approvedPayment();
 
         // when
-        payment.recordCancel("cancel-1", new BigDecimal("5000"), REASON, GatewayCancel.of("tx-1", new BigDecimal("5000")));
+        payment.recordCancel(request("cancel-1"), new BigDecimal("5000"), GatewayCancel.of("tx-1", new BigDecimal("5000")));
 
         // then
         assertThat(payment.balanceAmount()).isEqualByComparingTo("10000");
@@ -33,7 +33,7 @@ class PaymentBalanceTest {
         Payment payment = approvedPayment();
 
         // when
-        payment.recordCancel("cancel-1", new BigDecimal("5000"), REASON, GatewayCancel.of("tx-1", new BigDecimal("5000")));
+        payment.recordCancel(request("cancel-1"), new BigDecimal("5000"), GatewayCancel.of("tx-1", new BigDecimal("5000")));
 
         // then
         assertThat(payment.findCancel("cancel-1")).get()
@@ -47,6 +47,10 @@ class PaymentBalanceTest {
         Payment payment = approvedPayment();
 
         assertThat(payment.balanceAmount()).isEqualByComparingTo("15000");
+    }
+
+    private static CancelRequest request(String idempotencyKey) {
+        return CancelRequest.of("order-20261116-0001", idempotencyKey, new BigDecimal("5000"), REASON);
     }
 
     private static Payment approvedPayment() {

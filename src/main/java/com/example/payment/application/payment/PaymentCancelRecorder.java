@@ -1,7 +1,9 @@
 package com.example.payment.application.payment;
 
+import com.example.payment.application.payment.dto.CancelAttempt;
 import com.example.payment.application.payment.dto.CancelPaymentCommand;
 import com.example.payment.application.payment.dto.CancelResult;
+import com.example.payment.domain.payment.CancelRequest;
 import com.example.payment.domain.payment.GatewayCancel;
 import com.example.payment.domain.payment.Payment;
 import com.example.payment.domain.payment.PaymentCancel;
@@ -21,23 +23,30 @@ public class PaymentCancelRecorder {
 
     private final PaymentRepository paymentRepository;
 
+    // 같은 Idempotency-Key 로 이미 받은 취소면 그 결과를, 아니면 카드사에 보낼 금액을 정한다
     @Transactional(readOnly = true)
-    public Payment find(String orderId) {
-        return paymentRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new PaymentNotFoundException(orderId));
-    }
-
-    // 카드사에 보내기 전에 취소를 받을 수 있는지 보고 취소할 금액을 정한다
-    @Transactional(readOnly = true)
-    public BigDecimal checkCancel(CancelPaymentCommand command) {
-        return find(command.orderId()).checkCancel(command.cancelAmount(), command.cancelReason());
+    public CancelAttempt prepare(CancelPaymentCommand command) {
+        Payment payment = find(command.orderId());
+        CancelRequest request = requestOf(command);
+        return payment.findRepeatedCancel(request)
+                .map(repeated -> CancelAttempt.repeat(CancelResults.of(payment, repeated)))
+                .orElseGet(() -> CancelAttempt.send(payment.getPaymentKey(), payment.checkCancel(request)));
     }
 
     // 카드사가 취소한 결과를 취소 한 건으로 남긴다
     @Transactional
     public CancelResult recordCanceled(CancelPaymentCommand command, BigDecimal amount, GatewayCancel canceled) {
         Payment payment = find(command.orderId());
-        PaymentCancel cancel = payment.recordCancel(command.idempotencyKey(), amount, command.cancelReason(), canceled);
+        PaymentCancel cancel = payment.recordCancel(requestOf(command), amount, canceled);
         return CancelResults.of(payment, cancel);
+    }
+
+    private Payment find(String orderId) {
+        return paymentRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new PaymentNotFoundException(orderId));
+    }
+
+    private static CancelRequest requestOf(CancelPaymentCommand command) {
+        return CancelRequest.of(command.orderId(), command.idempotencyKey(), command.cancelAmount(), command.cancelReason());
     }
 }

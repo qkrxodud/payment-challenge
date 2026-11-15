@@ -36,9 +36,13 @@ public class PaymentCancel {
     @JoinColumn(name = "payment_id", nullable = false, updatable = false)
     private Payment payment;
 
-    // 고객이 취소 요청에 붙여 보낸 Idempotency-Key
+    // 고객이 취소 요청에 붙여 보낸 Idempotency-Key. 결제 하나 안에서 두 번 쓸 수 없다
     @Column(name = "idempotency_key", nullable = false, updatable = false, length = 300)
     private String idempotencyKey;
+
+    // 같은 키로 다시 온 요청이 처음과 같은 내용인지 비교할 값(요청 금액·사유의 SHA-256)
+    @Column(name = "request_digest", nullable = false, updatable = false, length = 64)
+    private String requestDigest;
 
     @Column(name = "amount", nullable = false, updatable = false, precision = 19, scale = 2)
     private BigDecimal amount;
@@ -54,26 +58,36 @@ public class PaymentCancel {
     @Column(name = "transaction_key", length = 200)
     private String transactionKey;
 
+    // 이 취소가 끝난 뒤 남은 금액. 같은 키로 다시 온 요청에 처음과 같은 답을 주려고 남긴다
+    @Column(name = "balance_after", precision = 19, scale = 2)
+    private BigDecimal balanceAfter;
+
     @Builder(access = AccessLevel.PRIVATE)
-    private PaymentCancel(Payment payment, String idempotencyKey, BigDecimal amount, String reason, CancelStatus status,
-                          String transactionKey) {
+    private PaymentCancel(Payment payment, String idempotencyKey, String requestDigest, BigDecimal amount, String reason,
+                          CancelStatus status, String transactionKey) {
         this.payment = payment;
         this.idempotencyKey = idempotencyKey;
+        this.requestDigest = requestDigest;
         this.amount = amount;
         this.reason = reason;
         this.status = status;
         this.transactionKey = transactionKey;
     }
 
-    static PaymentCancel done(Payment payment, String idempotencyKey, BigDecimal amount, String reason, String transactionKey) {
+    static PaymentCancel done(Payment payment, CancelRequest request, BigDecimal amount, String transactionKey) {
         return PaymentCancel.builder()
                 .payment(payment)
-                .idempotencyKey(idempotencyKey)
+                .idempotencyKey(request.getIdempotencyKey())
+                .requestDigest(request.requestDigest())
                 .amount(amount)
-                .reason(reason)
+                .reason(request.getReason())
                 .status(CancelStatus.DONE)
                 .transactionKey(transactionKey)
                 .build();
+    }
+
+    void keepBalance(BigDecimal balance) {
+        this.balanceAfter = balance;
     }
 
     public boolean isDone() {
@@ -82,5 +96,9 @@ public class PaymentCancel {
 
     boolean isRequestedWith(String requestedKey) {
         return idempotencyKey.equals(requestedKey);
+    }
+
+    boolean isSameRequest(CancelRequest request) {
+        return requestDigest.equals(request.requestDigest());
     }
 }

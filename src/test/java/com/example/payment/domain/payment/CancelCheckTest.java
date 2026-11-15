@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Named.named;
 
 import com.example.payment.global.error.exception.CancelAmountExceedsBalanceException;
 import com.example.payment.global.error.exception.InvalidAmountException;
-import com.example.payment.global.error.exception.InvalidCancelReasonException;
 import com.example.payment.global.error.exception.InvalidPaymentTransitionException;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -86,7 +85,7 @@ class CancelCheckTest {
         cancelDone(payment, "cancel-1", PART);
 
         // when
-        BigDecimal cancelAmount = payment.checkCancel(null, REASON);
+        BigDecimal cancelAmount = payment.checkCancel(request("cancel-2", null));
 
         // then
         assertThat(cancelAmount).isEqualByComparingTo("10000");
@@ -97,7 +96,7 @@ class CancelCheckTest {
     void cancelWithinBalanceIsAccepted() {
         Payment payment = approvedPayment();
 
-        assertThat(payment.checkCancel(PART, REASON)).isEqualByComparingTo("5000");
+        assertThat(payment.checkCancel(request("cancel-1", PART))).isEqualByComparingTo("5000");
     }
 
     @Test
@@ -108,7 +107,7 @@ class CancelCheckTest {
         cancelDone(payment, "cancel-1", PART);
 
         // when & then
-        assertThatThrownBy(() -> payment.checkCancel(new BigDecimal("10001"), REASON))
+        assertThatThrownBy(() -> payment.checkCancel(request("cancel-2", new BigDecimal("10001"))))
                 .isInstanceOf(CancelAmountExceedsBalanceException.class);
     }
 
@@ -118,18 +117,8 @@ class CancelCheckTest {
     void notPositiveAmountIsRefused(BigDecimal amount) {
         Payment payment = approvedPayment();
 
-        assertThatThrownBy(() -> payment.checkCancel(amount, REASON))
+        assertThatThrownBy(() -> payment.checkCancel(request("cancel-1", amount)))
                 .isInstanceOf(InvalidAmountException.class);
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"", "  "})
-    @DisplayName("취소 사유가 비어 있으면 받지 않는다")
-    void blankReasonIsRefused(String reason) {
-        Payment payment = approvedPayment();
-
-        assertThatThrownBy(() -> payment.checkCancel(PART, reason))
-                .isInstanceOf(InvalidCancelReasonException.class);
     }
 
     @ParameterizedTest(name = "{0}")
@@ -141,7 +130,7 @@ class CancelCheckTest {
         path.accept(payment);
 
         // when & then
-        assertThatThrownBy(() -> payment.checkCancel(PART, REASON))
+        assertThatThrownBy(() -> payment.checkCancel(request("cancel-1", PART)))
                 .isInstanceOf(InvalidPaymentTransitionException.class);
     }
 
@@ -164,7 +153,11 @@ class CancelCheckTest {
     }
 
     private static void cancelDone(Payment payment, String idempotencyKey, BigDecimal amount) {
-        payment.recordCancel(idempotencyKey, amount, REASON, GatewayCancel.of("tx-" + idempotencyKey, amount));
+        payment.recordCancel(request(idempotencyKey, amount), amount, GatewayCancel.of("tx-" + idempotencyKey, amount));
+    }
+
+    private static CancelRequest request(String idempotencyKey, BigDecimal amount) {
+        return CancelRequest.of("order-20261116-0001", idempotencyKey, amount, REASON);
     }
 
     private static Payment approvedPayment() {

@@ -16,11 +16,16 @@ create table if not exists payment_cancel (
     id              bigint         not null auto_increment,
     payment_id      bigint         not null,
     idempotency_key varchar(300)   not null,
+    -- 같은 키로 다시 온 요청이 처음과 같은 내용인지 비교할 값(요청 금액·사유의 SHA-256)
+    request_digest  char(64)       not null,
     amount          decimal(19, 2) not null,
     reason          varchar(200)   not null,
     status          varchar(20)    not null,
     -- 카드사가 취소 건마다 주는 키(토스페이먼츠 transactionKey)
     transaction_key varchar(200),
+    -- 이 취소가 끝난 뒤 남은 금액. 같은 키로 다시 온 요청에 처음과 같은 답을 주려고 남긴다
+    balance_after   decimal(19, 2),
     primary key (id),
+    unique key uk_payment_cancel_idempotency_key (payment_id, idempotency_key),
     constraint fk_payment_cancel_payment foreign key (payment_id) references payment (id)
 );

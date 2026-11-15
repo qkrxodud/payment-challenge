@@ -19,6 +19,7 @@ import com.example.payment.global.error.PaymentChallengeException;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -255,7 +256,7 @@ abstract class CancelContract {
 
         catchThrowable(() -> cancel(request(orderId, "cancel-1", PART)));
 
-        assertThat(cancelStatusOf(orderId, "cancel-1")).isEqualTo(CancelStatus.UNKNOWN);
+        assertThat(lastCancelOf(orderId).cancelStatus()).isEqualTo(CancelStatus.UNKNOWN);
         awaitCardCompany(orderId);
     }
 
@@ -270,7 +271,7 @@ abstract class CancelContract {
 
         reconcile();
 
-        assertThat(balanceOf(orderId, "cancel-1")).isEqualByComparingTo(mockPg.balanceAmount(orderId));
+        assertThat(lastCancelOf(orderId).balanceAmount()).isEqualByComparingTo(mockPg.balanceAmount(orderId));
     }
 
     @Test
@@ -284,7 +285,7 @@ abstract class CancelContract {
 
         reconcile();
 
-        assertThat(balanceOf(orderId, "cancel-1")).isEqualByComparingTo(mockPg.balanceAmount(orderId));
+        assertThat(lastCancelOf(orderId).balanceAmount()).isEqualByComparingTo(mockPg.balanceAmount(orderId));
     }
 
     @Test
@@ -374,12 +375,11 @@ abstract class CancelContract {
         return paymentQueryService.find(orderId).status();
     }
 
-    CancelStatus cancelStatusOf(String orderId, String idempotencyKey) {
-        return paymentQueryService.findCancel(orderId, idempotencyKey + "-" + orderId).cancelStatus();
-    }
-
-    BigDecimal balanceOf(String orderId, String idempotencyKey) {
-        return paymentQueryService.findCancel(orderId, idempotencyKey + "-" + orderId).balanceAmount();
+    // 결제에 남은 마지막 취소. 비교 구현은 Idempotency-Key 대신 다른 값으로 취소를 남기므로 키로 찾지 않는다
+    CancelResult lastCancelOf(String orderId) {
+        List<CancelResult> cancels = paymentQueryService.findCancels(orderId);
+        assertThat(cancels).as("결제에 남은 취소").isNotEmpty();
+        return cancels.get(cancels.size() - 1);
     }
 
     static ErrorCode errorCodeOf(Throwable refused) {
