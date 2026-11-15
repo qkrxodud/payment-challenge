@@ -27,6 +27,12 @@ public class PaymentCancelRecorder {
                 .orElseThrow(() -> new PaymentNotFoundException(orderId));
     }
 
+    // 카드사에 보내기 전에 취소를 받을 수 있는지 보고 취소할 금액을 정한다
+    @Transactional(readOnly = true)
+    public BigDecimal checkCancel(CancelPaymentCommand command) {
+        return find(command.orderId()).checkCancel(command.cancelAmount(), command.cancelReason());
+    }
+
     // 카드사가 취소한 결과를 취소 한 건으로 남긴다
     @Transactional
     public CancelResult recordCanceled(CancelPaymentCommand command, BigDecimal amount, GatewayCancel canceled) {

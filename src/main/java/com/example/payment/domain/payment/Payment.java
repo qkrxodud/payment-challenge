@@ -1,8 +1,11 @@
 package com.example.payment.domain.payment;
 
 import com.example.payment.global.error.exception.AmountMismatchException;
+import com.example.payment.global.error.exception.CancelAmountExceedsBalanceException;
 import com.example.payment.global.error.exception.DuplicateOrderException;
 import com.example.payment.global.error.exception.InvalidAmountException;
+import com.example.payment.global.error.exception.InvalidCancelReasonException;
+import com.example.payment.global.error.exception.InvalidPaymentTransitionException;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -120,12 +123,37 @@ public class Payment {
         changeStatus(PaymentAction.CANCEL);
     }
 
-    // 카드사가 취소한 결과를 취소 한 건으로 남긴다(5장). 취소 상태로 바꾸는 규칙은 출발 구조와 같다
+    // 카드사에 보내기 전에 취소를 받을 수 있는지 보고 취소할 금액을 정한다(5장). 금액이 없으면 남은 금액 전부를 취소한다.
+    // 승인이 남은 결제(승인, 매입)만, 남은 금액 안에서만 받는다
+    public BigDecimal checkCancel(BigDecimal requestedAmount, String reason) {
+        if (status.refuses(PaymentAction.CANCEL)) {
+            throw new InvalidPaymentTransitionException(status.name(), PaymentAction.CANCEL.name());
+        }
+        if (isBlank(reason)) {
+            throw new InvalidCancelReasonException(orderId);
+        }
+        BigDecimal cancelAmount = Objects.requireNonNullElse(requestedAmount, balanceAmount());
+        if (isNotPositive(cancelAmount)) {
+            throw new InvalidAmountException(orderId);
+        }
+        if (cancelAmount.compareTo(balanceAmount()) > 0) {
+            throw new CancelAmountExceedsBalanceException(orderId);
+        }
+        return cancelAmount;
+    }
+
+    // 카드사가 취소한 결과를 취소 한 건으로 남긴다(5장). 결제 상태는 그대로 두고, 남은 금액이 0원이 되면 취소 상태로 바꾼다
     public PaymentCancel recordCancel(String idempotencyKey, BigDecimal cancelAmount, String reason, GatewayCancel canceled) {
         PaymentCancel cancel = PaymentCancel.done(this, idempotencyKey, cancelAmount, reason, canceled.getTransactionKey());
         cancels.add(cancel);
-        cancel();
+        cancelIfNothingLeft();
         return cancel;
+    }
+
+    private void cancelIfNothingLeft() {
+        if (balanceAmount().signum() == 0) {
+            cancel();
+        }
     }
 
     // 더 취소할 수 있는 금액: 결제 금액에서 끝난 취소를 뺀 값
@@ -180,6 +208,10 @@ public class Payment {
 
     private boolean isDifferentAmount(BigDecimal requested) {
         return amount.compareTo(requested) != 0;
+    }
+
+    private static boolean isBlank(String text) {
+        return Objects.isNull(text) || text.isBlank();
     }
 
     private static boolean isNotPositive(BigDecimal amount) {

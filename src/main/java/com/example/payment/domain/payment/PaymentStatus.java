@@ -60,6 +60,11 @@ public enum PaymentStatus {
         return this == AUTHENTICATED || this == APPROVAL_UNKNOWN;
     }
 
+    // 허용 전이 표에 없는 행위인가(5장: 취소를 카드사에 보내기 전에 묻는다)
+    public boolean refuses(PaymentAction action) {
+        return Objects.isNull(TRANSITIONS.getOrDefault(this, Collections.emptyMap()).get(action));
+    }
+
     public boolean isApprovalUnknown() {
         return this == APPROVAL_UNKNOWN;
     }
