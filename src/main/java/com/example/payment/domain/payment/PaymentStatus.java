@@ -20,6 +20,7 @@ public enum PaymentStatus {
     AUTH_FAILED,        // 인증 실패
     APPROVED,           // 승인 완료, 매입 전
     APPROVAL_FAILED,    // 승인 거절
+    APPROVAL_UNKNOWN,   // 승인을 요청했지만 카드사 답을 받지 못해 결과를 모름(4장부터)
     EXPIRED,            // 승인 요청 없이 유효 시간이 지나 만료
     CAPTURED,           // 매입 완료(대금 청구 확정)
     APPROVAL_CANCELED,  // 매입 전 취소(승인 취소)

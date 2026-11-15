@@ -121,6 +121,16 @@ class PaymentRequestCheckTest {
     }
 
     @Test
+    @DisplayName("결과를 모르는 결제는 같은 결제 키의 요청을 이미 카드사에 보낸 요청으로 본다")
+    void sameKeyForUnknownPaymentWasAlreadySent() {
+        Payment payment = Payment.create(ORDER_ID, new BigDecimal("15000"));
+        payment.authenticate("key-1");
+        payment.markApprovalUnknown();
+
+        assertThat(payment.isConfirmedWith("key-1")).isTrue();
+    }
+
+    @Test
     @DisplayName("인증 전 결제는 결제 키가 없어 어떤 요청도 결과가 남은 요청으로 보지 않는다")
     void readyPaymentHasNoConfirmedRequest() {
         Payment payment = Payment.create(ORDER_ID, new BigDecimal("15000"));

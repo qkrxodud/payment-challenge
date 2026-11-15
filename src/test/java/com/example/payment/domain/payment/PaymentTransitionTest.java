@@ -22,6 +22,7 @@ class PaymentTransitionTest extends PaymentTransitionContract {
                     case FAIL_AUTHENTICATION -> payment.failAuthentication();
                     case APPROVE -> payment.approve();
                     case FAIL_APPROVAL -> payment.failApproval();
+                    case MARK_APPROVAL_UNKNOWN -> payment.markApprovalUnknown();
                     case EXPIRE -> payment.expire();
                     case CAPTURE -> payment.capture();
                     case CANCEL -> payment.cancel();

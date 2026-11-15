@@ -19,7 +19,8 @@ public class ControlController {
 
     @PutMapping("/control/scenario")
     public void change(@RequestBody ScenarioRequest request) {
-        scenarioStore.change(Scenario.of(Duration.ofMillis(request.delayMillis()), request.outcome()));
+        scenarioStore.change(Scenario.of(Duration.ofMillis(request.delayMillis()), request.outcome(),
+                request.followUpDelay()));
     }
 
     @DeleteMapping("/control/scenario")
@@ -30,5 +31,10 @@ public class ControlController {
     @GetMapping("/control/approvals/{orderId}")
     public int approvalCount(@PathVariable String orderId) {
         return scenarioStore.approvalCount(orderId);
+    }
+
+    @GetMapping("/control/cancels/{orderId}")
+    public int cancelCount(@PathVariable String orderId) {
+        return scenarioStore.cancelCount(orderId);
     }
 }

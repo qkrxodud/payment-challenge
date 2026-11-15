@@ -7,8 +7,10 @@ import static com.example.payment.domain.payment.PaymentAction.CAPTURE;
 import static com.example.payment.domain.payment.PaymentAction.EXPIRE;
 import static com.example.payment.domain.payment.PaymentAction.FAIL_APPROVAL;
 import static com.example.payment.domain.payment.PaymentAction.FAIL_AUTHENTICATION;
+import static com.example.payment.domain.payment.PaymentAction.MARK_APPROVAL_UNKNOWN;
 import static com.example.payment.domain.payment.PaymentStatus.APPROVAL_CANCELED;
 import static com.example.payment.domain.payment.PaymentStatus.APPROVAL_FAILED;
+import static com.example.payment.domain.payment.PaymentStatus.APPROVAL_UNKNOWN;
 import static com.example.payment.domain.payment.PaymentStatus.APPROVED;
 import static com.example.payment.domain.payment.PaymentStatus.AUTHENTICATED;
 import static com.example.payment.domain.payment.PaymentStatus.AUTH_FAILED;
@@ -46,7 +48,11 @@ abstract class PaymentTransitionContract {
             AUTHENTICATED, Map.of(
                     APPROVE, APPROVED,
                     FAIL_APPROVAL, APPROVAL_FAILED,
+                    MARK_APPROVAL_UNKNOWN, APPROVAL_UNKNOWN,
                     EXPIRE, EXPIRED),
+            APPROVAL_UNKNOWN, Map.of(
+                    APPROVE, APPROVED,
+                    FAIL_APPROVAL, APPROVAL_FAILED),
             APPROVED, Map.of(
                     CAPTURE, CAPTURED,
                     CANCEL, APPROVAL_CANCELED),
@@ -60,6 +66,7 @@ abstract class PaymentTransitionContract {
             AUTH_FAILED, List.of(FAIL_AUTHENTICATION),
             APPROVED, List.of(AUTHENTICATE, APPROVE),
             APPROVAL_FAILED, List.of(AUTHENTICATE, FAIL_APPROVAL),
+            APPROVAL_UNKNOWN, List.of(AUTHENTICATE, MARK_APPROVAL_UNKNOWN),
             EXPIRED, List.of(EXPIRE),
             CAPTURED, List.of(AUTHENTICATE, APPROVE, CAPTURE),
             APPROVAL_CANCELED, List.of(AUTHENTICATE, APPROVE, CANCEL),
@@ -158,6 +165,69 @@ abstract class PaymentTransitionContract {
         assertThatThrownBy(() -> payment.perform(CAPTURE))
                 .isInstanceOf(InvalidPaymentTransitionException.class);
         assertThat(payment.status()).isEqualTo(APPROVAL_FAILED);
+    }
+
+    @Test
+    @DisplayName("승인을 요청했지만 카드사 답을 받지 못한 결제는 결과 모름 상태가 된다")
+    void noAnswerBecomesApprovalUnknown() {
+        // given: 인증을 마치고 승인을 요청한 결제
+        PaymentHandle payment = paymentIn(AUTHENTICATED);
+
+        // when
+        payment.perform(MARK_APPROVAL_UNKNOWN);
+
+        // then
+        assertThat(payment.status()).isEqualTo(APPROVAL_UNKNOWN);
+    }
+
+    @Test
+    @DisplayName("결과 모름 결제는 카드사가 승인했다고 확인되면 승인 상태가 된다")
+    void unknownBecomesApprovedWhenCardCompanyApproved() {
+        // given: 카드사 답을 받지 못한 결제
+        PaymentHandle payment = paymentIn(APPROVAL_UNKNOWN);
+
+        // when
+        payment.perform(APPROVE);
+
+        // then
+        assertThat(payment.status()).isEqualTo(APPROVED);
+    }
+
+    @Test
+    @DisplayName("결과 모름 결제는 카드사에 승인이 없다고 확인되면 승인 실패로 닫힌다")
+    void unknownBecomesFailedWhenCardCompanyHasNoApproval() {
+        // given: 카드사 답을 받지 못한 결제
+        PaymentHandle payment = paymentIn(APPROVAL_UNKNOWN);
+
+        // when
+        payment.perform(FAIL_APPROVAL);
+
+        // then
+        assertThat(payment.status()).isEqualTo(APPROVAL_FAILED);
+    }
+
+    @Test
+    @DisplayName("결과 모름 결제는 매입할 수 없다")
+    void cannotCaptureUnknownPayment() {
+        // given: 카드사 답을 받지 못한 결제
+        PaymentHandle payment = paymentIn(APPROVAL_UNKNOWN);
+
+        // when & then
+        assertThatThrownBy(() -> payment.perform(CAPTURE))
+                .isInstanceOf(InvalidPaymentTransitionException.class);
+        assertThat(payment.status()).isEqualTo(APPROVAL_UNKNOWN);
+    }
+
+    @Test
+    @DisplayName("결과 모름 결제는 카드사에 승인이 남았을 수 있어 유효 시간이 지나도 만료로 닫지 않는다")
+    void cannotExpireUnknownPayment() {
+        // given: 카드사 답을 받지 못한 결제
+        PaymentHandle payment = paymentIn(APPROVAL_UNKNOWN);
+
+        // when & then
+        assertThatThrownBy(() -> payment.perform(EXPIRE))
+                .isInstanceOf(InvalidPaymentTransitionException.class);
+        assertThat(payment.status()).isEqualTo(APPROVAL_UNKNOWN);
     }
 
     @ParameterizedTest(name = "{0} 상태에서 {1} 요청")

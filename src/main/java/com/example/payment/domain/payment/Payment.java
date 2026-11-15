@@ -77,6 +77,10 @@ public class Payment {
         changeStatus(PaymentAction.FAIL_APPROVAL);
     }
 
+    public void markApprovalUnknown() {
+        changeStatus(PaymentAction.MARK_APPROVAL_UNKNOWN);
+    }
+
     public void expire() {
         changeStatus(PaymentAction.EXPIRE);
     }

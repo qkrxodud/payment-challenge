@@ -94,6 +94,33 @@ class PaymentApiTest {
     }
 
     @Test
+    @DisplayName("카드사 답을 받지 못한 결제는 다시 조회하면 결과 모름 상태다")
+    void noAnswerLeavesApprovalUnknown() {
+        String orderId = newOrderId();
+        api.prepare(orderId, 15000);
+        mockPg.respondAfter(Duration.ofSeconds(2));
+        api.confirm(orderId, 15000);
+
+        PaymentApi.Answer answer = api.find(orderId);
+
+        assertThat(answer.field("status")).isEqualTo("APPROVAL_UNKNOWN");
+    }
+
+    @Test
+    @DisplayName("결과를 모르는 결제에 같은 승인 요청을 다시 보내면 확인 중이라고 답한다")
+    void confirmAgainWhileUnknown() {
+        String orderId = newOrderId();
+        api.prepare(orderId, 15000);
+        mockPg.respondAfter(Duration.ofSeconds(2));
+        api.confirm(orderId, 15000);
+
+        PaymentApi.Answer answer = api.confirm(orderId, 15000);
+
+        assertThat(answer.status()).isEqualTo(202);
+        assertThat(answer.field("status")).isEqualTo("APPROVAL_UNKNOWN");
+    }
+
+    @Test
     @DisplayName("카드사가 승인도 거절도 아닌 오류로 답하면 처리하지 못했다고 답한다")
     void cardCompanyFailed() {
         String orderId = newOrderId();

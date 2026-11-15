@@ -36,6 +36,10 @@ public class StatePatternPayment {
         state = state.failApproval();
     }
 
+    public void markApprovalUnknown() {
+        state = state.markApprovalUnknown();
+    }
+
     public void expire() {
         state = state.expire();
     }
@@ -59,6 +63,7 @@ public class StatePatternPayment {
         State failAuthentication() { return reject(PaymentAction.FAIL_AUTHENTICATION); }
         State approve() { return reject(PaymentAction.APPROVE); }
         State failApproval() { return reject(PaymentAction.FAIL_APPROVAL); }
+        State markApprovalUnknown() { return reject(PaymentAction.MARK_APPROVAL_UNKNOWN); }
         State expire() { return reject(PaymentAction.EXPIRE); }
         State capture() { return reject(PaymentAction.CAPTURE); }
         State cancel() { return reject(PaymentAction.CANCEL); }
