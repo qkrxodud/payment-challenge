@@ -2,10 +2,12 @@ package com.example.payment.presentation.payment;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.Objects;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -33,6 +35,23 @@ class PaymentApi {
     Answer confirm(String orderId, String paymentKey, String amount) {
         return post("/" + orderId + "/confirm",
                 "{\"paymentKey\":\"" + paymentKey + "\",\"amount\":" + amount + "}");
+    }
+
+    // 5장: 취소. 금액은 JSON 에 적힌 그대로 보낸다("null" 이면 금액 없이 보냄)
+    Answer cancel(String orderId, String idempotencyKey, String amount) {
+        return cancel(orderId, idempotencyKey, amount, "\"Customer changed their mind\"");
+    }
+
+    // 멱등키가 없으면 머리를 빼고 보낸다. 사유도 JSON 에 적힌 그대로 보낸다
+    Answer cancel(String orderId, String idempotencyKey, String amount, String reason) {
+        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(baseUrl + "/" + orderId + "/cancel"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(
+                        "{\"cancelAmount\":" + amount + ",\"cancelReason\":" + reason + "}"));
+        if (Objects.nonNull(idempotencyKey)) {
+            request.header("Idempotency-Key", idempotencyKey);
+        }
+        return send(request);
     }
 
     Answer find(String orderId) {
@@ -78,6 +97,10 @@ class PaymentApi {
 
         String field(String name) {
             return body.path(name).asString();
+        }
+
+        BigDecimal decimal(String name) {
+            return body.path(name).decimalValue();
         }
     }
 }

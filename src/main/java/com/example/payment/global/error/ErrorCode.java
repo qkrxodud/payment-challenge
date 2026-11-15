@@ -19,6 +19,16 @@ public enum ErrorCode {
     // 승인 요청 금액이 준비한 금액과 다름. 결제 상태는 바꾸지 않는다
     AMOUNT_MISMATCH(ErrorType.INVALID_INPUT, "The amount does not match the prepared payment."),
     PAYMENT_NOT_FOUND(ErrorType.NOT_FOUND, "No payment was found for this order."),
+    // 이 결제에 그 멱등키로 온 취소가 없음(5장)
+    CANCEL_NOT_FOUND(ErrorType.NOT_FOUND, "No cancel was found for this idempotency key."),
+    // 5장: 취소 금액이 더 취소할 수 있는 금액(잔액)보다 큼. 카드사에 보내지 않는다
+    CANCEL_AMOUNT_EXCEEDS_BALANCE(ErrorType.CONFLICT, "The cancel amount is larger than the amount left to cancel."),
+    // 5장: 취소 요청에 Idempotency-Key 가 없거나 300자를 넘음
+    INVALID_IDEMPOTENCY_KEY(ErrorType.INVALID_INPUT, "The Idempotency-Key header is required and must be at most 300 characters."),
+    // 5장: 같은 Idempotency-Key 로 처음과 다른 취소 내용이 옴
+    IDEMPOTENCY_KEY_REUSED(ErrorType.UNPROCESSABLE, "This Idempotency-Key was already used for a different cancel request."),
+    // 5장: 취소 사유가 없음
+    INVALID_CANCEL_REASON(ErrorType.INVALID_INPUT, "The cancel reason is required."),
     // 같은 주문번호가 다른 금액으로 이미 준비됨
     DUPLICATE_ORDER(ErrorType.CONFLICT, "This order was already prepared with a different amount."),
     // 지금 결제 상태에서는 할 수 없는 요청(승인 전 매입, 취소 후 재승인 등)

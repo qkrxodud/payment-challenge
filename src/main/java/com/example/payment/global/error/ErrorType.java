@@ -7,6 +7,8 @@ public enum ErrorType {
     INVALID_INPUT,
     NOT_FOUND,
     CONFLICT,
+    // 5장: 형식은 맞지만 처리할 수 없는 요청(같은 멱등키에 다른 내용)
+    UNPROCESSABLE,
     UPSTREAM_FAILED,
     UPSTREAM_NO_RESPONSE,
     INTERNAL

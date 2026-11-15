@@ -1,11 +1,15 @@
 package com.example.payment.presentation.payment;
 
+import com.example.payment.application.payment.PaymentCancelService;
 import com.example.payment.application.payment.PaymentConfirmService;
 import com.example.payment.application.payment.PaymentPrepareService;
 import com.example.payment.application.payment.PaymentQueryService;
+import com.example.payment.application.payment.dto.CancelPaymentCommand;
 import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
 import com.example.payment.application.payment.dto.PaymentResult;
 import com.example.payment.application.payment.dto.PreparePaymentCommand;
+import com.example.payment.presentation.payment.dto.CancelPaymentRequest;
+import com.example.payment.presentation.payment.dto.CancelResponse;
 import com.example.payment.presentation.payment.dto.ConfirmPaymentRequest;
 import com.example.payment.presentation.payment.dto.PaymentResponse;
 import com.example.payment.presentation.payment.dto.PreparePaymentRequest;
@@ -16,6 +20,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,6 +33,7 @@ public class PaymentController {
     private final PaymentPrepareService paymentPrepareService;
     private final PaymentConfirmService paymentConfirmService;
     private final PaymentQueryService paymentQueryService;
+    private final PaymentCancelService paymentCancelService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -42,6 +48,15 @@ public class PaymentController {
         PaymentResult result = paymentConfirmService.confirm(
                 new ConfirmPaymentCommand(orderId, request.paymentKey(), request.amount()));
         return ResponseEntity.status(statusOf(result)).body(PaymentResponse.from(result));
+    }
+
+    // 5장: 승인된 결제를 취소한다. 금액이 없으면 남은 금액을 모두 취소한다
+    @PostMapping("/{orderId}/cancel")
+    public CancelResponse cancel(@PathVariable String orderId,
+                                 @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+                                 @RequestBody CancelPaymentRequest request) {
+        return CancelResponse.from(paymentCancelService.cancel(
+                new CancelPaymentCommand(orderId, idempotencyKey, request.cancelAmount(), request.cancelReason())));
     }
 
     @GetMapping("/{orderId}")

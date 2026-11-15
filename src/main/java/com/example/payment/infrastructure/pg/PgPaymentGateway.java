@@ -5,6 +5,7 @@ import com.example.payment.domain.payment.PaymentGateway;
 import com.example.payment.domain.payment.PaymentInquiry;
 import com.example.payment.global.error.exception.PaymentGatewayFailedException;
 import com.example.payment.global.error.exception.PaymentGatewayNoResponseException;
+import com.example.payment.infrastructure.pg.dto.PgCancelRequest;
 import com.example.payment.infrastructure.pg.dto.PgConfirmRequest;
 import com.example.payment.infrastructure.pg.dto.PgErrorResponse;
 import com.example.payment.infrastructure.pg.dto.PgPaymentResponse;
@@ -49,6 +50,26 @@ public class PgPaymentGateway implements PaymentGateway {
         } catch (ResourceAccessException noResponse) {
             throw new PaymentGatewayNoResponseException(orderId);
         }
+    }
+
+    @Override
+    public void cancel(String paymentKey, String orderId, BigDecimal amount, String reason) {
+        try {
+            pgRestClient.post()
+                    .uri("/v1/payments/{paymentKey}/cancel", paymentKey)
+                    .body(new PgCancelRequest(reason, amount))
+                    .exchange((request, response) -> requireCanceled(orderId, response));
+        } catch (ResourceAccessException noResponse) {
+            throw new PaymentGatewayNoResponseException(orderId);
+        }
+    }
+
+    private static boolean requireCanceled(String orderId, RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse response)
+            throws IOException {
+        if (response.getStatusCode().is2xxSuccessful()) {
+            return true;
+        }
+        throw new PaymentGatewayFailedException(orderId, response.getStatusCode().value());
     }
 
     private static PaymentApproval toApproval(String orderId, RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse response)

@@ -12,4 +12,7 @@ public interface PaymentGateway {
 
     // 4장부터: 주문번호로 카드사에 남은 결제 결과를 묻는다. 시간 안에 답이 없으면 승인과 같은 예외를 던진다
     PaymentInquiry inquire(String orderId);
+
+    // 5장부터: 승인된 결제를 취소한다. 금액이 없으면 카드사가 남은 금액을 모두 취소한다
+    void cancel(String paymentKey, String orderId, BigDecimal amount, String reason);
 }

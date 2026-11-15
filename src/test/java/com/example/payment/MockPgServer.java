@@ -68,6 +68,11 @@ public class MockPgServer {
         scenarios().change(Scenario.of(delay, Outcome.APPROVE, followUpDelay));
     }
 
+    // 5장부터: 승인은 바로 하고, 그 뒤의 조회·취소에는 delay 만큼 늦게 답한다. 취소는 기다린 뒤에 처리된다
+    public void answerFollowUpsAfter(Duration delay) {
+        scenarios().change(Scenario.of(Duration.ZERO, Outcome.APPROVE, delay));
+    }
+
     public void reset() {
         scenarios().reset();
     }
@@ -88,11 +93,24 @@ public class MockPgServer {
         return scenarios().confirmRequestCount(orderId);
     }
 
+    // 실제로 취소한 횟수(부분 취소 포함)
     public int cancelCount(String orderId) {
         return scenarios().cancelCount(orderId);
     }
 
-    /** 카드사에 남은 이 주문의 결제 상태(DONE, ABORTED, CANCELED). 승인 요청이 닿지 않았으면 NONE */
+    // 5장부터: 결과와 상관없이 취소 요청을 받은 횟수
+    public int cancelRequestCount(String orderId) {
+        return scenarios().cancelRequestCount(orderId);
+    }
+
+    /** 5장부터: 카드사에 남은 이 주문의 취소할 수 있는 금액(잔액). 승인 요청이 닿지 않았으면 비어 있다 */
+    public BigDecimal balanceAmount(String orderId) {
+        return scenarios().findByOrderId(orderId)
+                .map(PaymentRecord::getBalanceAmount)
+                .orElse(null);
+    }
+
+    /** 카드사에 남은 이 주문의 결제 상태(DONE, ABORTED, PARTIAL_CANCELED, CANCELED). 승인 요청이 닿지 않았으면 NONE */
     public String paymentState(String orderId) {
         return scenarios().findByOrderId(orderId)
                 .map(PaymentRecord::getState)

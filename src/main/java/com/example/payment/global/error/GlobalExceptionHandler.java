@@ -56,6 +56,7 @@ public class GlobalExceptionHandler {
             case INVALID_INPUT -> HttpStatus.BAD_REQUEST;
             case NOT_FOUND -> HttpStatus.NOT_FOUND;
             case CONFLICT -> HttpStatus.CONFLICT;
+            case UNPROCESSABLE -> HttpStatus.UNPROCESSABLE_CONTENT;
             case UPSTREAM_FAILED -> HttpStatus.BAD_GATEWAY;
             case UPSTREAM_NO_RESPONSE -> HttpStatus.GATEWAY_TIMEOUT;
             case INTERNAL -> HttpStatus.INTERNAL_SERVER_ERROR;
