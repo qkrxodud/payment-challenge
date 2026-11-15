@@ -9,6 +9,7 @@
 - [`chapter-01`](https://github.com/qkrxodud/payment-challenge/tree/chapter-01) — 1장 결제 기초: 인증, 승인, 매입, 취소와 상태 머신
 - [`chapter-02`](https://github.com/qkrxodud/payment-challenge/tree/chapter-02) — 2장 가장 단순한 결제 구현과 트랜잭션 경계
 - [`chapter-03`](https://github.com/qkrxodud/payment-challenge/tree/chapter-03) — 3장 금액 검증과 멱등성
+- [`chapter-04`](https://github.com/qkrxodud/payment-challenge/tree/chapter-04) — 4장 응답을 못 받았을 때의 처리
 
 `main`에는 가장 최근 장까지의 코드가 있습니다. 각 장의 출발 구조(문제를 재현하는 코드)와 완성 코드는 아래 태그로도 볼 수 있습니다.
 
@@ -18,16 +19,19 @@
 - `ch02` — 2장 트랜잭션 경계: PG 호출을 트랜잭션 밖으로, 거절도 기록, PG 시간 제한, Open Session In View 끄기, 비교 구현
 - `ch03-start` — 3장 출발 구조: 고객이 보낸 금액을 그대로 PG에 보내는 승인 API (금액 변조·재요청·재준비 테스트 실패)
 - `ch03` — 3장 금액 검증과 멱등성: 준비 금액과 값 비교, 결제 키로 다시 온 승인 요청 가리기, 같은 주문 재준비, 비교 구현
+- `ch04-start` — 4장 출발 구조: 카드사 답을 받지 못한 결제를 다루지 않는 승인 API, Mock PG 결제 조회·취소 (결과 모름 보정·전이·API 테스트 실패)
+- `ch04` — 4장 응답을 못 받았을 때의 처리: 결과 모름 상태, 카드사 조회 보정, 주기 보정과 대기 시간, 기록하지 못한 인증 상태 보정, 다시 온 요청에 202, 비교 구현(망취소, 아무것도 하지 않음, 요청 안에서 바로 조회, 기록 재시도)
 
 ## 모듈
 
 - 루트: 결제 서버
-- `mock-pg`: 응답 지연·거절·서버 오류를 제어 API(`/control/scenario`)로 바꿀 수 있는 가짜 PG. 따로 띄우면 8090 포트, 결제 서버 테스트에서는 같은 JVM 안에서 임의 포트로 띄운다
+- `mock-pg`: 응답 지연·거절·서버 오류를 제어 API(`/control/scenario`)로 바꿀 수 있는 가짜 PG. 4장부터 주문번호 결제 조회와 결제 취소도 받는다. 따로 띄우면 8090 포트, 결제 서버 테스트에서는 같은 JVM 안에서 임의 포트로 띄운다
 
 장별 실행 환경과 테스트 결과는 `docs/chNN/`에, 부하 테스트 스크립트와 결과는 `load-test/chNN/`에 있습니다.
 
 - `./gradlew check`: 테스트 + 커버리지 검사
 - `./gradlew knownFailingTest`: 계약을 지키지 못하는 비교 구현을 같은 테스트로 돌려 실패를 확인(빌드는 실패시키지 않음)
+- `./gradlew reconciliationMeasurement`: 4장 결과 모름 보정을 구현마다 같은 결제 묶음으로 돌려 건수·상태·보정 횟수를 기록(`build/measurement/`)
 
 ## 코드 규칙
 
