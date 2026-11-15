@@ -1,10 +1,12 @@
 package com.example.payment.application.payment.comparison;
 
+import com.example.payment.application.payment.PaymentReconciler;
 import com.example.payment.application.payment.PaymentRecorder;
 import com.example.payment.domain.payment.Payment;
 import com.example.payment.domain.payment.PaymentInquiry;
 import com.example.payment.domain.payment.PaymentRepository;
-import com.example.payment.domain.payment.PaymentStatus;
+import com.example.payment.global.config.ReconciliationProperties;
+import java.time.Instant;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatusCode;
@@ -22,9 +24,12 @@ public class NetCancelReconciler {
     private final PaymentRepository paymentRepository;
     private final PaymentRecorder paymentRecorder;
     private final RestClient pgRestClient;
+    private final ReconciliationProperties reconciliationProperties;
 
-    public void reconcile() {
-        paymentRepository.findAllByStatus(PaymentStatus.APPROVAL_UNKNOWN).forEach(this::cancel);
+    // 대상을 고르는 방법은 운영 구현과 같다. 맞추는 방법만 다르다
+    public void reconcile(Instant now) {
+        Instant requestedBefore = now.minus(reconciliationProperties.getWaitAfterRequest());
+        paymentRepository.findApprovalRequestedBefore(PaymentReconciler.TARGETS, requestedBefore).forEach(this::cancel);
     }
 
     private void cancel(Payment payment) {

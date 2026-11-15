@@ -13,6 +13,7 @@ import com.example.payment.application.payment.dto.PreparePaymentCommand;
 import com.example.payment.domain.payment.PaymentStatus;
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
 import java.util.function.Predicate;
 import org.junit.jupiter.api.AfterEach;
@@ -28,7 +29,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * 카드사 답을 받지 못한 결제를 카드사 기록에 맞추는 규칙(4장).
  * 맞추는 방법(조회, 망취소, 아무것도 하지 않음)과 때(주기 보정, 요청 안에서 바로)가 구현마다 다르므로
  * 구현마다 이 클래스를 상속해 같은 테스트를 돌린다.
- * PG 읽기 시간 제한은 1초, 카드사는 1.5초 뒤에 답한다. 보정은 카드사가 처리를 마친 뒤 한 번 돌린다.
+ * PG 읽기 시간 제한은 1초, 카드사는 1.5초 뒤에 답한다. 보정은 카드사가 처리를 마친 뒤,
+ * 승인을 요청한 지 보정 대기 시간(10초)이 지난 때로 한 번 돌린다.
  * "어긋나지 않는다"는 카드사에 남은 최종 상태(승인/취소/거절/기록 없음)와 결제 상태가 짝이 맞는지로 본다:
  * 카드사 승인이면 승인, 그 밖에는 승인 실패.
  */
@@ -42,6 +44,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 abstract class ReconciliationContract {
 
     static final Duration LATE = Duration.ofMillis(1500);
+    static final Duration WAIT_AFTER_REQUEST = Duration.ofSeconds(10);
     private static final BigDecimal PREPARED = new BigDecimal("15000");
 
     @Autowired
@@ -199,6 +202,11 @@ abstract class ReconciliationContract {
 
     static ConfirmPaymentCommand request(String orderId) {
         return new ConfirmPaymentCommand(orderId, "key-" + orderId, PREPARED);
+    }
+
+    // 방금 승인을 요청한 결제도 보정 대기 시간이 지난 것으로 보는 때
+    static Instant afterWaiting() {
+        return Instant.now().plus(WAIT_AFTER_REQUEST).plusSeconds(1);
     }
 
     PaymentStatus statusOf(String orderId) {

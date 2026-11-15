@@ -7,6 +7,7 @@ import com.example.payment.domain.payment.PaymentApproval;
 import com.example.payment.domain.payment.PaymentGateway;
 import com.example.payment.domain.payment.PaymentRepository;
 import com.example.payment.global.error.exception.PaymentNotFoundException;
+import java.time.Clock;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ public class SelfInvocationConfirmService {
 
     private final PaymentRepository paymentRepository;
     private final PaymentGateway paymentGateway;
+    private final Clock clock;
 
     public PaymentResult confirm(ConfirmPaymentCommand command) {
         Payment payment = authenticate(command.orderId(), command.paymentKey());
@@ -29,7 +31,7 @@ public class SelfInvocationConfirmService {
     @Transactional
     public Payment authenticate(String orderId, String paymentKey) {
         Payment payment = find(orderId);
-        payment.authenticate(paymentKey);
+        payment.authenticate(paymentKey, clock.instant());
         return payment;
     }
 

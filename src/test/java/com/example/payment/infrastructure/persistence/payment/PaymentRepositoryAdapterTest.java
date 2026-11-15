@@ -8,6 +8,7 @@ import com.example.payment.domain.payment.PaymentRepository;
 import com.example.payment.domain.payment.PaymentStatus;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
+import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 @Import({TestcontainersConfiguration.class, PaymentRepositoryAdapter.class})
 @DisplayName("결제 기록 — 실제 보관함에서")
 class PaymentRepositoryAdapterTest {
+
+    private static final Instant AUTHENTICATED_AT = Instant.parse("2026-11-15T01:00:00Z");
 
     @Autowired
     PaymentRepository paymentRepository;
@@ -65,7 +68,7 @@ class PaymentRepositoryAdapterTest {
 
     private Payment approvedPayment() {
         Payment payment = Payment.create("order-20261114-0001", new BigDecimal("10000"));
-        payment.authenticate("key-1");
+        payment.authenticate("key-1", AUTHENTICATED_AT);
         payment.approve();
         paymentRepository.save(payment);
         em.flush();

@@ -7,6 +7,7 @@ import com.example.payment.domain.payment.PaymentApproval;
 import com.example.payment.domain.payment.PaymentInquiry;
 import com.example.payment.domain.payment.PaymentRepository;
 import com.example.payment.global.error.exception.PaymentNotFoundException;
+import java.time.Clock;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentRecorder {
 
     private final PaymentRepository paymentRepository;
+    private final Clock clock;
 
     // 금액이 다르면 상태를 바꾸지 않고 거부한다. 같은 요청이 다시 왔으면 아무것도 바꾸지 않고 돌려준다
     @Transactional
@@ -29,7 +31,7 @@ public class PaymentRecorder {
         if (payment.isConfirmedWith(command.paymentKey())) {
             return payment;
         }
-        payment.authenticate(command.paymentKey());
+        payment.authenticate(command.paymentKey(), clock.instant());
         return payment;
     }
 

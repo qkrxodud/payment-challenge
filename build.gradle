@@ -56,6 +56,8 @@ tasks.named('test') {
 		// 계약을 지키지 못하는 비교 구현은 기본 빌드에서 빼고 knownFailingTest 로 따로 돌린다
 		excludeTags 'known-failing'
 	}
+	// 4장부터: 테스트는 보정을 직접 부른다. 주기 보정이 테스트 도중 끼어들지 않게 끈다
+	systemProperty 'payment.reconciliation.enabled', 'false'
 	finalizedBy jacocoTestReport
 }
 
@@ -67,6 +69,7 @@ tasks.register('knownFailingTest', Test) {
 	useJUnitPlatform {
 		includeTags 'known-failing'
 	}
+	systemProperty 'payment.reconciliation.enabled', 'false'
 	ignoreFailures = true
 }
 

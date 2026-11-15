@@ -8,6 +8,7 @@ import com.example.payment.global.error.exception.AmountMismatchException;
 import com.example.payment.global.error.exception.DuplicateOrderException;
 import com.example.payment.global.error.exception.InvalidAmountException;
 import java.math.BigDecimal;
+import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -16,6 +17,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 @DisplayName("결제 금액과 승인 요청 확인")
 class PaymentRequestCheckTest {
+
+    private static final Instant AUTHENTICATED_AT = Instant.parse("2026-11-15T01:00:00Z");
 
     private static final String ORDER_ID = "order-20261115-0001";
 
@@ -95,7 +98,7 @@ class PaymentRequestCheckTest {
     @DisplayName("승인 결과가 남은 결제는 인증할 때 받은 결제 키의 요청을 같은 요청으로 본다")
     void sameKeyAfterResultIsSameRequest() {
         Payment payment = Payment.create(ORDER_ID, new BigDecimal("15000"));
-        payment.authenticate("key-1");
+        payment.authenticate("key-1", AUTHENTICATED_AT);
         payment.approve();
 
         assertThat(payment.isConfirmedWith("key-1")).isTrue();
@@ -105,7 +108,7 @@ class PaymentRequestCheckTest {
     @DisplayName("다른 결제 키의 요청은 같은 요청으로 보지 않는다")
     void otherKeyIsNotSameRequest() {
         Payment payment = Payment.create(ORDER_ID, new BigDecimal("15000"));
-        payment.authenticate("key-1");
+        payment.authenticate("key-1", AUTHENTICATED_AT);
         payment.approve();
 
         assertThat(payment.isConfirmedWith("key-2")).isFalse();
@@ -115,7 +118,7 @@ class PaymentRequestCheckTest {
     @DisplayName("카드사 답을 아직 기록하지 않은 결제는 같은 결제 키라도 결과가 남은 요청으로 보지 않는다")
     void sameKeyWithoutResultIsNotConfirmed() {
         Payment payment = Payment.create(ORDER_ID, new BigDecimal("15000"));
-        payment.authenticate("key-1");
+        payment.authenticate("key-1", AUTHENTICATED_AT);
 
         assertThat(payment.isConfirmedWith("key-1")).isFalse();
     }
@@ -124,7 +127,7 @@ class PaymentRequestCheckTest {
     @DisplayName("결과를 모르는 결제는 같은 결제 키의 요청을 이미 카드사에 보낸 요청으로 본다")
     void sameKeyForUnknownPaymentWasAlreadySent() {
         Payment payment = Payment.create(ORDER_ID, new BigDecimal("15000"));
-        payment.authenticate("key-1");
+        payment.authenticate("key-1", AUTHENTICATED_AT);
         payment.markApprovalUnknown();
 
         assertThat(payment.isConfirmedWith("key-1")).isTrue();

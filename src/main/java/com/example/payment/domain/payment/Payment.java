@@ -12,6 +12,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -42,6 +43,10 @@ public class Payment {
     @Column(name = "payment_key", length = 200)
     private String paymentKey;
 
+    // 승인을 요청하려고 인증한 때(4장). 카드사가 처리를 마쳤을 만큼 시간이 지난 결제만 보정한다
+    @Column(name = "authenticated_at")
+    private Instant authenticatedAt;
+
     @Builder(access = AccessLevel.PRIVATE)
     private Payment(String orderId, BigDecimal amount, PaymentStatus status) {
         this.orderId = orderId;
@@ -60,9 +65,10 @@ public class Payment {
                 .build();
     }
 
-    public void authenticate(String paymentKey) {
+    public void authenticate(String paymentKey, Instant now) {
         changeStatus(PaymentAction.AUTHENTICATE);
         this.paymentKey = paymentKey;
+        this.authenticatedAt = now;
     }
 
     public void failAuthentication() {

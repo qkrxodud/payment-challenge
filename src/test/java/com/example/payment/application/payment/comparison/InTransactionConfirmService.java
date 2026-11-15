@@ -7,6 +7,7 @@ import com.example.payment.domain.payment.PaymentApproval;
 import com.example.payment.domain.payment.PaymentGateway;
 import com.example.payment.domain.payment.PaymentRepository;
 import com.example.payment.global.error.exception.PaymentNotFoundException;
+import java.time.Clock;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,12 +17,13 @@ public class InTransactionConfirmService {
 
     private final PaymentRepository paymentRepository;
     private final PaymentGateway paymentGateway;
+    private final Clock clock;
 
     @Transactional
     public PaymentResult confirm(ConfirmPaymentCommand command) {
         Payment payment = paymentRepository.findByOrderId(command.orderId())
                 .orElseThrow(() -> new PaymentNotFoundException(command.orderId()));
-        payment.authenticate(command.paymentKey());
+        payment.authenticate(command.paymentKey(), clock.instant());
 
         PaymentApproval approval = paymentGateway.approve(command.paymentKey(), payment.getOrderId(), payment.getAmount());
         if (approval.isDeclined()) {

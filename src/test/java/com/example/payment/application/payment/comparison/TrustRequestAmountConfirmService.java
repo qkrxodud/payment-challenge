@@ -7,6 +7,7 @@ import com.example.payment.domain.payment.PaymentApproval;
 import com.example.payment.domain.payment.PaymentGateway;
 import com.example.payment.domain.payment.PaymentRepository;
 import com.example.payment.global.error.exception.PaymentNotFoundException;
+import java.time.Clock;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -17,6 +18,7 @@ public class TrustRequestAmountConfirmService {
     private final PaymentRepository paymentRepository;
     private final PaymentGateway paymentGateway;
     private final TransactionTemplate transactionTemplate;
+    private final Clock clock;
 
     public PaymentResult confirm(ConfirmPaymentCommand command) {
         Payment payment = transactionTemplate.execute(status -> {
@@ -24,7 +26,7 @@ public class TrustRequestAmountConfirmService {
             if (found.isConfirmedWith(command.paymentKey())) {
                 return found;
             }
-            found.authenticate(command.paymentKey());
+            found.authenticate(command.paymentKey(), clock.instant());
             return found;
         });
 

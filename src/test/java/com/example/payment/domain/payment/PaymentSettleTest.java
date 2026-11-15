@@ -3,11 +3,14 @@ package com.example.payment.domain.payment;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("카드사에 확인한 결과로 결제 닫기")
 class PaymentSettleTest {
+
+    private static final Instant AUTHENTICATED_AT = Instant.parse("2026-11-15T01:00:00Z");
 
     @Test
     @DisplayName("카드사에 승인이 남아 있으면 결과 모름 결제는 승인 상태가 된다")
@@ -50,7 +53,7 @@ class PaymentSettleTest {
 
     private static Payment unknownPayment() {
         Payment payment = Payment.create("order-20261115-0001", new BigDecimal("15000"));
-        payment.authenticate("key-1");
+        payment.authenticate("key-1", AUTHENTICATED_AT);
         payment.markApprovalUnknown();
         return payment;
     }

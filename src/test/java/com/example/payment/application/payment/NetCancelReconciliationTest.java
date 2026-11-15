@@ -24,6 +24,6 @@ class NetCancelReconciliationTest extends ReconciliationContract {
 
     @Override
     void reconcile() {
-        netCancelReconciler.reconcile();
+        netCancelReconciler.reconcile(afterWaiting());
     }
 }
