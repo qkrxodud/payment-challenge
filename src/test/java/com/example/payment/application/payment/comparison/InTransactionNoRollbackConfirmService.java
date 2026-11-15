@@ -21,7 +21,7 @@ public class InTransactionNoRollbackConfirmService {
     public PaymentResult confirm(ConfirmPaymentCommand command) {
         Payment payment = paymentRepository.findByOrderId(command.orderId())
                 .orElseThrow(() -> new PaymentNotFoundException(command.orderId()));
-        payment.authenticate();
+        payment.authenticate(command.paymentKey());
 
         PaymentApproval approval = paymentGateway.approve(command.paymentKey(), payment.getOrderId(), payment.getAmount());
         if (approval.isDeclined()) {

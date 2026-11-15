@@ -21,7 +21,7 @@ public class TemplateConfirmService {
     public PaymentResult confirm(ConfirmPaymentCommand command) {
         Payment payment = transactionTemplate.execute(status -> {
             Payment found = find(command.orderId());
-            found.authenticate();
+            found.authenticate(command.paymentKey());
             return found;
         });
 

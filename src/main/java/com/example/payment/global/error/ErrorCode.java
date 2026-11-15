@@ -14,7 +14,13 @@ public enum ErrorCode {
     INVALID_INPUT(ErrorType.INVALID_INPUT, "The request could not be read."),
     // 웹 계층이 거절한 요청(지원하지 않는 HTTP 방식 등). 상태 코드는 그 거절의 것을 그대로 쓴다
     INVALID_REQUEST(ErrorType.INVALID_INPUT, "This request is not supported."),
+    // 금액이 없거나 0 이하
+    INVALID_AMOUNT(ErrorType.INVALID_INPUT, "The amount must be a positive number."),
+    // 승인 요청 금액이 준비한 금액과 다름. 결제 상태는 바꾸지 않는다
+    AMOUNT_MISMATCH(ErrorType.INVALID_INPUT, "The amount does not match the prepared payment."),
     PAYMENT_NOT_FOUND(ErrorType.NOT_FOUND, "No payment was found for this order."),
+    // 같은 주문번호가 다른 금액으로 이미 준비됨
+    DUPLICATE_ORDER(ErrorType.CONFLICT, "This order was already prepared with a different amount."),
     // 지금 결제 상태에서는 할 수 없는 요청(승인 전 매입, 취소 후 재승인 등)
     INVALID_PAYMENT_TRANSITION(ErrorType.CONFLICT, "This payment cannot be changed in its current status."),
     // PG 가 승인도 거절도 아닌 답(5xx 등)을 줬다

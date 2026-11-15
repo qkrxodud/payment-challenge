@@ -65,7 +65,7 @@ class PaymentRepositoryAdapterTest {
 
     private Payment approvedPayment() {
         Payment payment = Payment.create("order-20261114-0001", new BigDecimal("10000"));
-        payment.authenticate();
+        payment.authenticate("key-1");
         payment.approve();
         paymentRepository.save(payment);
         em.flush();

@@ -18,7 +18,7 @@ class PaymentTransitionTest extends PaymentTransitionContract {
             @Override
             public void perform(PaymentAction action) {
                 switch (action) {
-                    case AUTHENTICATE -> payment.authenticate();
+                    case AUTHENTICATE -> payment.authenticate("key-1");
                     case FAIL_AUTHENTICATION -> payment.failAuthentication();
                     case APPROVE -> payment.approve();
                     case FAIL_APPROVAL -> payment.failApproval();

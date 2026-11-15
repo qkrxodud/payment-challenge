@@ -1,5 +1,6 @@
 package com.example.payment.application.payment;
 
+import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
 import com.example.payment.application.payment.dto.PaymentResult;
 import com.example.payment.domain.payment.Payment;
 import com.example.payment.domain.payment.PaymentApproval;
@@ -19,10 +20,15 @@ public class PaymentRecorder {
 
     private final PaymentRepository paymentRepository;
 
+    // 금액이 다르면 상태를 바꾸지 않고 거부한다. 같은 요청이 다시 왔으면 아무것도 바꾸지 않고 돌려준다
     @Transactional
-    public Payment authenticate(String orderId) {
-        Payment payment = find(orderId);
-        payment.authenticate();
+    public Payment authenticate(ConfirmPaymentCommand command) {
+        Payment payment = find(command.orderId());
+        payment.verifyAmount(command.amount());
+        if (payment.isConfirmedWith(command.paymentKey())) {
+            return payment;
+        }
+        payment.authenticate(command.paymentKey());
         return payment;
     }
 

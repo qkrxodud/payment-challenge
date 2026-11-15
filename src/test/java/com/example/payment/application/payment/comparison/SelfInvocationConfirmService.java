@@ -21,15 +21,15 @@ public class SelfInvocationConfirmService {
     private final PaymentGateway paymentGateway;
 
     public PaymentResult confirm(ConfirmPaymentCommand command) {
-        Payment payment = authenticate(command.orderId());
+        Payment payment = authenticate(command.orderId(), command.paymentKey());
         PaymentApproval approval = paymentGateway.approve(command.paymentKey(), payment.getOrderId(), payment.getAmount());
         return recordApproval(command.orderId(), approval);
     }
 
     @Transactional
-    public Payment authenticate(String orderId) {
+    public Payment authenticate(String orderId, String paymentKey) {
         Payment payment = find(orderId);
-        payment.authenticate();
+        payment.authenticate(paymentKey);
         return payment;
     }
 
