@@ -1,10 +1,12 @@
 package com.example.payment.infrastructure.pg;
 
+import com.example.payment.domain.payment.GatewayCancel;
 import com.example.payment.domain.payment.PaymentApproval;
 import com.example.payment.domain.payment.PaymentGateway;
 import com.example.payment.domain.payment.PaymentInquiry;
 import com.example.payment.global.error.exception.PaymentGatewayFailedException;
 import com.example.payment.global.error.exception.PaymentGatewayNoResponseException;
+import com.example.payment.infrastructure.pg.dto.PgCancel;
 import com.example.payment.infrastructure.pg.dto.PgCancelRequest;
 import com.example.payment.infrastructure.pg.dto.PgConfirmRequest;
 import com.example.payment.infrastructure.pg.dto.PgErrorResponse;
@@ -53,21 +55,23 @@ public class PgPaymentGateway implements PaymentGateway {
     }
 
     @Override
-    public void cancel(String paymentKey, String orderId, BigDecimal amount, String reason) {
+    public GatewayCancel cancel(String paymentKey, String orderId, BigDecimal amount, String reason) {
         try {
-            pgRestClient.post()
+            return pgRestClient.post()
                     .uri("/v1/payments/{paymentKey}/cancel", paymentKey)
                     .body(new PgCancelRequest(reason, amount))
-                    .exchange((request, response) -> requireCanceled(orderId, response));
+                    .exchange((request, response) -> toCancel(orderId, response));
         } catch (ResourceAccessException noResponse) {
             throw new PaymentGatewayNoResponseException(orderId);
         }
     }
 
-    private static boolean requireCanceled(String orderId, RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse response)
+    // 취소 응답은 취소 이력을 담은 결제다. 마지막 취소가 방금 요청한 취소다
+    private static GatewayCancel toCancel(String orderId, RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse response)
             throws IOException {
         if (response.getStatusCode().is2xxSuccessful()) {
-            return true;
+            PgCancel canceled = response.bodyTo(PgPaymentResponse.class).lastCancel();
+            return GatewayCancel.of(canceled.transactionKey(), canceled.cancelAmount());
         }
         throw new PaymentGatewayFailedException(orderId, response.getStatusCode().value());
     }

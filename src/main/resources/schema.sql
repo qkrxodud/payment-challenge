@@ -10,3 +10,17 @@ create table if not exists payment (
     unique key uk_payment_order_id (order_id),
     key idx_payment_status_authenticated_at (status, authenticated_at)
 );
+
+-- 5장: 취소 요청 한 건마다 한 줄. 결제의 남은 금액은 끝난 취소의 합으로 계산한다
+create table if not exists payment_cancel (
+    id              bigint         not null auto_increment,
+    payment_id      bigint         not null,
+    idempotency_key varchar(300)   not null,
+    amount          decimal(19, 2) not null,
+    reason          varchar(200)   not null,
+    status          varchar(20)    not null,
+    -- 카드사가 취소 건마다 주는 키(토스페이먼츠 transactionKey)
+    transaction_key varchar(200),
+    primary key (id),
+    constraint fk_payment_cancel_payment foreign key (payment_id) references payment (id)
+);

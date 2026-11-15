@@ -68,6 +68,8 @@ abstract class ReconciliationContract {
     // 앞 테스트가 남긴 결과 모름 결제가 이번 보정 대상에 섞이지 않게 한다
     @BeforeEach
     void clearPayments() {
+        // 5장부터 취소 기록이 결제를 가리키므로 먼저 지운다
+        jdbcTemplate.update("delete from payment_cancel");
         jdbcTemplate.update("delete from payment");
     }
 

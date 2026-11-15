@@ -1,8 +1,10 @@
 package com.example.payment.application.payment;
 
+import com.example.payment.application.payment.dto.CancelPaymentCommand;
 import com.example.payment.application.payment.dto.CancelResult;
-import com.example.payment.domain.payment.CancelStatus;
+import com.example.payment.domain.payment.GatewayCancel;
 import com.example.payment.domain.payment.Payment;
+import com.example.payment.domain.payment.PaymentCancel;
 import com.example.payment.domain.payment.PaymentRepository;
 import com.example.payment.global.error.exception.PaymentNotFoundException;
 import java.math.BigDecimal;
@@ -25,11 +27,11 @@ public class PaymentCancelRecorder {
                 .orElseThrow(() -> new PaymentNotFoundException(orderId));
     }
 
-    // 카드사가 취소했으니 결제를 취소 상태로 바꾼다. 남은 금액은 이번 요청 금액만 빼서 계산한다
+    // 카드사가 취소한 결과를 취소 한 건으로 남긴다
     @Transactional
-    public CancelResult recordCanceled(String orderId, BigDecimal amount) {
-        Payment payment = find(orderId);
-        payment.cancel();
-        return new CancelResult(orderId, amount, CancelStatus.DONE, payment.getAmount().subtract(amount));
+    public CancelResult recordCanceled(CancelPaymentCommand command, BigDecimal amount, GatewayCancel canceled) {
+        Payment payment = find(command.orderId());
+        PaymentCancel cancel = payment.recordCancel(command.idempotencyKey(), amount, command.cancelReason(), canceled);
+        return CancelResults.of(payment, cancel);
     }
 }

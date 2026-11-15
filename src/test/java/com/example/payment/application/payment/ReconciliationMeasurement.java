@@ -92,6 +92,8 @@ class ReconciliationMeasurement {
 
     @BeforeEach
     void clearPayments() {
+        // 5장부터 취소 기록이 결제를 가리키므로 먼저 지운다
+        jdbcTemplate.update("delete from payment_cancel");
         jdbcTemplate.update("delete from payment");
     }
 

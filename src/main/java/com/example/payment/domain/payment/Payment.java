@@ -3,6 +3,7 @@ package com.example.payment.domain.payment;
 import com.example.payment.global.error.exception.AmountMismatchException;
 import com.example.payment.global.error.exception.DuplicateOrderException;
 import com.example.payment.global.error.exception.InvalidAmountException;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -10,10 +11,14 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -46,6 +51,11 @@ public class Payment {
     // 승인을 요청하려고 인증한 때(4장). 카드사가 처리를 마쳤을 만큼 시간이 지난 결제만 보정한다
     @Column(name = "authenticated_at")
     private Instant authenticatedAt;
+
+    // 5장: 이 결제의 취소. 취소마다 한 줄을 남기고, 남은 금액은 끝난 취소의 합으로 계산한다
+    @Getter(AccessLevel.NONE)
+    @OneToMany(mappedBy = "payment", cascade = CascadeType.ALL)
+    private List<PaymentCancel> cancels = new ArrayList<>();
 
     @Builder(access = AccessLevel.PRIVATE)
     private Payment(String orderId, BigDecimal amount, PaymentStatus status) {
@@ -108,6 +118,32 @@ public class Payment {
 
     public void cancel() {
         changeStatus(PaymentAction.CANCEL);
+    }
+
+    // 카드사가 취소한 결과를 취소 한 건으로 남긴다(5장). 취소 상태로 바꾸는 규칙은 출발 구조와 같다
+    public PaymentCancel recordCancel(String idempotencyKey, BigDecimal cancelAmount, String reason, GatewayCancel canceled) {
+        PaymentCancel cancel = PaymentCancel.done(this, idempotencyKey, cancelAmount, reason, canceled.getTransactionKey());
+        cancels.add(cancel);
+        cancel();
+        return cancel;
+    }
+
+    // 더 취소할 수 있는 금액: 결제 금액에서 끝난 취소를 뺀 값
+    public BigDecimal balanceAmount() {
+        return amount.subtract(canceledAmount());
+    }
+
+    public Optional<PaymentCancel> findCancel(String idempotencyKey) {
+        return cancels.stream()
+                .filter(cancel -> cancel.isRequestedWith(idempotencyKey))
+                .findFirst();
+    }
+
+    private BigDecimal canceledAmount() {
+        return cancels.stream()
+                .filter(PaymentCancel::isDone)
+                .map(PaymentCancel::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     // 금액은 값만 비교한다. DB 에서 읽은 15000.00 과 요청의 15000 은 같은 금액이다
