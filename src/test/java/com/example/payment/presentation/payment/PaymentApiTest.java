@@ -134,6 +134,19 @@ class PaymentApiTest {
     }
 
     @Test
+    @DisplayName("카드사가 서버 오류로 답하면 처리하지 못했다고 답하고, 결제는 승인 결과 없이 인증 상태로 남는다")
+    void cardCompanyFailedLeavesAuthenticated() {
+        String orderId = newOrderId();
+        api.prepare(orderId, 15000);
+        mockPg.fail();
+
+        PaymentApi.Answer answer = api.confirm(orderId, 15000);
+
+        assertThat(answer.status()).isEqualTo(502);
+        assertThat(api.find(orderId).field("status")).isEqualTo("AUTHENTICATED");
+    }
+
+    @Test
     @DisplayName("없는 주문의 결제를 승인하려 하면 찾을 수 없다고 답한다")
     void confirmUnknown() {
         PaymentApi.Answer answer = api.confirm(newOrderId(), 15000);

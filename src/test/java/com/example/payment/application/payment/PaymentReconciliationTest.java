@@ -3,9 +3,11 @@ package com.example.payment.application.payment;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
+import com.example.payment.MockPgServer;
 import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
 import com.example.payment.application.payment.dto.PaymentResult;
 import com.example.payment.domain.payment.PaymentStatus;
+import com.example.payment.global.error.exception.PaymentGatewayFailedException;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,5 +44,20 @@ class PaymentReconciliationTest extends ReconciliationContract {
 
         assertThat(statusOf(orderId)).isEqualTo(PaymentStatus.APPROVAL_UNKNOWN);
         awaitCardCompany(orderId);
+    }
+
+    @Test
+    @DisplayName("카드사가 서버 오류로 답하고 승인을 남기지 않은 결제는 보정 대기 시간이 지난 뒤 보정에서 승인 실패로 닫힌다")
+    void gatewayFailureIsClosedByReconciliation() {
+        String orderId = prepare();
+        mockPg.fail();
+        Throwable failure = catchThrowable(() -> confirm(request(orderId)));
+        mockPg.reset();
+
+        paymentReconciler.reconcile(afterWaiting());
+
+        assertThat(failure).isInstanceOf(PaymentGatewayFailedException.class);
+        assertThat(mockPg.paymentState(orderId)).isEqualTo(MockPgServer.NONE);
+        assertThat(statusOf(orderId)).isEqualTo(PaymentStatus.APPROVAL_FAILED);
     }
 }
