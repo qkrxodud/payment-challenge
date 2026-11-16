@@ -2,6 +2,7 @@ package com.example.payment.infrastructure.pg;
 
 import com.example.payment.domain.payment.CancelOutcome;
 import com.example.payment.domain.payment.GatewayCancel;
+import com.example.payment.domain.payment.GatewayPayment;
 import com.example.payment.domain.payment.PaymentApproval;
 import com.example.payment.domain.payment.PaymentGateway;
 import com.example.payment.domain.payment.PaymentInquiry;
@@ -52,5 +53,10 @@ public class NoIdempotencyKeyPaymentGateway implements PaymentGateway {
     @Override
     public List<GatewayCancel> findCancels(String orderId) {
         return delegate.findCancels(orderId);
+    }
+
+    @Override
+    public GatewayPayment findPayment(String orderId) {
+        return delegate.findPayment(orderId);
     }
 }

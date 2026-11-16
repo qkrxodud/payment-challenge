@@ -21,6 +21,7 @@ import com.example.payment.application.payment.dto.PreparePaymentCommand;
 import com.example.payment.domain.payment.CancelStatus;
 import com.example.payment.domain.payment.PaymentStatus;
 import com.example.payment.global.error.exception.PaymentNotFoundException;
+import com.example.payment.presentation.webhook.comparison.WebhookComparisonConfiguration;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.List;
@@ -53,7 +54,7 @@ import org.springframework.context.annotation.Import;
                 "payment.pg.read-timeout=1s",
                 "payment.reconciliation.wait-after-request=10s"
         })
-@Import({TestcontainersConfiguration.class, MockPgConfiguration.class})
+@Import({TestcontainersConfiguration.class, MockPgConfiguration.class, WebhookComparisonConfiguration.class})
 abstract class WebhookContract {
 
     static final Duration LATE = Duration.ofMillis(1500);

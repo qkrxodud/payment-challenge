@@ -20,4 +20,8 @@ public interface PaymentGateway {
 
     // 5장부터: 주문번호로 카드사에 남은 취소들을 묻는다
     List<GatewayCancel> findCancels(String orderId);
+
+    // 6장부터: 주문번호로 카드사에 남은 결제 상태와 취소들을 함께 묻는다(웹훅을 받으면 본문 대신 이것을 믿는다).
+    // 카드사에 결제가 없으면 없다는 답(GatewayPayment.notFound)을 준다. 시간 안에 답이 없으면 승인과 같은 예외를 던진다
+    GatewayPayment findPayment(String orderId);
 }

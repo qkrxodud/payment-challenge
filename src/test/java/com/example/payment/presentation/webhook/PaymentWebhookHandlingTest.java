@@ -13,7 +13,7 @@ class PaymentWebhookHandlingTest extends WebhookContract {
         return "/api/v1/webhooks/tosspayments";
     }
 
-    // 출발 구조는 알림을 요청 안에서 반영한다
+    // 결정 1까지는 알림을 받은 자리에서 옮긴다
     @Override
     void process() {
     }
