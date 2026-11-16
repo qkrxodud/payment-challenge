@@ -19,8 +19,6 @@ public enum ErrorCode {
     // 승인 요청 금액이 준비한 금액과 다름. 결제 상태는 바꾸지 않는다
     AMOUNT_MISMATCH(ErrorType.INVALID_INPUT, "The amount does not match the prepared payment."),
     PAYMENT_NOT_FOUND(ErrorType.NOT_FOUND, "No payment was found for this order."),
-    // 이 결제에 그 멱등키로 온 취소가 없음(5장)
-    CANCEL_NOT_FOUND(ErrorType.NOT_FOUND, "No cancel was found for this idempotency key."),
     // 5장: 취소 금액이 더 취소할 수 있는 금액(잔액)보다 큼. 카드사에 보내지 않는다
     CANCEL_AMOUNT_EXCEEDS_BALANCE(ErrorType.CONFLICT, "The cancel amount is larger than the amount left to cancel."),
     // 5장: 취소 요청에 Idempotency-Key 가 없거나 300자를 넘음

@@ -2,7 +2,6 @@ package com.example.payment.domain.payment;
 
 import com.example.payment.global.error.exception.AmountMismatchException;
 import com.example.payment.global.error.exception.CancelAmountExceedsBalanceException;
-import com.example.payment.global.error.exception.CancelNotFoundException;
 import com.example.payment.global.error.exception.DuplicateOrderException;
 import com.example.payment.global.error.exception.IdempotencyKeyReusedException;
 import com.example.payment.global.error.exception.InvalidAmountException;
@@ -244,9 +243,10 @@ public class Payment {
                 .findFirst();
     }
 
+    // 결과를 남기려는 취소는 이 요청 앞에서 이미 기록했다. 없다면 기록이 어긋난 것이라 내부 오류(500)로 알린다
     private PaymentCancel awaitingCancel(String idempotencyKey) {
         return findCancel(idempotencyKey)
-                .orElseThrow(() -> new CancelNotFoundException(orderId));
+                .orElseThrow(() -> new IllegalStateException("A cancel recorded before calling the gateway is missing."));
     }
 
     private BigDecimal sumOf(Predicate<PaymentCancel> condition) {
