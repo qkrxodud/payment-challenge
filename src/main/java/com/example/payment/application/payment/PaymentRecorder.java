@@ -35,21 +35,32 @@ public class PaymentRecorder {
         return payment;
     }
 
+    // 6장부터: 승인 답을 기다리는 사이 웹훅이 먼저 결과를 남겼으면 건드리지 않고 지금 결과로 답한다
     @Transactional
     public PaymentResult recordApproval(String orderId, PaymentApproval approval) {
         Payment payment = find(orderId);
-        if (approval.isDeclined()) {
-            payment.failApproval();
-            return PaymentResult.from(payment);
+        if (payment.isAwaitingApprovalResult()) {
+            settleWith(payment, approval);
         }
-        payment.approve();
         return PaymentResult.from(payment);
     }
 
-    // 카드사 답을 받지 못했다. 승인됐는지 모른다는 것을 남겨 두고 나중에 카드사에 확인한다
+    private static void settleWith(Payment payment, PaymentApproval approval) {
+        if (approval.isDeclined()) {
+            payment.failApproval();
+            return;
+        }
+        payment.approve();
+    }
+
+    // 카드사 답을 받지 못했다. 승인됐는지 모른다는 것을 남겨 두고 나중에 카드사에 확인한다.
+    // 6장부터: 그 사이 웹훅이 먼저 결과를 남겼으면 결과 모름으로 되돌리지 않는다
     @Transactional
     public void recordApprovalUnknown(String orderId) {
-        find(orderId).markApprovalUnknown();
+        Payment payment = find(orderId);
+        if (payment.isAwaitingApprovalResult()) {
+            payment.markApprovalUnknown();
+        }
     }
 
     // 카드사에 확인한 결과를 남긴다. 그 사이 다른 길로 결과가 남은 결제는 건드리지 않는다

@@ -65,6 +65,11 @@ public enum PaymentStatus {
         return Objects.isNull(TRANSITIONS.getOrDefault(this, Collections.emptyMap()).get(action));
     }
 
+    // 승인이 남아 있는 상태인가(승인, 매입). 6장: 카드사 취소를 따라갈 수 있는 상태다
+    public boolean holdsApproval() {
+        return this == APPROVED || this == CAPTURED;
+    }
+
     public boolean isApprovalUnknown() {
         return this == APPROVAL_UNKNOWN;
     }

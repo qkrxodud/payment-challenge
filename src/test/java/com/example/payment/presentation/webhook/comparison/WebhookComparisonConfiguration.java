@@ -1,5 +1,6 @@
 package com.example.payment.presentation.webhook.comparison;
 
+import com.example.payment.application.payment.comparison.RejectOffTableWebhookService;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Import;
 
@@ -8,8 +9,11 @@ import org.springframework.context.annotation.Import;
  * 운영 구현 시험에도 함께 올린다 — 주소가 달라 운영 구현의 동작에는 끼어들지 않는다
  */
 @TestConfiguration(proxyBeanMethods = false)
-@Import(BodyStatusWebhookController.class)
+@Import({BodyStatusWebhookController.class, RejectOffTableWebhookController.class, RejectOffTableWebhookService.class,
+        LatestCreatedAtWebhookController.class})
 public class WebhookComparisonConfiguration {
 
     public static final String BODY_STATUS = BodyStatusWebhookController.PATH;
+    public static final String REJECT_OFF_TABLE = RejectOffTableWebhookController.PATH;
+    public static final String LATEST_CREATED_AT = LatestCreatedAtWebhookController.PATH;
 }

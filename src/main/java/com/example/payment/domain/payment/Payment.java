@@ -112,9 +112,28 @@ public class Payment {
         }
     }
 
-    // 6장 출발 구조: 카드사가 알려 준 상태를 허용 전이 표대로 옮긴다. 표에 없는 전이는 받지 않는다
-    public void report(GatewayStatus reported) {
-        reported.reportedAction().ifPresent(this::changeStatus);
+    // 카드사에서 다시 읽은 결제를 따라간다(6장 결정 2). 지금 상태에서 허용 전이 표로 갈 수 있는 방향이면 따라가고,
+    // 이미 지난 상태(먼저 온 알림으로 이미 따라갔거나, 우리가 먼저 결과를 남김)면 아무것도 하지 않는다. 표에 없는 전이로 거부하지 않는다.
+    // 승인 결과를 기다리는 결제는 카드사에 승인이 있었으면 승인, 거절·만료면 승인 실패로 닫는다. 카드사도 아직 처리 중이거나
+    // 기록이 없으면 그대로 둔다(알림만으로 실패로 닫지 않는다 — 승인 요청이 아직 처리 중일 수 있다)
+    public void follow(GatewayPayment gatewayPayment) {
+        GatewayStatus gatewayStatus = gatewayPayment.getStatus();
+        if (status.isAwaitingApprovalResult()) {
+            followApproval(gatewayStatus);
+        }
+        if (status.holdsApproval() && gatewayStatus.isCanceled()) {
+            cancel();
+        }
+    }
+
+    private void followApproval(GatewayStatus gatewayStatus) {
+        if (gatewayStatus.hasApproval()) {
+            approve();
+            return;
+        }
+        if (gatewayStatus.isDeclined()) {
+            failApproval();
+        }
     }
 
     public void expire() {

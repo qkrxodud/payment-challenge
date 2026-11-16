@@ -19,6 +19,6 @@ public class PaymentWebhookRecorder {
     @Transactional
     public void follow(String orderId, GatewayPayment gatewayPayment) {
         paymentRepository.findByOrderId(orderId)
-                .ifPresent(payment -> payment.report(gatewayPayment.getStatus()));
+                .ifPresent(payment -> payment.follow(gatewayPayment));
     }
 }

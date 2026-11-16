@@ -1,10 +1,10 @@
 package com.example.payment.domain.payment;
 
 import java.util.Arrays;
-import java.util.Optional;
 
 /**
  * 카드사가 알려 준 결제 상태(6장). 이름은 토스페이먼츠 Payment 객체의 status 값을 따른다. 목록에 없는 값은 UNKNOWN 이다.
+ * 카드사에 이 주문의 결제가 없을 때도 UNKNOWN 으로 본다.
  */
 public enum GatewayStatus {
     READY,
@@ -24,13 +24,17 @@ public enum GatewayStatus {
                 .orElse(UNKNOWN);
     }
 
-    // 이 상태를 우리 결제에 옮길 행위. 승인은 승인, 거절·만료는 승인 실패, 전액 취소는 취소다. 부분 취소는 옮기지 않는다
-    public Optional<PaymentAction> reportedAction() {
-        return switch (this) {
-            case DONE -> Optional.of(PaymentAction.APPROVE);
-            case ABORTED, EXPIRED -> Optional.of(PaymentAction.FAIL_APPROVAL);
-            case CANCELED -> Optional.of(PaymentAction.CANCEL);
-            default -> Optional.empty();
-        };
+    // 카드사가 한 번은 승인한 결제인가. 토스페이먼츠의 부분 취소·취소는 "승인된 결제가" 취소된 상태다
+    public boolean hasApproval() {
+        return this == DONE || this == PARTIAL_CANCELED || this == CANCELED;
+    }
+
+    // 카드사가 승인하지 않고 끝낸 결제인가(승인 실패, 만료)
+    public boolean isDeclined() {
+        return this == ABORTED || this == EXPIRED;
+    }
+
+    public boolean isCanceled() {
+        return this == CANCELED;
     }
 }
