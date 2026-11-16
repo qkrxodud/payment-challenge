@@ -2,6 +2,7 @@ package com.example.payment.application.payment;
 
 import com.example.payment.domain.payment.GatewayPayment;
 import com.example.payment.domain.payment.PaymentRepository;
+import java.time.Clock;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,11 +15,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentWebhookRecorder {
 
     private final PaymentRepository paymentRepository;
+    private final Clock clock;
 
     // 그 사이 결제가 사라질 일은 없지만, 없으면 옮길 것도 없다
     @Transactional
     public void follow(String orderId, GatewayPayment gatewayPayment) {
         paymentRepository.findByOrderId(orderId)
-                .ifPresent(payment -> payment.follow(gatewayPayment));
+                .ifPresent(payment -> payment.follow(gatewayPayment, clock.instant()));
     }
 }

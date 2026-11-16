@@ -33,8 +33,4 @@ public enum GatewayStatus {
     public boolean isDeclined() {
         return this == ABORTED || this == EXPIRED;
     }
-
-    public boolean isCanceled() {
-        return this == CANCELED;
-    }
 }

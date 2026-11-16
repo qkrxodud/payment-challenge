@@ -285,14 +285,14 @@ abstract class WebhookContract {
     }
 
     @Test
-    @DisplayName("결과 모름 취소에 알림이 오면 보정 대기 시간 전에 그 취소가 끝난 취소로 닫힌다")
-    void unknownCancelIsClosedAsDoneBeforeWaitTime() {
+    @DisplayName("결과 모름 취소에 알림이 오면 보정 대기 시간 전에 그 취소가 결과 모름에서 벗어난다")
+    void unknownCancelIsClosedBeforeWaitTime() {
         String orderId = unknownCancelOrder();
 
         awaitWebhooks();
         process();
 
-        assertThat(paymentQueryService.findCancels(orderId).get(0).cancelStatus()).isEqualTo(CancelStatus.DONE);
+        assertThat(paymentQueryService.findCancels(orderId)).noneMatch(cancel -> cancel.cancelStatus().isAwaitingResult());
     }
 
     @Test

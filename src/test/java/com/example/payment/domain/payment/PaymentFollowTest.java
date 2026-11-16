@@ -17,6 +17,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 class PaymentFollowTest {
 
     private static final Instant AUTHENTICATED_AT = Instant.parse("2026-11-16T01:00:00Z");
+    private static final Instant NOW = Instant.parse("2026-11-16T01:00:05Z");
     private static final String ORDER_ID = "order-20261116-0001";
     private static final BigDecimal PREPARED = new BigDecimal("15000");
 
@@ -25,7 +26,7 @@ class PaymentFollowTest {
     void approvalUnknownFollowsApproval() {
         Payment payment = approvalUnknownPayment();
 
-        payment.follow(cardCompany(GatewayStatus.DONE));
+        payment.follow(cardCompany(GatewayStatus.DONE), NOW);
 
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.APPROVED);
     }
@@ -35,7 +36,7 @@ class PaymentFollowTest {
     void authenticatedFollowsApproval() {
         Payment payment = authenticatedPayment();
 
-        payment.follow(cardCompany(GatewayStatus.DONE));
+        payment.follow(cardCompany(GatewayStatus.DONE), NOW);
 
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.APPROVED);
     }
@@ -45,7 +46,7 @@ class PaymentFollowTest {
     void approvalUnknownFollowsDecline() {
         Payment payment = approvalUnknownPayment();
 
-        payment.follow(cardCompany(GatewayStatus.ABORTED));
+        payment.follow(cardCompany(GatewayStatus.ABORTED), NOW);
 
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.APPROVAL_FAILED);
     }
@@ -55,7 +56,7 @@ class PaymentFollowTest {
     void approvalUnknownFollowsApprovalThenCancel() {
         Payment payment = approvalUnknownPayment();
 
-        payment.follow(GatewayPayment.of(GatewayStatus.CANCELED, List.of(GatewayCancel.of("tx-1", PREPARED, "Console"))));
+        payment.follow(GatewayPayment.of(GatewayStatus.CANCELED, List.of(GatewayCancel.of("tx-1", PREPARED, "Console"))), NOW);
 
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.APPROVAL_CANCELED);
     }
@@ -66,7 +67,7 @@ class PaymentFollowTest {
     void approvalUnknownStaysWhileUndecided(GatewayPayment gatewayPayment) {
         Payment payment = approvalUnknownPayment();
 
-        payment.follow(gatewayPayment);
+        payment.follow(gatewayPayment, NOW);
 
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.APPROVAL_UNKNOWN);
     }
@@ -76,7 +77,7 @@ class PaymentFollowTest {
     void approvedStaysApproved() {
         Payment payment = approvedPayment();
 
-        payment.follow(cardCompany(GatewayStatus.DONE));
+        payment.follow(cardCompany(GatewayStatus.DONE), NOW);
 
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.APPROVED);
     }
@@ -87,7 +88,7 @@ class PaymentFollowTest {
         Payment payment = approvedPayment();
         payment.cancel();
 
-        payment.follow(cardCompany(GatewayStatus.DONE));
+        payment.follow(cardCompany(GatewayStatus.DONE), NOW);
 
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.APPROVAL_CANCELED);
     }
@@ -98,7 +99,7 @@ class PaymentFollowTest {
         Payment payment = approvalUnknownPayment();
         payment.failApproval();
 
-        payment.follow(cardCompany(GatewayStatus.DONE));
+        payment.follow(cardCompany(GatewayStatus.DONE), NOW);
 
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.APPROVAL_FAILED);
     }

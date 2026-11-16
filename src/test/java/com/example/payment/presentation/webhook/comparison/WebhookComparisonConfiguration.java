@@ -10,10 +10,11 @@ import org.springframework.context.annotation.Import;
  */
 @TestConfiguration(proxyBeanMethods = false)
 @Import({BodyStatusWebhookController.class, RejectOffTableWebhookController.class, RejectOffTableWebhookService.class,
-        LatestCreatedAtWebhookController.class})
+        LatestCreatedAtWebhookController.class, BodyDigestWebhookController.class})
 public class WebhookComparisonConfiguration {
 
     public static final String BODY_STATUS = BodyStatusWebhookController.PATH;
     public static final String REJECT_OFF_TABLE = RejectOffTableWebhookController.PATH;
     public static final String LATEST_CREATED_AT = LatestCreatedAtWebhookController.PATH;
+    public static final String BODY_DIGEST = BodyDigestWebhookController.PATH;
 }

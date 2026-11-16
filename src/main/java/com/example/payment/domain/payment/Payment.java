@@ -15,6 +15,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -58,7 +59,9 @@ public class Payment {
 
     // 5장: 이 결제의 취소. 취소마다 한 줄을 남기고, 남은 금액은 끝난 취소의 합으로 계산한다
     @Getter(AccessLevel.NONE)
+    // 6장: 받은 순서(번호 순)로 읽는다. 순서를 정하지 않으면 읽을 때마다 순서가 같다는 보장이 없다
     @OneToMany(mappedBy = "payment", cascade = CascadeType.ALL)
+    @OrderBy("id asc")
     private List<PaymentCancel> cancels = new ArrayList<>();
 
     @Builder(access = AccessLevel.PRIVATE)
@@ -116,14 +119,29 @@ public class Payment {
     // 이미 지난 상태(먼저 온 알림으로 이미 따라갔거나, 우리가 먼저 결과를 남김)면 아무것도 하지 않는다. 표에 없는 전이로 거부하지 않는다.
     // 승인 결과를 기다리는 결제는 카드사에 승인이 있었으면 승인, 거절·만료면 승인 실패로 닫는다. 카드사도 아직 처리 중이거나
     // 기록이 없으면 그대로 둔다(알림만으로 실패로 닫지 않는다 — 승인 요청이 아직 처리 중일 수 있다)
-    public void follow(GatewayPayment gatewayPayment) {
-        GatewayStatus gatewayStatus = gatewayPayment.getStatus();
+    // 승인이 남은 결제는 카드사 취소 이력을 따라간다(결정 3): 우리가 이미 아는 취소(같은 transactionKey)는 건너뛰고,
+    // 모르는 취소만 끝난 취소로 들여온다. 같은 알림이 몇 번 오든, 같은 상태를 몇 번 읽든 새로 생기는 기록이 없다.
+    // 들여온 취소로 남은 금액이 0원이 되면 취소 상태로 바꾼다
+    public void follow(GatewayPayment gatewayPayment, Instant now) {
         if (status.isAwaitingApprovalResult()) {
-            followApproval(gatewayStatus);
+            followApproval(gatewayPayment.getStatus());
         }
-        if (status.holdsApproval() && gatewayStatus.isCanceled()) {
-            cancel();
+        if (status.holdsApproval()) {
+            followCancels(gatewayPayment.getCancels(), now);
         }
+    }
+
+    private void followCancels(List<GatewayCancel> gatewayCancels, Instant now) {
+        gatewayCancels.stream()
+                .filter(this::isUnknownTransaction)
+                .forEach(gatewayCancel -> recordGatewayCancel(gatewayCancel, now));
+    }
+
+    private void recordGatewayCancel(GatewayCancel gatewayCancel, Instant now) {
+        PaymentCancel cancel = PaymentCancel.fromGateway(this, gatewayCancel, now);
+        cancels.add(cancel);
+        cancel.keepBalance(balanceAmount());
+        cancelIfNothingLeft();
     }
 
     private void followApproval(GatewayStatus gatewayStatus) {
@@ -240,8 +258,9 @@ public class Payment {
         cancelIfNothingLeft();
     }
 
+    // 이미 취소 상태면(앞 취소로 0원이 됨) 다시 바꾸지 않는다
     private void cancelIfNothingLeft() {
-        if (balanceAmount().signum() == 0) {
+        if (status.holdsApproval() && balanceAmount().signum() == 0) {
             cancel();
         }
     }

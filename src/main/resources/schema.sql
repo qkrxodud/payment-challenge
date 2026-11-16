@@ -12,12 +12,13 @@ create table if not exists payment (
 );
 
 -- 5장: 취소 요청 한 건마다 한 줄. 결제의 남은 금액은 끝난 취소의 합으로 계산한다
+-- 6장: 카드사에서만 일어난 취소(가맹점 관리 화면 취소 등)도 한 줄로 들여온다. 그 줄에는 고객 키와 요청 비교값이 없다
 create table if not exists payment_cancel (
     id              bigint         not null auto_increment,
     payment_id      bigint         not null,
-    idempotency_key varchar(300)   not null,
+    idempotency_key varchar(300),
     -- 같은 키로 다시 온 요청이 처음과 같은 내용인지 비교할 값(요청 금액·사유의 SHA-256)
-    request_digest  char(64)       not null,
+    request_digest  char(64),
     amount          decimal(19, 2) not null,
     reason          varchar(200)   not null,
     status          varchar(20)    not null,
@@ -29,6 +30,8 @@ create table if not exists payment_cancel (
     requested_at    datetime(6)    not null,
     primary key (id),
     unique key uk_payment_cancel_idempotency_key (payment_id, idempotency_key),
+    -- 6장: 카드사 취소 한 건은 한 번만 들여온다. 같은 알림을 동시에 두 번 처리해도 두 번째 기록은 막힌다
+    unique key uk_payment_cancel_transaction_key (payment_id, transaction_key),
     key idx_payment_cancel_status_requested_at (status, requested_at),
     constraint fk_payment_cancel_payment foreign key (payment_id) references payment (id)
 );

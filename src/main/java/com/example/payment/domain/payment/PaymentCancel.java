@@ -22,12 +22,15 @@ import lombok.NoArgsConstructor;
 /**
  * 결제 하나에 대한 취소 요청 한 건(5장). 결제(Payment)에 딸린 기록이라 결제를 거쳐서만 만들고 바꾼다.
  * 부분 취소는 결제 하나에 여러 번 있을 수 있어서, 결제 한 줄에 합계만 두지 않고 취소마다 한 줄을 남긴다.
+ * 6장부터 카드사에서만 일어난 취소도 한 건으로 들여온다. 그 취소에는 고객이 보낸 Idempotency-Key 와 요청 비교값이 없다.
  */
 @Entity
 @Table(name = "payment_cancel")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PaymentCancel {
+
+    static final String GATEWAY_ONLY_REASON = "Canceled at the card company";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,12 +41,12 @@ public class PaymentCancel {
     @JoinColumn(name = "payment_id", nullable = false, updatable = false)
     private Payment payment;
 
-    // 고객이 취소 요청에 붙여 보낸 Idempotency-Key. 결제 하나 안에서 두 번 쓸 수 없다
-    @Column(name = "idempotency_key", nullable = false, updatable = false, length = 300)
+    // 고객이 취소 요청에 붙여 보낸 Idempotency-Key. 결제 하나 안에서 두 번 쓸 수 없다. 카드사에서만 일어난 취소에는 없다
+    @Column(name = "idempotency_key", updatable = false, length = 300)
     private String idempotencyKey;
 
     // 같은 키로 다시 온 요청이 처음과 같은 내용인지 비교할 값(요청 금액·사유의 SHA-256)
-    @Column(name = "request_digest", nullable = false, updatable = false, length = 64)
+    @Column(name = "request_digest", updatable = false, length = 64)
     private String requestDigest;
 
     @Column(name = "amount", nullable = false, updatable = false, precision = 19, scale = 2)
@@ -70,13 +73,14 @@ public class PaymentCancel {
 
     @Builder(access = AccessLevel.PRIVATE)
     private PaymentCancel(Payment payment, String idempotencyKey, String requestDigest, BigDecimal amount, String reason,
-                          CancelStatus status, Instant requestedAt) {
+                          CancelStatus status, String transactionKey, Instant requestedAt) {
         this.payment = payment;
         this.idempotencyKey = idempotencyKey;
         this.requestDigest = requestDigest;
         this.amount = amount;
         this.reason = reason;
         this.status = status;
+        this.transactionKey = transactionKey;
         this.requestedAt = requestedAt;
     }
 
@@ -88,6 +92,18 @@ public class PaymentCancel {
                 .amount(amount)
                 .reason(request.getReason())
                 .status(CancelStatus.REQUESTED)
+                .requestedAt(now)
+                .build();
+    }
+
+    // 6장: 카드사에서만 일어난 취소(우리가 요청하지 않은 취소)를 끝난 취소로 들여온다. 사유가 없으면 카드사 쪽 취소라고 적는다
+    static PaymentCancel fromGateway(Payment payment, GatewayCancel canceled, Instant now) {
+        return PaymentCancel.builder()
+                .payment(payment)
+                .amount(canceled.getAmount())
+                .reason(Objects.requireNonNullElse(canceled.getReason(), GATEWAY_ONLY_REASON))
+                .status(CancelStatus.DONE)
+                .transactionKey(canceled.getTransactionKey())
                 .requestedAt(now)
                 .build();
     }
@@ -134,7 +150,7 @@ public class PaymentCancel {
     }
 
     boolean isRequestedWith(String requestedKey) {
-        return idempotencyKey.equals(requestedKey);
+        return Objects.equals(idempotencyKey, requestedKey);
     }
 
     boolean isSameRequest(CancelRequest request) {
