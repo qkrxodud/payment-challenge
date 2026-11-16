@@ -112,6 +112,11 @@ public class Payment {
         }
     }
 
+    // 6장 출발 구조: 카드사가 알려 준 상태를 허용 전이 표대로 옮긴다. 표에 없는 전이는 받지 않는다
+    public void report(GatewayStatus reported) {
+        reported.reportedAction().ifPresent(this::changeStatus);
+    }
+
     public void expire() {
         changeStatus(PaymentAction.EXPIRE);
     }

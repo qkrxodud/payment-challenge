@@ -25,12 +25,14 @@ import org.springframework.web.bind.annotation.RestController;
  *   실제 PG 가 500 으로 답하면서 취소를 남기는지는 확인하지 못했다. 여기서는 남기지 않는다고 가정한다(4장 승인 FAIL 과 같은 가정)
  * - 같은 요청인지는 멱등키와 주소(paymentKey)로 본다. 같은 키에 다른 본문이 오면 어떻게 답하는지는 문서에 없어서,
  *   여기서는 본문을 보지 않고 첫 응답을 돌려준다고 가정한다. 첫 응답을 몇 일 동안 기억하는지(토스페이먼츠 15일)는 흉내 내지 않는다
+ * 6장부터 취소해 결제 상태가 바뀌면 웹훅으로 알린다(같은 멱등키로 다시 와 첫 응답을 돌려줄 때는 바뀐 것이 없어 알리지 않는다)
  */
 @RestController
 @RequiredArgsConstructor
 public class PaymentInquiryController {
 
     private final ScenarioStore scenarioStore;
+    private final WebhookSender webhookSender;
 
     @GetMapping("/v1/payments/orders/{orderId}")
     public ResponseEntity<Object> findByOrderId(@PathVariable String orderId) throws InterruptedException {
@@ -81,9 +83,17 @@ public class PaymentInquiryController {
         scenarioStore.enterCancel(orderId);
         try {
             waitFollowUpDelay();
-            return answer(scenarioStore.cancel(orderId, request.cancelAmount(), request.cancelReason()));
+            CancelAttempt attempt = scenarioStore.cancel(orderId, request.cancelAmount(), request.cancelReason());
+            notifyIfCanceled(attempt);
+            return answer(attempt);
         } finally {
             scenarioStore.leaveCancel(orderId);
+        }
+    }
+
+    private void notifyIfCanceled(CancelAttempt attempt) {
+        if (attempt.getOutcome().isCanceled()) {
+            webhookSender.statusChanged(attempt.getRecord());
         }
     }
 

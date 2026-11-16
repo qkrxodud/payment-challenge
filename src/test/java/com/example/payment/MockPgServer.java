@@ -1,12 +1,17 @@
 package com.example.payment;
 
+import com.example.mockpg.MerchantConsole;
 import com.example.mockpg.MockPgApplication;
 import com.example.mockpg.Outcome;
 import com.example.mockpg.PaymentRecord;
 import com.example.mockpg.Scenario;
 import com.example.mockpg.ScenarioStore;
+import com.example.mockpg.WebhookDelivery;
+import com.example.mockpg.WebhookSender;
+import com.example.mockpg.WebhookSettings;
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -23,6 +28,8 @@ public class MockPgServer {
             + "org.springframework.boot.data.jpa.autoconfigure.DataJpaRepositoriesAutoConfiguration";
 
     public static final String NONE = "NONE";
+    // 6장: 시험에서 쓰는 웹훅 재전송 간격. 토스페이먼츠는 1, 4, 16, 64, 256, 1024, 4096분이다(횟수 7회는 같게 둔다)
+    public static final List<Duration> TEST_RETRY_INTERVALS = Collections.nCopies(7, Duration.ofMillis(100));
 
     private final ConfigurableApplicationContext context;
 
@@ -78,9 +85,77 @@ public class MockPgServer {
         scenarios().change(Scenario.failingFollowUps());
     }
 
-    // 5장부터: 결제 서버를 거치지 않고 카드사 쪽에서 남은 금액을 모두 취소한다(가맹점 관리 화면에서 취소한 경우)
+    // 5장부터: 결제 서버를 거치지 않고 카드사 쪽에서 남은 금액을 모두 취소한다(가맹점 관리 화면에서 취소한 경우).
+    // 6장부터 웹훅을 켜 두었으면 알림도 간다
     public void cancelAtCardCompany(String orderId) {
-        scenarios().cancel(orderId, null, "Canceled on the merchant console");
+        cancelAtCardCompany(orderId, null);
+    }
+
+    // 6장: 카드사 쪽에서 이 금액만 취소한다
+    public void cancelAtCardCompany(String orderId, BigDecimal amount) {
+        context.getBean(MerchantConsole.class).cancel(orderId, amount, "Canceled on the merchant console");
+    }
+
+    // 6장: 결제 상태가 바뀔 때 이 주소로 웹훅을 보낸다. 재전송은 7회, 간격은 시험용으로 줄인 값
+    public void sendWebhooksTo(String targetUrl) {
+        webhooks().change(WebhookSettings.sendTo(targetUrl, TEST_RETRY_INTERVALS));
+    }
+
+    // 6장: 알림을 보내지 않고 쌓아 둔다
+    public void holdWebhooks() {
+        webhooks().change(webhooks().current().holding(true));
+    }
+
+    // 6장: 쌓아 둔 알림을 보낸다. reversed 면 늦게 생긴 알림부터. 그 뒤의 알림은 바로 보낸다
+    public void releaseWebhooks(boolean reversed) {
+        webhooks().change(webhooks().current().holding(false));
+        webhooks().releaseHeld(reversed);
+    }
+
+    // 6장: 알림마다 같은 본문을 두 번 보낸다
+    public void duplicateWebhooks() {
+        webhooks().change(webhooks().current().duplicating(true));
+    }
+
+    // 6장: 상태가 바뀌고 이만큼 지난 뒤에 알림을 보낸다
+    public void delayWebhooks(Duration delay) {
+        webhooks().change(webhooks().current().delayedBy(delay));
+    }
+
+    // 6장: 지금 상태를 새 알림으로 다시 보낸다(같은 상태, 다른 createdAt)
+    public void resendWebhook(String orderId) {
+        scenarios().findByOrderId(orderId).ifPresent(webhooks()::statusChanged);
+    }
+
+    // 6장: 카드사 기록과 다른 상태를 담은 위조 알림을 보낸다
+    public void forgeWebhook(String orderId, String status, BigDecimal amount) {
+        webhooks().forge(orderId, status, amount);
+    }
+
+    // 6장: 보낸 알림이 모두 200 을 받았거나 재전송을 다 썼다
+    public boolean isWebhookSettled() {
+        return webhooks().isSettled();
+    }
+
+    public List<WebhookDelivery> webhookDeliveries(String orderId) {
+        return webhooks().deliveriesOf(orderId);
+    }
+
+    public List<WebhookDelivery> webhookDeliveries() {
+        return webhooks().deliveries();
+    }
+
+    public void resetWebhooks() {
+        webhooks().reset();
+    }
+
+    // 6장: 승인은 기록하고 알리되, 승인 답은 releaseConfirmAnswers 까지 보내지 않는다
+    public void holdConfirmAnswers() {
+        scenarios().holdConfirmAnswers();
+    }
+
+    public void releaseConfirmAnswers() {
+        scenarios().releaseConfirmAnswers();
     }
 
     public void reset() {
@@ -134,5 +209,9 @@ public class MockPgServer {
 
     private ScenarioStore scenarios() {
         return context.getBean(ScenarioStore.class);
+    }
+
+    private WebhookSender webhooks() {
+        return context.getBean(WebhookSender.class);
     }
 }

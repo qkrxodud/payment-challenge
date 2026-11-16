@@ -4,10 +4,13 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +19,7 @@ import org.springframework.stereotype.Component;
 /**
  * 가짜 PG의 상태: 지금 시나리오, 주문별 승인 금액과 결제 기록, 승인 요청·취소 횟수, 지금 처리 중인 주문.
  * 5장부터 취소 요청을 받은 횟수, 멱등키별 첫 응답, 지금 처리 중인 멱등키를 더한다.
+ * 6장부터 승인을 기록한 뒤 답을 붙잡아 두는 문(시험이 열 때까지 승인 답을 보내지 않음)을 더한다.
  * 상태를 두는 것 자체가 목적인 시험 도구라 스레드 안전 저장소만 쓴다.
  */
 @Component
@@ -31,6 +35,7 @@ public class ScenarioStore {
     private final Map<String, AtomicInteger> cancelsInFlight = new ConcurrentHashMap<>();
     private final Map<String, ResponseEntity<Object>> idempotentResponses = new ConcurrentHashMap<>();
     private final Set<String> idempotentInFlight = ConcurrentHashMap.newKeySet();
+    private final AtomicReference<CountDownLatch> confirmAnswerGate = new AtomicReference<>();
 
     public Scenario current() {
         return scenario.get();
@@ -42,6 +47,27 @@ public class ScenarioStore {
 
     public void reset() {
         scenario.set(Scenario.immediateApproval());
+        releaseConfirmAnswers();
+    }
+
+    // 6장: 승인은 기록하되 그 답은 시험이 문을 열 때까지 보내지 않는다(알림이 승인 답보다 먼저 닿는 경우를 만든다)
+    public void holdConfirmAnswers() {
+        confirmAnswerGate.set(new CountDownLatch(1));
+    }
+
+    public void releaseConfirmAnswers() {
+        CountDownLatch gate = confirmAnswerGate.getAndSet(null);
+        if (Objects.nonNull(gate)) {
+            gate.countDown();
+        }
+    }
+
+    // 문이 닫혀 있으면 열릴 때까지(최대 10초) 기다린다
+    public void awaitConfirmAnswer() throws InterruptedException {
+        CountDownLatch gate = confirmAnswerGate.get();
+        if (Objects.nonNull(gate)) {
+            gate.await(10, TimeUnit.SECONDS);
+        }
     }
 
     public void enter(String orderId) {
@@ -76,14 +102,19 @@ public class ScenarioStore {
         });
     }
 
-    public void recordApproval(String paymentKey, String orderId, BigDecimal amount) {
+    // 6장부터 남긴 기록을 돌려준다(상태가 바뀐 결제를 웹훅으로 알린다)
+    public PaymentRecord recordApproval(String paymentKey, String orderId, BigDecimal amount) {
         approvals.computeIfAbsent(orderId, key -> new CopyOnWriteArrayList<>()).add(amount);
-        payments.put(orderId, PaymentRecord.of(paymentKey, orderId, amount, PaymentState.DONE));
+        PaymentRecord record = PaymentRecord.of(paymentKey, orderId, amount, PaymentState.DONE);
+        payments.put(orderId, record);
+        return record;
     }
 
     // 4장부터: 거절도 기록해 두어 나중에 조회로 알 수 있게 한다
-    public void recordDecline(String paymentKey, String orderId, BigDecimal amount) {
-        payments.put(orderId, PaymentRecord.of(paymentKey, orderId, amount, PaymentState.ABORTED));
+    public PaymentRecord recordDecline(String paymentKey, String orderId, BigDecimal amount) {
+        PaymentRecord record = PaymentRecord.of(paymentKey, orderId, amount, PaymentState.ABORTED);
+        payments.put(orderId, record);
+        return record;
     }
 
     public Optional<PaymentRecord> findByOrderId(String orderId) {
