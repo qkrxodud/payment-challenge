@@ -131,10 +131,26 @@ public class Payment {
         }
     }
 
+    // 결정 5: 우리가 모르는 카드사 취소는 먼저 카드사 답을 기다리는 우리 취소(결과 모름·요청)와 금액으로 짝지어 그 취소를 닫는다 —
+    // 보정 대기 시간을 기다리지 않는다(5장 보정과 같은 짝짓기). 짝이 없는 우리 취소는 실패로 닫지 않고 그대로 둔다 — 카드사가 아직
+    // 처리 중일 수 있다(실패로 닫는 것은 대기 시간이 지난 주기 보정이 한다). 짝지어지지 않고 남은 카드사 취소만 카드사에서만 일어난
+    // 취소로 들여온다
     private void followCancels(List<GatewayCancel> gatewayCancels, Instant now) {
-        gatewayCancels.stream()
+        List<GatewayCancel> unknown = new ArrayList<>(gatewayCancels.stream()
                 .filter(this::isUnknownTransaction)
-                .forEach(gatewayCancel -> recordGatewayCancel(gatewayCancel, now));
+                .toList());
+        cancels.stream()
+                .filter(PaymentCancel::isAwaitingResult)
+                .forEach(cancel -> completeIfMatched(cancel, unknown));
+        unknown.forEach(gatewayCancel -> recordGatewayCancel(gatewayCancel, now));
+    }
+
+    private void completeIfMatched(PaymentCancel cancel, List<GatewayCancel> unmatched) {
+        GatewayCancel matched = sameAmountOf(cancel, unmatched);
+        if (Objects.nonNull(matched)) {
+            unmatched.remove(matched);
+            complete(cancel, matched.getTransactionKey());
+        }
     }
 
     private void recordGatewayCancel(GatewayCancel gatewayCancel, Instant now) {
@@ -236,16 +252,20 @@ public class Payment {
     }
 
     private void settle(PaymentCancel cancel, List<GatewayCancel> unmatched) {
-        GatewayCancel matched = unmatched.stream()
-                .filter(gatewayCancel -> cancel.hasAmount(gatewayCancel.getAmount()))
-                .findFirst()
-                .orElse(null);
+        GatewayCancel matched = sameAmountOf(cancel, unmatched);
         if (Objects.isNull(matched)) {
             cancel.fail(balanceAmount());
             return;
         }
         unmatched.remove(matched);
         complete(cancel, matched.getTransactionKey());
+    }
+
+    private static GatewayCancel sameAmountOf(PaymentCancel cancel, List<GatewayCancel> unmatched) {
+        return unmatched.stream()
+                .filter(gatewayCancel -> cancel.hasAmount(gatewayCancel.getAmount()))
+                .findFirst()
+                .orElse(null);
     }
 
     private boolean isUnknownTransaction(GatewayCancel gatewayCancel) {
