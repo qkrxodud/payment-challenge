@@ -2,9 +2,9 @@ package com.example.payment.application.payment;
 
 import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
 import com.example.payment.application.payment.dto.PaymentResult;
+import com.example.payment.domain.payment.GatewayPayment;
 import com.example.payment.domain.payment.Payment;
 import com.example.payment.domain.payment.PaymentApproval;
-import com.example.payment.domain.payment.PaymentInquiry;
 import com.example.payment.domain.payment.PaymentRepository;
 import com.example.payment.global.error.exception.PaymentNotFoundException;
 import java.time.Clock;
@@ -63,12 +63,13 @@ public class PaymentRecorder {
         }
     }
 
-    // 카드사에 확인한 결과를 남긴다. 그 사이 다른 길로 결과가 남은 결제는 건드리지 않는다
+    // 카드사에 확인한 결과를 남긴다. 그 사이 다른 길로 결과가 남은 결제는 건드리지 않는다.
+    // 6장부터 카드사 결제 상태와 취소 이력을 함께 받아 웹훅과 같은 길로 닫는다(카드사에서 승인 뒤 취소됐으면 승인 취소)
     @Transactional
-    public void recordInquiry(String orderId, PaymentInquiry inquiry) {
+    public void recordInquiry(String orderId, GatewayPayment gatewayPayment) {
         Payment payment = find(orderId);
         if (payment.isAwaitingApprovalResult()) {
-            payment.settle(inquiry);
+            payment.reconcile(gatewayPayment, clock.instant());
         }
     }
 

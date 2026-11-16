@@ -8,6 +8,7 @@ import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
 import com.example.payment.application.payment.dto.PaymentResult;
 import com.example.payment.domain.payment.PaymentStatus;
 import com.example.payment.global.error.exception.PaymentGatewayFailedException;
+import java.math.BigDecimal;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -59,5 +60,56 @@ class PaymentReconciliationTest extends ReconciliationContract {
         assertThat(failure).isInstanceOf(PaymentGatewayFailedException.class);
         assertThat(mockPg.paymentState(orderId)).isEqualTo(MockPgServer.NONE);
         assertThat(statusOf(orderId)).isEqualTo(PaymentStatus.APPROVAL_FAILED);
+    }
+
+    @Test
+    @DisplayName("카드사가 승인한 뒤 가맹점 관리 화면에서 전액 취소한 결과 모름 결제는 보정 뒤 승인 취소로 닫힌다")
+    void unknownPaymentCanceledAtCardCompanyBecomesApprovalCanceled() {
+        String orderId = prepare();
+        mockPg.respondAfter(LATE);
+        catchThrowable(() -> confirm(request(orderId)));
+        awaitCardCompany(orderId);
+        mockPg.reset();
+        mockPg.cancelAtCardCompany(orderId);
+
+        reconcile();
+
+        assertMatchesCardCompany(orderId);
+    }
+
+    @Test
+    @DisplayName("카드사가 승인한 뒤 부분 취소한 결과 모름 결제는 보정 뒤 승인되고 남은 금액이 카드사 잔액과 같다")
+    void unknownPaymentPartiallyCanceledAtCardCompanyKeepsBalance() {
+        String orderId = prepare();
+        mockPg.respondAfter(LATE);
+        catchThrowable(() -> confirm(request(orderId)));
+        awaitCardCompany(orderId);
+        mockPg.reset();
+        mockPg.cancelAtCardCompany(orderId, new BigDecimal("5000"));
+
+        reconcile();
+
+        assertThat(balanceOf(orderId)).isEqualByComparingTo(mockPg.balanceAmount(orderId));
+    }
+
+    @Test
+    @DisplayName("카드사 승인 뒤 기록에 실패해 인증 상태에 남은 결제도 카드사에서 전액 취소됐으면 보정 뒤 승인 취소로 닫힌다")
+    void authenticatedPaymentCanceledAtCardCompanyBecomesApprovalCanceled() {
+        String orderId = prepare();
+        blockApprovalRecord();
+        catchThrowable(() -> confirm(request(orderId)));
+        allowApprovalRecord();
+        mockPg.cancelAtCardCompany(orderId);
+
+        reconcile();
+
+        assertMatchesCardCompany(orderId);
+    }
+
+    private BigDecimal balanceOf(String orderId) {
+        return paymentQueryService.findCancels(orderId).stream()
+                .filter(cancel -> cancel.cancelStatus().isDone())
+                .map(cancel -> cancel.cancelAmount())
+                .reduce(new BigDecimal("15000"), BigDecimal::subtract);
     }
 }

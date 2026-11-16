@@ -104,15 +104,16 @@ public class Payment {
         changeStatus(PaymentAction.MARK_APPROVAL_UNKNOWN);
     }
 
-    // 카드사에 확인한 결과로 결제를 닫는다. 카드사도 아직 처리 중이면 그대로 둔다
-    public void settle(PaymentInquiry inquiry) {
-        if (inquiry.isApproved()) {
-            approve();
+    // 보정 대기 시간이 지난 결과 모름·인증 상태 결제를 카드사에서 다시 읽은 결제로 닫는다(4장 보정, 6장부터 웹훅과 같은 길).
+    // 카드사에 기록이 없으면 승인 요청이 닿지 않은 것으로 보고 승인 실패로 닫는다 — 대기 시간이 지났으니 아직 처리 중일 수 없다고 본다.
+    // 그 밖에는 웹훅 따라가기(follow)와 같다: 승인이 있었으면(승인 뒤 부분 취소·전액 취소 포함) 승인하고 카드사 취소 이력을 들여오고,
+    // 거절·만료면 승인 실패, 카드사도 처리 중이면 그대로 둔다
+    public void reconcile(GatewayPayment gatewayPayment, Instant now) {
+        if (status.isAwaitingApprovalResult() && gatewayPayment.getStatus().isNotFound()) {
+            failApproval();
             return;
         }
-        if (inquiry.isNotApproved()) {
-            failApproval();
-        }
+        follow(gatewayPayment, now);
     }
 
     // 카드사에서 다시 읽은 결제를 따라간다(6장 결정 2). 지금 상태에서 허용 전이 표로 갈 수 있는 방향이면 따라가고,

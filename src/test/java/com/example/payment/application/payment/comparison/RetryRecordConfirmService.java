@@ -73,7 +73,7 @@ public class RetryRecordConfirmService {
     // 운영 구현과 같이 조회에 답이 없으면 그대로 두고 다음 보정에서 다시 본다
     private void reconcile(String orderId) {
         try {
-            paymentRecorder.recordInquiry(orderId, paymentGateway.inquire(orderId));
+            paymentRecorder.recordInquiry(orderId, paymentGateway.findPayment(orderId));
         } catch (PaymentGatewayNoResponseException noResponse) {
             // 다음 보정에서 다시 본다
         }

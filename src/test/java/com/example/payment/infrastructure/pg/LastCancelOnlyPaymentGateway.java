@@ -5,7 +5,6 @@ import com.example.payment.domain.payment.GatewayCancel;
 import com.example.payment.domain.payment.GatewayPayment;
 import com.example.payment.domain.payment.PaymentApproval;
 import com.example.payment.domain.payment.PaymentGateway;
-import com.example.payment.domain.payment.PaymentInquiry;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -27,11 +26,6 @@ public class LastCancelOnlyPaymentGateway implements PaymentGateway {
     @Override
     public PaymentApproval approve(String paymentKey, String orderId, BigDecimal amount) {
         return delegate.approve(paymentKey, orderId, amount);
-    }
-
-    @Override
-    public PaymentInquiry inquire(String orderId) {
-        return delegate.inquire(orderId);
     }
 
     @Override

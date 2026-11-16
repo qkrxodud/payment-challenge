@@ -36,7 +36,7 @@ public class ImmediateLookupConfirmService {
     }
 
     private PaymentResult lookUpRightAway(String orderId) {
-        paymentRecorder.recordInquiry(orderId, paymentGateway.inquire(orderId));
+        paymentRecorder.recordInquiry(orderId, paymentGateway.findPayment(orderId));
         return paymentQueryService.find(orderId);
     }
 }

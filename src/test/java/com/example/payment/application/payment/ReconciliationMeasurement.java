@@ -221,12 +221,9 @@ class ReconciliationMeasurement {
         return statusOf(orderId).isAwaitingApprovalResult();
     }
 
-    // 카드사 승인이면 승인, 그 밖에는 승인 실패여야 짝이 맞는다(보정 계약과 같은 기준)
+    // 보정 계약과 같은 기준으로 짝을 본다(6장부터 승인 뒤 취소의 짝은 승인 취소)
     private boolean isMismatched(String orderId) {
-        PaymentStatus expected = "DONE".equals(mockPg.paymentState(orderId))
-                ? PaymentStatus.APPROVED
-                : PaymentStatus.APPROVAL_FAILED;
-        return statusOf(orderId) != expected;
+        return statusOf(orderId) != ReconciliationContract.pairOf(mockPg.paymentState(orderId));
     }
 
     private boolean isApprovedOnBothSides(String orderId) {

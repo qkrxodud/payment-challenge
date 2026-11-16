@@ -5,7 +5,6 @@ import com.example.payment.domain.payment.GatewayCancel;
 import com.example.payment.domain.payment.GatewayPayment;
 import com.example.payment.domain.payment.PaymentApproval;
 import com.example.payment.domain.payment.PaymentGateway;
-import com.example.payment.domain.payment.PaymentInquiry;
 import com.example.payment.global.error.exception.PaymentGatewayNoResponseException;
 import com.example.payment.infrastructure.pg.dto.PgCancelRequest;
 import java.math.BigDecimal;
@@ -30,11 +29,6 @@ public class NoIdempotencyKeyPaymentGateway implements PaymentGateway {
     @Override
     public PaymentApproval approve(String paymentKey, String orderId, BigDecimal amount) {
         return delegate.approve(paymentKey, orderId, amount);
-    }
-
-    @Override
-    public PaymentInquiry inquire(String orderId) {
-        return delegate.inquire(orderId);
     }
 
     // 받은 멱등키를 버리고 보낸다

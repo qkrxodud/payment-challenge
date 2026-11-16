@@ -4,7 +4,7 @@ import java.util.Arrays;
 
 /**
  * 카드사가 알려 준 결제 상태(6장). 이름은 토스페이먼츠 Payment 객체의 status 값을 따른다. 목록에 없는 값은 UNKNOWN 이다.
- * 카드사에 이 주문의 결제가 없을 때도 UNKNOWN 으로 본다.
+ * 카드사에 이 주문의 결제가 없으면(조회 404 NOT_FOUND_PAYMENT) NOT_FOUND 다.
  */
 public enum GatewayStatus {
     READY,
@@ -15,7 +15,8 @@ public enum GatewayStatus {
     CANCELED,
     ABORTED,
     EXPIRED,
-    UNKNOWN;
+    UNKNOWN,
+    NOT_FOUND;
 
     public static GatewayStatus of(String status) {
         return Arrays.stream(values())
@@ -27,6 +28,10 @@ public enum GatewayStatus {
     // 카드사가 한 번은 승인한 결제인가. 토스페이먼츠의 부분 취소·취소는 "승인된 결제가" 취소된 상태다
     public boolean hasApproval() {
         return this == DONE || this == PARTIAL_CANCELED || this == CANCELED;
+    }
+
+    public boolean isNotFound() {
+        return this == NOT_FOUND;
     }
 
     // 카드사가 승인하지 않고 끝낸 결제인가(승인 실패, 만료)

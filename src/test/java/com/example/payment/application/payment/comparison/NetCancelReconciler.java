@@ -3,7 +3,7 @@ package com.example.payment.application.payment.comparison;
 import com.example.payment.application.payment.PaymentReconciler;
 import com.example.payment.application.payment.PaymentRecorder;
 import com.example.payment.domain.payment.Payment;
-import com.example.payment.domain.payment.PaymentInquiry;
+import com.example.payment.domain.payment.PaymentApproval;
 import com.example.payment.domain.payment.PaymentRepository;
 import com.example.payment.global.config.ReconciliationProperties;
 import java.time.Instant;
@@ -51,7 +51,8 @@ public class NetCancelReconciler {
 
     private void closeIf(boolean closed, Payment payment) {
         if (closed) {
-            paymentRecorder.recordInquiry(payment.getOrderId(), PaymentInquiry.NOT_APPROVED);
+            // 6장부터 보정 기록이 카드사 결제를 받으므로, 망취소로 닫는 것은 거절과 같은 기록(승인 실패)으로 남긴다
+            paymentRecorder.recordApproval(payment.getOrderId(), PaymentApproval.declined("NET_CANCELED"));
         }
     }
 }

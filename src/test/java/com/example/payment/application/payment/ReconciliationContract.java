@@ -32,7 +32,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * PG 읽기 시간 제한은 1초, 카드사는 1.5초 뒤에 답한다. 보정은 카드사가 처리를 마친 뒤,
  * 승인을 요청한 지 보정 대기 시간(10초)이 지난 때로 한 번 돌린다.
  * "어긋나지 않는다"는 카드사에 남은 최종 상태(승인/취소/거절/기록 없음)와 결제 상태가 짝이 맞는지로 본다:
- * 카드사 승인이면 승인, 그 밖에는 승인 실패.
+ * 카드사 승인이면 승인, 승인 뒤 취소면 승인 취소(6장부터, 4장에서는 승인 실패), 거절·기록 없음이면 승인 실패.
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.NONE,
@@ -220,16 +220,25 @@ abstract class ReconciliationContract {
         await().atMost(Duration.ofSeconds(5)).until(() -> mockPg.isWaiting(orderId), Predicate.isEqual(false));
     }
 
-    // 카드사 쪽 최종 상태가 승인이면 승인, 취소·거절·기록 없음이면 승인 실패여야 짝이 맞는다
+    // 카드사 쪽 최종 상태가 승인이면 승인, 승인 뒤 취소면 승인 취소, 거절·기록 없음이면 승인 실패여야 짝이 맞는다.
+    // 6장부터 승인 뒤 취소(CANCELED)의 짝을 승인 실패에서 승인 취소로 바꿨다(웹훅과 같은 해석)
     void assertMatchesCardCompany(String orderId) {
-        PaymentStatus expected = "DONE".equals(mockPg.paymentState(orderId))
-                ? PaymentStatus.APPROVED
-                : PaymentStatus.APPROVAL_FAILED;
-        assertThat(statusOf(orderId)).as("카드사 상태 %s 와 짝", mockPg.paymentState(orderId)).isEqualTo(expected);
+        assertThat(statusOf(orderId)).as("카드사 상태 %s 와 짝", mockPg.paymentState(orderId))
+                .isEqualTo(pairOf(mockPg.paymentState(orderId)));
+    }
+
+    static PaymentStatus pairOf(String cardCompany) {
+        if ("DONE".equals(cardCompany)) {
+            return PaymentStatus.APPROVED;
+        }
+        if ("CANCELED".equals(cardCompany)) {
+            return PaymentStatus.APPROVAL_CANCELED;
+        }
+        return PaymentStatus.APPROVAL_FAILED;
     }
 
     // 승인 상태로 바꾸는 저장을 MySQL 트리거로 막아 카드사 승인 뒤 기록 실패를 만든다(2장과 같은 방법)
-    private void blockApprovalRecord() {
+    void blockApprovalRecord() {
         jdbcTemplate.execute("""
                 create trigger block_approval_record before update on payment for each row
                 begin
@@ -239,7 +248,7 @@ abstract class ReconciliationContract {
                 end""");
     }
 
-    private void allowApprovalRecord() {
+    void allowApprovalRecord() {
         jdbcTemplate.execute("drop trigger if exists block_approval_record");
     }
 }
