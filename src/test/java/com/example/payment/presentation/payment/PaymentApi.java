@@ -42,7 +42,7 @@ class PaymentApi {
         return cancel(orderId, idempotencyKey, amount, "\"Customer changed their mind\"");
     }
 
-    // 멱등키가 없으면 머리를 빼고 보낸다. 사유도 JSON 에 적힌 그대로 보낸다
+    // 멱등키가 없으면 헤더를 빼고 보낸다. 사유도 JSON 에 적힌 그대로 보낸다
     Answer cancel(String orderId, String idempotencyKey, String amount, String reason) {
         HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(baseUrl + "/" + orderId + "/cancel"))
                 .header("Content-Type", "application/json")

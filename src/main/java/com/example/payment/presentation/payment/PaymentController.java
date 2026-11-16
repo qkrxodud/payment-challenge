@@ -52,7 +52,7 @@ public class PaymentController {
     }
 
     // 5장: 승인된 결제를 취소한다. 금액이 없으면 남은 금액을 모두 취소한다.
-    // Idempotency-Key 가 없으면 서비스가 400 으로 거부한다(머리가 없을 때도 같은 오류 응답 모양으로 답하려고 여기서 막지 않는다)
+    // Idempotency-Key 가 없으면 서비스가 400 으로 거부한다(헤더가 없을 때도 같은 오류 응답 모양으로 답하려고 여기서 막지 않는다)
     @PostMapping("/{orderId}/cancel")
     public ResponseEntity<CancelResponse> cancel(@PathVariable String orderId,
                                                  @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
