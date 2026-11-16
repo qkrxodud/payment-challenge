@@ -16,12 +16,15 @@ public class Scenario {
     private final Outcome outcome;
     // 4장부터: 승인 뒤에 오는 조회·취소 요청의 응답 지연
     private final Duration followUpDelay;
+    // 5장부터: 조회·취소에 처리하지 않고 서버 오류(500)로 답한다
+    private final boolean followUpFailing;
 
     @Builder(access = AccessLevel.PRIVATE)
-    private Scenario(Duration delay, Outcome outcome, Duration followUpDelay) {
+    private Scenario(Duration delay, Outcome outcome, Duration followUpDelay, boolean followUpFailing) {
         this.delay = delay;
         this.outcome = outcome;
         this.followUpDelay = followUpDelay;
+        this.followUpFailing = followUpFailing;
     }
 
     public static Scenario immediateApproval() {
@@ -37,6 +40,16 @@ public class Scenario {
                 .delay(delay)
                 .outcome(outcome)
                 .followUpDelay(followUpDelay)
+                .build();
+    }
+
+    // 5장부터: 승인은 바로 하고, 조회·취소에는 아무것도 처리하지 않고 500 으로 답한다
+    public static Scenario failingFollowUps() {
+        return Scenario.builder()
+                .delay(Duration.ZERO)
+                .outcome(Outcome.APPROVE)
+                .followUpDelay(Duration.ZERO)
+                .followUpFailing(true)
                 .build();
     }
 }

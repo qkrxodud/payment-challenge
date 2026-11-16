@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RestController;
  * 5장부터 부분 취소(cancelAmount)와 멱등키(Idempotency-Key 헤더)를 받는다. 토스페이먼츠 문서에서 확인한 동작만 흉내 낸다:
  * - 같은 멱등키로 다시 오면 다시 처리하지 않고 첫 응답을 그대로 돌려준다
  * - 같은 멱등키의 앞 요청이 아직 처리 중이면 409 IDEMPOTENT_REQUEST_PROCESSING
+ * - 시나리오가 조회·취소 실패면 아무것도 처리하지 않고 500 FAILED_INTERNAL_SYSTEM_PROCESSING 으로 답한다(문서의 취소 오류 코드).
+ *   실제 PG 가 500 으로 답하면서 취소를 남기는지는 확인하지 못했다. 여기서는 남기지 않는다고 가정한다(4장 승인 FAIL 과 같은 가정)
  * - 같은 요청인지는 멱등키와 주소(paymentKey)로 본다. 같은 키에 다른 본문이 오면 어떻게 답하는지는 문서에 없어서,
  *   여기서는 본문을 보지 않고 첫 응답을 돌려준다고 가정한다. 첫 응답을 몇 일 동안 기억하는지(토스페이먼츠 15일)는 흉내 내지 않는다
  */
@@ -33,6 +35,9 @@ public class PaymentInquiryController {
     @GetMapping("/v1/payments/orders/{orderId}")
     public ResponseEntity<Object> findByOrderId(@PathVariable String orderId) throws InterruptedException {
         waitFollowUpDelay();
+        if (scenarioStore.current().isFollowUpFailing()) {
+            return failed();
+        }
         return scenarioStore.findByOrderId(orderId)
                 .<ResponseEntity<Object>>map(record -> ResponseEntity.ok(PaymentResponse.from(record)))
                 .orElseGet(PaymentInquiryController::notFound);
@@ -48,6 +53,9 @@ public class PaymentInquiryController {
             return notFound();
         }
         scenarioStore.countCancelRequest(record.getOrderId());
+        if (scenarioStore.current().isFollowUpFailing()) {
+            return failed();
+        }
         if (Objects.isNull(idempotencyKey)) {
             return cancel(record.getOrderId(), request);
         }
@@ -89,6 +97,11 @@ public class PaymentInquiryController {
             case NOT_CANCELABLE_AMOUNT -> ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(new ErrorResponse("NOT_CANCELABLE_AMOUNT", "This is a non-cancelable amount."));
         };
+    }
+
+    private static ResponseEntity<Object> failed() {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("FAILED_INTERNAL_SYSTEM_PROCESSING", "Internal system processing operation has failed."));
     }
 
     private static ResponseEntity<Object> notFound() {

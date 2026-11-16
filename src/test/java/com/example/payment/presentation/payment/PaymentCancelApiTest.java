@@ -199,6 +199,18 @@ class PaymentCancelApiTest {
         awaitCardCompany(orderId);
     }
 
+    @Test
+    @DisplayName("카드사가 취소에 서버 오류로 답하면 처리하지 못했다고 답한다")
+    void cardCompanyFailedToCancel() {
+        String orderId = approvedOrder();
+        mockPg.failFollowUps();
+
+        PaymentApi.Answer answer = api.cancel(orderId, "cancel-1", "5000");
+
+        assertThat(answer.status()).isEqualTo(502);
+        assertThat(answer.field("code")).isEqualTo("PAYMENT_GATEWAY_FAILED");
+    }
+
     private String approvedOrder() {
         String orderId = newOrderId();
         api.prepare(orderId, 15000);

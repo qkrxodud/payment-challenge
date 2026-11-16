@@ -73,6 +73,11 @@ public class MockPgServer {
         scenarios().change(Scenario.of(Duration.ZERO, Outcome.APPROVE, delay));
     }
 
+    // 5장부터: 조회·취소에 아무것도 처리하지 않고 서버 오류(500)로 답한다
+    public void failFollowUps() {
+        scenarios().change(Scenario.failingFollowUps());
+    }
+
     // 5장부터: 결제 서버를 거치지 않고 카드사 쪽에서 남은 금액을 모두 취소한다(가맹점 관리 화면에서 취소한 경우)
     public void cancelAtCardCompany(String orderId) {
         scenarios().cancel(orderId, null, "Canceled on the merchant console");
