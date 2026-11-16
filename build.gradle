@@ -59,6 +59,8 @@ tasks.named('test') {
 	}
 	// 4장부터: 테스트는 보정을 직접 부른다. 주기 보정이 테스트 도중 끼어들지 않게 끈다
 	systemProperty 'payment.reconciliation.enabled', 'false'
+	// 6장부터: 받은 웹훅 처리도 테스트가 직접 부른다
+	systemProperty 'payment.webhook.enabled', 'false'
 	finalizedBy jacocoTestReport
 }
 
@@ -71,6 +73,7 @@ tasks.register('knownFailingTest', Test) {
 		includeTags 'known-failing'
 	}
 	systemProperty 'payment.reconciliation.enabled', 'false'
+	systemProperty 'payment.webhook.enabled', 'false'
 	ignoreFailures = true
 }
 
@@ -83,6 +86,7 @@ tasks.register('reconciliationMeasurement', Test) {
 		includeTags 'measurement'
 	}
 	systemProperty 'payment.reconciliation.enabled', 'false'
+	systemProperty 'payment.webhook.enabled', 'false'
 	outputs.upToDateWhen { false }
 	doFirst {
 		delete layout.buildDirectory.file('measurement/ch04-reconciliation.txt')
@@ -98,6 +102,7 @@ tasks.register('cancelMeasurement', Test) {
 		includeTags 'cancel-measurement'
 	}
 	systemProperty 'payment.reconciliation.enabled', 'false'
+	systemProperty 'payment.webhook.enabled', 'false'
 	outputs.upToDateWhen { false }
 	doFirst {
 		delete layout.buildDirectory.file('measurement/ch05-cancel.txt')

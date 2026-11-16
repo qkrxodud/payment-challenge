@@ -1,5 +1,6 @@
 package com.example.payment.presentation.webhook.comparison;
 
+import com.example.payment.application.payment.comparison.InRequestWebhookService;
 import com.example.payment.application.payment.comparison.RejectOffTableWebhookService;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Import;
@@ -10,11 +11,13 @@ import org.springframework.context.annotation.Import;
  */
 @TestConfiguration(proxyBeanMethods = false)
 @Import({BodyStatusWebhookController.class, RejectOffTableWebhookController.class, RejectOffTableWebhookService.class,
-        LatestCreatedAtWebhookController.class, BodyDigestWebhookController.class})
+        LatestCreatedAtWebhookController.class, BodyDigestWebhookController.class, InRequestWebhookController.class,
+        InRequestWebhookService.class})
 public class WebhookComparisonConfiguration {
 
     public static final String BODY_STATUS = BodyStatusWebhookController.PATH;
     public static final String REJECT_OFF_TABLE = RejectOffTableWebhookController.PATH;
     public static final String LATEST_CREATED_AT = LatestCreatedAtWebhookController.PATH;
     public static final String BODY_DIGEST = BodyDigestWebhookController.PATH;
+    public static final String IN_REQUEST = InRequestWebhookController.PATH;
 }

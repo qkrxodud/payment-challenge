@@ -8,6 +8,8 @@ import com.example.payment.application.payment.PaymentConfirmService;
 import com.example.payment.application.payment.PaymentPrepareService;
 import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
 import com.example.payment.application.payment.dto.PreparePaymentCommand;
+import com.example.payment.domain.webhook.PaymentWebhook;
+import com.example.payment.domain.webhook.PaymentWebhookRepository;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
@@ -42,6 +44,9 @@ class PaymentWebhookApiTest {
     @Autowired
     PaymentConfirmService paymentConfirmService;
 
+    @Autowired
+    PaymentWebhookRepository paymentWebhookRepository;
+
     @Test
     @DisplayName("승인된 결제의 승인 알림을 받으면 받았다고 답한다")
     void approvalNoticeIsAnsweredOk() {
@@ -50,6 +55,26 @@ class PaymentWebhookApiTest {
         int status = post(notice("PAYMENT_STATUS_CHANGED", "{\"orderId\":\"" + orderId + "\",\"status\":\"DONE\"}"));
 
         assertThat(status).isEqualTo(200);
+    }
+
+    @Test
+    @DisplayName("결제 상태 알림을 받으면 처리 전 알림으로 남긴다")
+    void approvalNoticeIsKept() {
+        String orderId = approvedOrder();
+
+        post(notice("PAYMENT_STATUS_CHANGED", "{\"orderId\":\"" + orderId + "\",\"status\":\"DONE\"}"));
+
+        assertThat(paymentWebhookRepository.findReceived()).extracting(PaymentWebhook::getOrderId).contains(orderId);
+    }
+
+    @Test
+    @DisplayName("결제 상태 알림이 아닌 알림은 남기지 않는다")
+    void otherEventIsNotKept() {
+        String orderId = approvedOrder();
+
+        post(notice("DEPOSIT_CALLBACK", "{\"orderId\":\"" + orderId + "\",\"status\":\"DONE\"}"));
+
+        assertThat(paymentWebhookRepository.findReceived()).extracting(PaymentWebhook::getOrderId).doesNotContain(orderId);
     }
 
     @Test

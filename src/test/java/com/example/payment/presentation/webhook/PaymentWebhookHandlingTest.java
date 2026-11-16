@@ -2,20 +2,26 @@ package com.example.payment.presentation.webhook;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.example.payment.application.payment.PaymentWebhookProcessor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @DisplayName("카드사 웹훅 처리 — 운영 구현")
 class PaymentWebhookHandlingTest extends WebhookContract {
+
+    @Autowired
+    PaymentWebhookProcessor paymentWebhookProcessor;
 
     @Override
     String webhookPath() {
         return "/api/v1/webhooks/tosspayments";
     }
 
-    // 결정 1까지는 알림을 받은 자리에서 옮긴다
+    // 결정 4부터 받은 알림은 처리기가 맞춘다
     @Override
     void process() {
+        paymentWebhookProcessor.process();
     }
 
     @Test

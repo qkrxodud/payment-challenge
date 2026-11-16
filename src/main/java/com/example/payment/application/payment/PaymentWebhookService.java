@@ -1,38 +1,43 @@
 package com.example.payment.application.payment;
 
 import com.example.payment.application.payment.dto.ReceiveWebhookCommand;
-import com.example.payment.domain.payment.GatewayPayment;
-import com.example.payment.domain.payment.PaymentGateway;
-import com.example.payment.domain.payment.PaymentRepository;
+import com.example.payment.domain.webhook.PaymentWebhook;
+import com.example.payment.domain.webhook.PaymentWebhookRepository;
+import java.time.Clock;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 카드사 웹훅 받기(6장). 결제 상태 알림은 "이 결제를 다시 보라"는 신호로만 쓴다 — 본문의 상태를 믿지 않고
- * 카드사 결제 조회(GET /v1/payments/orders/{orderId})로 지금 상태를 다시 읽어 맞춘다(결정 1).
- * 모르는 주문의 알림에는 다시 볼 결제가 없으니 아무것도 하지 않고 받았다고 답한다.
- * 카드사 조회는 트랜잭션 밖에서 하고, 조회 결과를 옮기는 것만 짧은 트랜잭션으로 한다.
+ * 카드사 웹훅 받기(6장). 결제 상태 알림은 "이 결제를 다시 보라"는 신호로만 쓴다(결정 1).
+ * 받은 알림은 그 자리에서 남기기만 하고 바로 200 으로 답한다(결정 4). 카드사 조회와 결제 맞추기는 처리기(PaymentWebhookProcessor)가
+ * 주기마다 한다 — 토스페이먼츠는 10초 안에 200 을 받아야 성공으로 보는데, 카드사 조회(읽기 제한 5초)와 DB 기록을 요청 안에서 하면
+ * 그 안에 못 답할 수 있고, 조회에 실패해 오류로 답하면 카드사가 같은 알림을 다시 보내기 때문이다.
+ * 결제 상태 알림이 아니거나 주문번호가 없는 알림은 맞출 결제가 없어 남기지 않고 받았다고만 답한다.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PaymentWebhookService {
 
-    private final PaymentRepository paymentRepository;
-    private final PaymentGateway paymentGateway;
-    private final PaymentWebhookRecorder paymentWebhookRecorder;
+    private final PaymentWebhookRepository paymentWebhookRepository;
+    private final Clock clock;
 
+    @Transactional
     public void receive(ReceiveWebhookCommand command) {
         if (isNothingToFollow(command)) {
+            log.info("A webhook with nothing to follow was received and left as is.");
             return;
         }
-        GatewayPayment gatewayPayment = paymentGateway.findPayment(command.orderId());
-        paymentWebhookRecorder.follow(command.orderId(), gatewayPayment);
+        paymentWebhookRepository.save(PaymentWebhook.received(command.orderId(), command.eventType(),
+                command.reportedStatus(), command.reportedCreatedAt(), clock.instant()));
     }
 
-    // 결제 상태 알림이 아니거나, 우리가 모르는 주문의 알림
-    private boolean isNothingToFollow(ReceiveWebhookCommand command) {
+    private static boolean isNothingToFollow(ReceiveWebhookCommand command) {
         if (command.isPaymentStatusChange()) {
-            return paymentRepository.findByOrderId(command.orderId()).isEmpty();
+            return Objects.isNull(command.orderId());
         }
         return true;
     }

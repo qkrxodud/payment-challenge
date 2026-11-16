@@ -35,3 +35,21 @@ create table if not exists payment_cancel (
     key idx_payment_cancel_status_requested_at (status, requested_at),
     constraint fk_payment_cancel_payment foreign key (payment_id) references payment (id)
 );
+
+-- 6장: 받은 웹훅 한 건마다 한 줄. 받자마자 남기고 200 으로 답한 뒤, 처리기가 카드사 조회로 결제를 맞춘다.
+-- 모르는 주문의 알림도 남기므로 결제를 가리키지 않는다(주문번호만 둔다). 본문의 상태·시각은 받은 그대로 기록으로만 남긴다
+create table if not exists payment_webhook (
+    id                  bigint       not null auto_increment,
+    order_id            varchar(64)  not null,
+    event_type          varchar(50)  not null,
+    reported_status     varchar(30),
+    reported_created_at varchar(40),
+    -- RECEIVED(처리 전), PROCESSED(카드사 조회로 맞춤), IGNORED(모르는 주문)
+    status              varchar(20)  not null,
+    -- 카드사 조회에 실패한 횟수. 실패한 알림은 RECEIVED 로 남아 다음 처리 때 다시 본다
+    failed_lookups      int          not null,
+    received_at         datetime(6)  not null,
+    processed_at        datetime(6),
+    primary key (id),
+    key idx_payment_webhook_status_id (status, id)
+);
