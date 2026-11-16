@@ -14,6 +14,7 @@
 - `02-final-test-result.txt`: 태그 `ch06`에서 전체 테스트(`./gradlew clean check`)를 돌린 결과와 커버리지
 - `03-comparison-known-failing-result.txt`: `./gradlew knownFailingTest`로 계약을 못 지키는 비교 구현을 돌린 결과(2~5장 비교 구현 포함)
 - `04-webhook-measurement.txt`: `./gradlew webhookMeasurement`로 구현마다 같은 알림 묶음을 보낸 측정 결과
+- `05-reconciliation-measurement-at-ch06.txt`: 4장 `./gradlew reconciliationMeasurement`를 6장 코드(4장 보정을 웹훅 해석에 맞춘 뒤)에서 다시 돌린 결과. 4장 시점 기록은 `docs/ch04/04-reconciliation-measurement.txt`
 
 웹훅 계약(`WebhookContract`)은 실제 HTTP 로 Mock PG 가 결제 서버에 알림을 보낸다(서버는 임의 포트, 구현마다 받는 주소가 다르다).
 결제 금액 15000원, 부분 취소 5000원, PG 읽기 시간 제한 1초, 늦은 답은 1.5초 뒤에 온다. 보정 대기 시간은 10초다.
