@@ -340,10 +340,12 @@ abstract class WebhookContract {
         return orderId;
     }
 
-    // 승인된 결제에 우리가 보낸 부분 취소가 시간 제한을 넘겨 결과 모름으로 남았고, 카드사는 그 뒤에 취소를 마치고 알림을 보냈다
+    // 승인된 결제에 우리가 보낸 부분 취소가 시간 제한을 넘겨 결과 모름으로 남았고, 카드사는 그 뒤에 취소를 마치고 알림을 보냈다.
+    // 알림은 결과 모름을 확인할 때까지 쌓아 두었다가 보낸다(받은 자리에서 옮기는 구현이 확인 전에 닫지 않게)
     String unknownCancelOrder() {
         String orderId = approvedOrder();
         sendWebhooks();
+        mockPg.holdWebhooks();
         mockPg.answerFollowUpsAfter(LATE);
         catchThrowable(() -> paymentCancelService.cancel(
                 new CancelPaymentCommand(orderId, "cancel-1-" + orderId, PART, REASON)));
@@ -351,6 +353,7 @@ abstract class WebhookContract {
         mockPg.reset();
         assertThat(paymentQueryService.findCancels(orderId).get(0).cancelStatus()).as("알림 전 취소 상태")
                 .isEqualTo(CancelStatus.UNKNOWN);
+        mockPg.releaseWebhooks(false);
         return orderId;
     }
 

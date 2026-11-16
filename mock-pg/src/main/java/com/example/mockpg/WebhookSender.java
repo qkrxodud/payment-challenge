@@ -43,6 +43,7 @@ public class WebhookSender {
     static final String PAYMENT_STATUS_CHANGED = "PAYMENT_STATUS_CHANGED";
     private static final DateTimeFormatter CREATED_AT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS");
     private static final ZoneId KOREA = ZoneId.of("Asia/Seoul");
+    private static final Duration RELEASE_GAP = Duration.ofMillis(100);
 
     private final JsonMapper jsonMapper;
 
@@ -83,7 +84,7 @@ public class WebhookSender {
         send(orderId, PaymentResponse.forged(orderId, status, amount));
     }
 
-    // 쌓아 둔 알림을 보낸다. reversed 면 늦게 생긴 알림부터 보낸다
+    // 쌓아 둔 알림을 보낸다. reversed 면 늦게 생긴 알림부터 보낸다. 닿는 순서가 정한 순서대로 되도록 0.1초씩 띄워 보낸다
     public void releaseHeld(boolean reversed) {
         List<WebhookDelivery> released;
         synchronized (held) {
@@ -94,7 +95,9 @@ public class WebhookSender {
             Collections.reverse(released);
         }
         WebhookSettings now = settings.get();
-        released.forEach(delivery -> dispatch(delivery, now.getDelay()));
+        for (int order = 0; order < released.size(); order++) {
+            dispatch(released.get(order), now.getDelay().plus(RELEASE_GAP.multipliedBy(order)));
+        }
     }
 
     // 보낸 알림이 모두 200 을 받았거나 재전송을 다 썼다(쌓아 둔 알림이 없을 때)

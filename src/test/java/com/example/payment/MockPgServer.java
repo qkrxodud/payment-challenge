@@ -117,6 +117,10 @@ public class MockPgServer {
         webhooks().change(webhooks().current().duplicating(true));
     }
 
+    public void stopDuplicatingWebhooks() {
+        webhooks().change(webhooks().current().duplicating(false));
+    }
+
     // 6장: 상태가 바뀌고 이만큼 지난 뒤에 알림을 보낸다
     public void delayWebhooks(Duration delay) {
         webhooks().change(webhooks().current().delayedBy(delay));
