@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
  * 가짜 PG의 상태: 지금 시나리오, 주문별 승인 금액과 결제 기록, 승인 요청·취소 횟수, 지금 처리 중인 주문.
  * 5장부터 취소 요청을 받은 횟수, 멱등키별 첫 응답, 지금 처리 중인 멱등키를 더한다.
  * 6장부터 승인을 기록한 뒤 답을 붙잡아 두는 문(시험이 열 때까지 승인 답을 보내지 않음)을 더한다.
+ * 7장부터 주문번호 결제 조회를 받은 횟수를 센다(서버 여러 대가 같은 결제를 몇 번 조회하는지 본다).
  * 상태를 두는 것 자체가 목적인 시험 도구라 스레드 안전 저장소만 쓴다.
  */
 @Component
@@ -36,6 +37,7 @@ public class ScenarioStore {
     private final Map<String, ResponseEntity<Object>> idempotentResponses = new ConcurrentHashMap<>();
     private final Set<String> idempotentInFlight = ConcurrentHashMap.newKeySet();
     private final AtomicReference<CountDownLatch> confirmAnswerGate = new AtomicReference<>();
+    private final Map<String, AtomicInteger> inquiries = new ConcurrentHashMap<>();
 
     public Scenario current() {
         return scenario.get();
@@ -196,6 +198,15 @@ public class ScenarioStore {
     // 결과와 상관없이 취소 요청을 받은 횟수(5장)
     public int cancelRequestCount(String orderId) {
         return Optional.ofNullable(cancelRequests.get(orderId)).map(AtomicInteger::get).orElse(0);
+    }
+
+    // 7장부터: 결과와 상관없이 주문번호 결제 조회를 받은 횟수
+    public void countInquiry(String orderId) {
+        inquiries.computeIfAbsent(orderId, key -> new AtomicInteger()).incrementAndGet();
+    }
+
+    public int inquiryCount(String orderId) {
+        return Optional.ofNullable(inquiries.get(orderId)).map(AtomicInteger::get).orElse(0);
     }
 
     // 실제로 취소한 횟수(부분 취소 포함)

@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
  * - 같은 요청인지는 멱등키와 주소(paymentKey)로 본다. 같은 키에 다른 본문이 오면 어떻게 답하는지는 문서에 없어서,
  *   여기서는 본문을 보지 않고 첫 응답을 돌려준다고 가정한다. 첫 응답을 몇 일 동안 기억하는지(토스페이먼츠 15일)는 흉내 내지 않는다
  * 6장부터 취소해 결제 상태가 바뀌면 웹훅으로 알린다(같은 멱등키로 다시 와 첫 응답을 돌려줄 때는 바뀐 것이 없어 알리지 않는다)
+ * 7장부터 결제 조회를 받은 횟수를 센다(답을 늦추거나 실패로 답한 조회도 센다)
  */
 @RestController
 @RequiredArgsConstructor
@@ -36,6 +37,7 @@ public class PaymentInquiryController {
 
     @GetMapping("/v1/payments/orders/{orderId}")
     public ResponseEntity<Object> findByOrderId(@PathVariable String orderId) throws InterruptedException {
+        scenarioStore.countInquiry(orderId);
         waitFollowUpDelay();
         if (scenarioStore.current().isFollowUpFailing()) {
             return failed();

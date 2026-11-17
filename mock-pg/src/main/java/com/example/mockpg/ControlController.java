@@ -46,6 +46,12 @@ public class ControlController {
         return scenarioStore.cancelCount(orderId);
     }
 
+    // 7장: 주문번호 결제 조회를 받은 횟수
+    @GetMapping("/control/inquiries/{orderId}")
+    public int inquiryCount(@PathVariable String orderId) {
+        return scenarioStore.inquiryCount(orderId);
+    }
+
     // 6장: 웹훅을 받을 주소와 시험용 조작(쌓아 두기, 두 번 보내기, 늦게 보내기, 재전송 간격)
     @PutMapping("/control/webhook")
     public void changeWebhook(@RequestBody WebhookSettingsRequest request) {

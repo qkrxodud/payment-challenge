@@ -192,6 +192,11 @@ public class MockPgServer {
         return scenarios().cancelRequestCount(orderId);
     }
 
+    // 7장부터: 결과와 상관없이 주문번호 결제 조회를 받은 횟수(4장 보정, 5장 취소 보정, 6장 웹훅 처리가 모두 이 조회를 쓴다)
+    public int inquiryCount(String orderId) {
+        return scenarios().inquiryCount(orderId);
+    }
+
     /** 5장부터: 카드사에 남은 이 주문의 취소할 수 있는 금액(잔액). 승인 요청이 닿지 않았으면 비어 있다 */
     public BigDecimal balanceAmount(String orderId) {
         return scenarios().findByOrderId(orderId)
