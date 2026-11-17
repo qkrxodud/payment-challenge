@@ -53,3 +53,16 @@ create table if not exists payment_webhook (
     primary key (id),
     key idx_payment_webhook_status_id (status, id)
 );
+
+-- 7장: 주기 작업(승인·취소 보정, 받은 알림 처리)마다 한 줄. 서버 여러 대 가운데 한 번에 한 대만 그 작업을 돌린다.
+-- 작업을 맡은 서버(locked_by)가 locked_until 까지 맡는다. 다 돌면 locked_until 을 그때로 당겨 다음 주기에 아무 서버나 맡게 하고,
+-- 맡은 서버가 죽으면 locked_until 이 지난 뒤에 다른 서버가 맡는다
+create table if not exists job_lock (
+    name         varchar(64)  not null,
+    locked_until datetime(6)  not null,
+    locked_by    varchar(100),
+    primary key (name)
+);
+
+insert ignore into job_lock (name, locked_until) values ('payment-reconciliation', '1970-01-01 00:00:00');
+insert ignore into job_lock (name, locked_until) values ('payment-webhook', '1970-01-01 00:00:00');

@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 받아 둔 웹훅 처리를 정해진 주기마다 돌린다(6장 결정 4). 앞 처리가 끝난 뒤 payment.webhook.interval 만큼 쉬고 다시 돈다.
+ * 7장부터 서버 여러 대 가운데 작업 잠금을 맡은 한 대만 돈다(결정 5).
  * 테스트는 처리를 직접 부르므로 payment.webhook.enabled=false 로 끈다.
  */
 @Component
@@ -14,10 +15,11 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(prefix = "payment.webhook", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class PaymentWebhookScheduler {
 
+    private final ExclusiveJobRunner exclusiveJobRunner;
     private final PaymentWebhookProcessor paymentWebhookProcessor;
 
     @Scheduled(fixedDelayString = "${payment.webhook.interval}")
     public void process() {
-        paymentWebhookProcessor.process();
+        exclusiveJobRunner.run(ExclusiveJobRunner.WEBHOOK, paymentWebhookProcessor::process);
     }
 }

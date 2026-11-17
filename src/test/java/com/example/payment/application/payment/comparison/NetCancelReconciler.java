@@ -32,7 +32,8 @@ public class NetCancelReconciler {
         paymentRepository.findApprovalRequestedBefore(PaymentReconciler.TARGETS, requestedBefore).forEach(this::cancel);
     }
 
-    private void cancel(Payment payment) {
+    // 7장: 서버끼리 결제를 나눠 갖는 비교 구현이 자기가 맡은 결제만 망취소하려고 부른다
+    public void cancel(Payment payment) {
         try {
             boolean closed = pgRestClient.post()
                     .uri("/v1/payments/{paymentKey}/cancel", payment.getPaymentKey())
