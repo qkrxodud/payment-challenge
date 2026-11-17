@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 카드사에서 다시 읽은 결제를 우리 결제에 옮기는 짧은 트랜잭션(6장). 웹훅 서비스와 다른 빈으로 둔 이유는 PaymentRecorder 와 같다.
  * 결정 4부터 받아 둔 알림의 처리 결과도 같은 트랜잭션에 남긴다 — 결제를 맞춘 것과 알림을 닫은 것이 함께 반영된다.
+ * 7장부터 결제 줄을 잠그고 읽는다(결정 1). 승인 답 기록과 겹치면 나중 기록이 앞 기록이 남긴 결제를 보고 판단한다.
  */
 @Component
 @RequiredArgsConstructor
@@ -25,7 +26,7 @@ public class PaymentWebhookRecorder {
     // 그 사이 결제가 사라질 일은 없지만, 없으면 옮길 것도 없다
     @Transactional
     public void follow(String orderId, GatewayPayment gatewayPayment) {
-        paymentRepository.findByOrderId(orderId)
+        paymentRepository.findByOrderIdForUpdate(orderId)
                 .ifPresent(payment -> payment.follow(gatewayPayment, clock.instant()));
     }
 

@@ -37,6 +37,11 @@ public class PaymentRepositoryAdapter implements PaymentRepository {
     }
 
     @Override
+    public Optional<Payment> findByOrderIdForUpdate(String orderId) {
+        return springDataPaymentRepository.findLockedByOrderId(orderId);
+    }
+
+    @Override
     public List<Payment> findApprovalRequestedBefore(Collection<PaymentStatus> statuses, Instant requestedBefore) {
         return springDataPaymentRepository.findTop100ByStatusInAndAuthenticatedAtBeforeOrderByAuthenticatedAtAsc(
                 statuses, requestedBefore);

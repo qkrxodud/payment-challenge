@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 승인 앞뒤의 기록을 각각 짧은 트랜잭션으로 남긴다.
  * PaymentConfirmService 와 다른 빈으로 둔 이유: 같은 클래스 안에서 부르면 @Transactional 이 적용되지 않는다.
+ * 7장부터 결제 줄을 잠그고 읽는다(결정 1). 같은 결제의 승인·알림 반영·보정 기록이 겹치면 나중 기록은 앞 기록이 끝날 때까지 기다렸다가
+ * 앞 기록이 남긴 결제를 보고 판단한다. 카드사 호출은 이미 트랜잭션 밖이라(2장) 잠금은 기록하는 동안만 쥔다.
  */
 @Component
 @RequiredArgsConstructor
@@ -74,7 +76,7 @@ public class PaymentRecorder {
     }
 
     private Payment find(String orderId) {
-        return paymentRepository.findByOrderId(orderId)
+        return paymentRepository.findByOrderIdForUpdate(orderId)
                 .orElseThrow(() -> new PaymentNotFoundException(orderId));
     }
 }

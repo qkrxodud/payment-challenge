@@ -6,15 +6,22 @@ import com.example.payment.domain.payment.PaymentStatus;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import jakarta.persistence.LockModeType;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 interface SpringDataPaymentRepository extends JpaRepository<Payment, Long> {
 
     Optional<Payment> findByOrderId(String orderId);
+
+    // 7장: MySQL 에서는 select … for update 로 읽는다
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from Payment p where p.orderId = :orderId")
+    Optional<Payment> findLockedByOrderId(@Param("orderId") String orderId);
 
     List<Payment> findTop100ByStatusInAndAuthenticatedAtBeforeOrderByAuthenticatedAtAsc(
             Collection<PaymentStatus> statuses, Instant requestedBefore);

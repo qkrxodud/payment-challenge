@@ -20,6 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 취소 앞뒤의 기록을 각각 짧은 트랜잭션으로 남긴다(5장). PaymentRecorder 와 같은 이유로 취소 서비스와 다른 빈으로 둔다.
+ * 7장부터 결제 줄을 잠그고 읽는다(결정 1). 더 취소할 수 있는 금액은 취소 줄들의 합으로 계산하므로, 같은 결제에 동시에 온 취소는
+ * 앞 취소가 요청을 남길 때까지 기다렸다가 그 요청까지 빼고 계산한다. 같은 Idempotency-Key 로 동시에 온 취소도 기다린 뒤 앞 취소를
+ * 찾아 5장 규칙(같은 키로 다시 온 요청)대로 답한다.
  */
 @Component
 @RequiredArgsConstructor
@@ -77,7 +80,7 @@ public class PaymentCancelRecorder {
     }
 
     private Payment find(String orderId) {
-        return paymentRepository.findByOrderId(orderId)
+        return paymentRepository.findByOrderIdForUpdate(orderId)
                 .orElseThrow(() -> new PaymentNotFoundException(orderId));
     }
 
