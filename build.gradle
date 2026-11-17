@@ -20,6 +20,39 @@ configurations {
 	}
 }
 
+// 7장 결정 1 비교(실제 JPA @Version): 운영 Payment.java 를 그대로 복사하면서 변경 번호 칸(@Version) 하나만 더한 시험용 결제를 만든다.
+// 운영 코드는 바꾸지 않는다. 이 결제는 jpaVersionTest·jpaVersionMeasurement 의 클래스 경로 맨 앞에만 올라가 운영 Payment 를 가린다
+def versionedPaymentSource = layout.buildDirectory.dir('generated/versioned-payment/java')
+
+tasks.register('generateVersionedPayment', Copy) {
+	from('src/main/java') {
+		include 'com/example/payment/domain/payment/Payment.java'
+	}
+	into versionedPaymentSource
+	filter { String line ->
+		if (line.trim() == 'private Instant authenticatedAt;') {
+			return line + '\n\n    // 7장 비교: 시험에서만 더한 변경 번호(JPA @Version)\n    @jakarta.persistence.Version\n    @Column(name = "version")\n    private Long version;'
+		}
+		return line
+	}
+}
+
+sourceSets {
+	versionedPayment {
+		java.srcDir versionedPaymentSource
+		compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+	}
+}
+
+configurations {
+	versionedPaymentCompileOnly.extendsFrom compileOnly
+	versionedPaymentAnnotationProcessor.extendsFrom annotationProcessor
+}
+
+tasks.named('compileVersionedPaymentJava') {
+	dependsOn 'generateVersionedPayment'
+}
+
 repositories {
 	mavenCentral()
 }
@@ -56,7 +89,8 @@ tasks.named('test') {
 		// 계약을 지키지 못하는 비교 구현은 기본 빌드에서 빼고 knownFailingTest 로 따로 돌린다.
 		// 4장 측정은 reconciliationMeasurement, 5장 측정은 cancelMeasurement, 6장 측정은 webhookMeasurement,
 		// 7장 측정은 concurrencyMeasurement 로 따로 돌린다
-		excludeTags 'known-failing', 'measurement', 'cancel-measurement', 'webhook-measurement', 'concurrency-measurement'
+		excludeTags 'known-failing', 'measurement', 'cancel-measurement', 'webhook-measurement', 'concurrency-measurement',
+				'jpa-version', 'jpa-version-measurement'
 	}
 	// 4장부터: 테스트는 보정을 직접 부른다. 주기 보정이 테스트 도중 끼어들지 않게 끈다
 	systemProperty 'payment.reconciliation.enabled', 'false'
@@ -72,6 +106,21 @@ tasks.register('knownFailingTest', Test) {
 	classpath = sourceSets.test.runtimeClasspath
 	useJUnitPlatform {
 		includeTags 'known-failing'
+	}
+	systemProperty 'payment.reconciliation.enabled', 'false'
+	systemProperty 'payment.webhook.enabled', 'false'
+	ignoreFailures = true
+	// 7장: 실제 JPA @Version 비교는 시험용 결제를 앞세운 클래스 경로가 필요해 따로 돈다. knownFailingTest 를 부르면 함께 돈다
+	finalizedBy 'jpaVersionTest'
+}
+
+tasks.register('jpaVersionTest', Test) {
+	description = '7장: 결제에 JPA @Version 을 둔 비교 구현(시험용 결제)을 같은 결제 기록 계약으로 돌려 실패를 기록한다'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.versionedPayment.output + sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'jpa-version'
 	}
 	systemProperty 'payment.reconciliation.enabled', 'false'
 	systemProperty 'payment.webhook.enabled', 'false'
@@ -134,6 +183,7 @@ tasks.register('concurrencyMeasurement', Test) {
 	classpath = sourceSets.test.runtimeClasspath
 	useJUnitPlatform {
 		includeTags 'concurrency-measurement'
+		excludeTags 'jpa-version-measurement'
 	}
 	systemProperty 'payment.reconciliation.enabled', 'false'
 	systemProperty 'payment.webhook.enabled', 'false'
@@ -141,6 +191,20 @@ tasks.register('concurrencyMeasurement', Test) {
 	doFirst {
 		delete layout.buildDirectory.file('measurement/ch07-concurrency.txt')
 	}
+	finalizedBy 'jpaVersionMeasurement'
+}
+
+tasks.register('jpaVersionMeasurement', Test) {
+	description = '7장: concurrencyMeasurement 의 잠금 방식 측정을 JPA @Version 비교(시험용 결제)로도 돌려 같은 파일에 덧붙인다'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.versionedPayment.output + sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'jpa-version-measurement'
+	}
+	systemProperty 'payment.reconciliation.enabled', 'false'
+	systemProperty 'payment.webhook.enabled', 'false'
+	outputs.upToDateWhen { false }
 }
 
 def jacocoExcludes = ['com/example/payment/PaymentChallengeApplication*']

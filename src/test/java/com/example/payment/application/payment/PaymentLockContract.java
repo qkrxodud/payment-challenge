@@ -36,7 +36,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * 겹친 기록을 무엇으로 가리는지(가리지 않기, 결제 줄 잠금, 변경 번호 비교, 상태 조건 비교)가 구현마다 다르므로
  * 구현마다 이 클래스를 상속해 같은 테스트를 돌린다. 진입점은 운영 서비스 그대로이고, 구현은 결제를 읽어 바꾸는 방법만 바꿔 끼운다.
  * 먼저 보낸 요청의 기록 한 건을 1초 붙잡아 두고(SlowWrites), 그 요청이 잠든 것을 확인한 뒤 두 번째 요청을 보낸다.
- * 결제 금액은 15000원이고, 남은 금액을 함께 넘는 취소는 10000원 두 건이다.
+ * 결제 금액은 15000원이고, 남은 금액을 함께 넘는 취소는 10000원 두 건, 겹쳐 기록되는 부분 취소는 5000원 두 건이다.
  * "카드사와 같다"는 결제 상태가 카드사 상태와 짝이 맞고 우리 남은 금액이 카드사 잔액과 같은지로 본다(6장과 같은 기준).
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
@@ -45,6 +45,9 @@ abstract class PaymentLockContract {
 
     static final BigDecimal PREPARED = new BigDecimal("15000");
     static final BigDecimal LARGE_PART = new BigDecimal("10000");
+    static final BigDecimal PART = new BigDecimal("5000");
+    // 첫 취소에 카드사가 답하기까지. 두 번째 취소가 요청을 남기다 붙잡힌(1초) 사이에 답이 온다
+    static final Duration PG_ANSWER = Duration.ofMillis(300);
     static final String REASON = "Customer changed their mind";
     private static final Map<String, Set<PaymentStatus>> PAIRS = Map.of(
             "DONE", Set.of(PaymentStatus.APPROVED, PaymentStatus.CAPTURED),
@@ -180,6 +183,27 @@ abstract class PaymentLockContract {
     }
 
     @Test
+    @DisplayName("부분 취소 두 건의 기록이 겹쳐도 보정 없이 우리 남은 금액이 카드사 잔액과 같다")
+    void overlappingPartialCancelsMatchBalanceWithoutReconciliation() {
+        // given: 먼저 보낸 5000원 취소가 카드사 답을 기다리는 동안 두 번째 5000원 취소가 요청을 남기다 붙잡힌다.
+        // 그사이 카드사가 첫 취소에 답해, 첫 취소의 답 기록이 두 번째 취소의 요청 기록과 겹친다
+        String orderId = approvedOrder();
+        slowWrites.holdNewCancel();
+        mockPg.answerFollowUpsAfter(PG_ANSWER);
+        CompletableFuture<Attempt<CancelResult>> first = Attempt.start(
+                () -> paymentCancelService.cancel(partCancelRequest(orderId, "cancel-1")));
+        await().atMost(Duration.ofSeconds(5)).pollInterval(Duration.ofMillis(5)).until(() -> mockPg.isWaiting(orderId));
+
+        // when
+        Attempt<CancelResult> later = Attempt.of(() -> paymentCancelService.cancel(partCancelRequest(orderId, "cancel-2")));
+        first.join();
+
+        // then
+        assertThat(later.isAnswered()).as("나중 취소의 답: %s", later.failure()).isTrue();
+        assertThat(balanceOf(orderId)).isEqualByComparingTo(mockPg.balanceAmount(orderId));
+    }
+
+    @Test
     @DisplayName("알림 반영이 끝나기 전에 승인 답 기록이 겹쳐도 결제는 카드사와 같다")
     void approvalRecordOverlappingWebhookMatchesCardCompany() {
         // given: 카드사가 승인을 남기고 답은 붙잡아 둔 사이, 가맹점 관리 화면에서 전액 취소했고 그 알림을 받았다
@@ -254,6 +278,10 @@ abstract class PaymentLockContract {
 
     static CancelPaymentCommand cancelRequest(String orderId, String idempotencyKey) {
         return new CancelPaymentCommand(orderId, idempotencyKey + "-" + orderId, LARGE_PART, REASON);
+    }
+
+    static CancelPaymentCommand partCancelRequest(String orderId, String idempotencyKey) {
+        return new CancelPaymentCommand(orderId, idempotencyKey + "-" + orderId, PART, REASON);
     }
 
     int cancelCountOf(String orderId) {
