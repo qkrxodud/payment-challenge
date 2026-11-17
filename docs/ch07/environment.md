@@ -10,9 +10,11 @@
 
 실행: `JAVA_HOME=<JDK 17> ./gradlew check` (Docker 필요, 커버리지 90% 미만이면 실패)
 
-- `01-start-structure-test-result.txt`: 태그 `ch07-start`(6장 코드 그대로 — 잠금 없음, 준비는 찾아서 없으면 남김, 인증 상태 결제에 같은 키는 409, 주기 작업은 서버마다 돎)에서 7장 테스트를 돌린 결과
-- `02-final-test-result.txt`: 태그 `ch07`에서 전체 테스트(`./gradlew clean check`)를 돌린 결과와 커버리지
-- `03-comparison-known-failing-result.txt`: `./gradlew knownFailingTest`로 계약을 못 지키는 비교 구현을 돌린 결과(2~6장 비교 구현 포함)
+- `01-start-structure-test-result.txt`: 태그 `ch07-start`(6장 코드 그대로 — 잠금 없음, 준비는 찾아서 없으면 남김, 인증 상태 결제에 같은 키는 409, 주기 작업은 서버마다 돎)에서 7장 테스트를 돌린 결과.
+  같은 결제 기록 계약에 나중에 더한 "부분 취소 두 건의 기록이 겹쳐도 보정 없이 남은 금액이 카드사 잔액과 같다"(결정 1 비교 보강 커밋)를 출발 코드에 얹어 다시 돌린 값이다(27개)
+- `02-final-test-result.txt`: 태그 `ch07`(마지막 기록 커밋)에서 전체 테스트(`./gradlew clean check`)를 돌린 결과와 커버리지
+- `03-comparison-known-failing-result.txt`: `./gradlew knownFailingTest`로 계약을 못 지키는 비교 구현을 돌린 결과(2~6장 비교 구현 포함).
+  @Version 비교는 클래스 경로가 달라 뒤이어 도는 `jpaVersionTest` 결과를 맨 끝에 따로 붙였다
 - `04-concurrency-measurement.txt`: `./gradlew concurrencyMeasurement`로 잠금 방식마다 같은 결제에 동시 요청 N개를 보낸 결과와, 서버 수마다 보정 주기 한 번의 카드사 조회 횟수
 
 ### 겹침을 고정하는 방법
@@ -40,6 +42,10 @@
   변경 번호 비교는 결제에 `@Version` 을 두지 않고 시험 DB 에만 `version` 칸을 더해, 커밋 직전 `update … where version = 읽은 번호`로 흉내 냈다
   (취소 줄만 더하는 기록에도 번호를 올린다 — JPA `OPTIMISTIC_FORCE_INCREMENT` 와 같다). 상태 조건 UPDATE 도 커밋 직전 `update … where status = 읽은 상태`.
   어긋나면 409(INVALID_PAYMENT_TRANSITION)로 답하고 다시 시도하지 않는다.
+- 결정 1 의 실제 @Version 비교: 운영 결제는 그대로 두고, 빌드(`generateVersionedPayment`)가 운영 `Payment.java`를 복사하며 `@Version Long version` 칸 하나만 더한
+  시험용 결제를 만든다. `jpaVersionTest`(`knownFailingTest` 뒤에 돈다)와 `jpaVersionMeasurement`(`concurrencyMeasurement` 뒤에 돈다)만 이 결제를 클래스 경로 맨 앞에 올려
+  운영 결제를 가린다. `version` 칸은 그 시험 DB 에만 더한다(`src/test/resources/versioned-payment.sql`). orm.xml 로 운영 결제에 칸만 덧붙이는 방법은
+  Hibernate 7.4 가 클래스에 없는 칸을 받지 않아(MemberResolutionException) 쓰지 못했다.
 - 결정 5(서버끼리 나누기): 결제마다 점유 비교는 시험 DB 의 payment·payment_webhook 에만 `claimed_by`, `claimed_until` 을 더한다.
 
 ## 부하 테스트
