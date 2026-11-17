@@ -54,8 +54,9 @@ jacoco {
 tasks.named('test') {
 	useJUnitPlatform {
 		// 계약을 지키지 못하는 비교 구현은 기본 빌드에서 빼고 knownFailingTest 로 따로 돌린다.
-		// 4장 측정은 reconciliationMeasurement, 5장 측정은 cancelMeasurement, 6장 측정은 webhookMeasurement 로 따로 돌린다
-		excludeTags 'known-failing', 'measurement', 'cancel-measurement', 'webhook-measurement'
+		// 4장 측정은 reconciliationMeasurement, 5장 측정은 cancelMeasurement, 6장 측정은 webhookMeasurement,
+		// 7장 측정은 concurrencyMeasurement 로 따로 돌린다
+		excludeTags 'known-failing', 'measurement', 'cancel-measurement', 'webhook-measurement', 'concurrency-measurement'
 	}
 	// 4장부터: 테스트는 보정을 직접 부른다. 주기 보정이 테스트 도중 끼어들지 않게 끈다
 	systemProperty 'payment.reconciliation.enabled', 'false'
@@ -123,6 +124,22 @@ tasks.register('webhookMeasurement', Test) {
 	outputs.upToDateWhen { false }
 	doFirst {
 		delete layout.buildDirectory.file('measurement/ch06-webhook.txt')
+	}
+}
+
+tasks.register('concurrencyMeasurement', Test) {
+	description = '7장: 같은 결제에 동시 요청 N개를 보내 잠금 방식마다 응답 시간과 답을 세고, 서버 수마다 보정 주기의 카드사 조회 횟수를 남긴다'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'concurrency-measurement'
+	}
+	systemProperty 'payment.reconciliation.enabled', 'false'
+	systemProperty 'payment.webhook.enabled', 'false'
+	outputs.upToDateWhen { false }
+	doFirst {
+		delete layout.buildDirectory.file('measurement/ch07-concurrency.txt')
 	}
 }
 
