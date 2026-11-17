@@ -1,0 +1,32 @@
+tests=26 failures=15 errors=0 time=69.181s
+## 서버 여러 대의 주기 작업 — 운영 구현
+FAIL 서버 두 대가 같은 때 망취소 보정을 돌려도 결과 모름 결제마다 카드사에 취소는 한 번만 보낸다 (4.761s) | java.lang.AssertionError: [결제마다 카드사에 보낸 취소 횟수] Expecting ArrayList: [2, 2, 2] to contain only: [1] element(s) not found: [1] and element(s) not expected: [2, 2, 2] 
+PASS 서버 두 대가 같은 때 받은 알림을 처리해도 남은 금액은 카드사 잔액과 같다 (1.758s)
+FAIL 서버 두 대가 같은 때 보정을 돌려도 결과 모름 취소가 있는 결제마다 카드사 조회는 한 번이다 (3.42s) | java.lang.AssertionError: [결제마다 카드사 조회 횟수] Expecting ArrayList: [2, 2, 2] to contain only: [1] element(s) not found: [1] and element(s) not expected: [2, 2, 2] 
+PASS 서버 두 대가 같은 때 보정을 돌려도 결과 모름 결제는 카드사와 같은 승인으로 맞춰진다 (3.361s)
+FAIL 서버 두 대가 같은 때 받은 알림을 처리해도 알림이 온 결제마다 카드사 조회는 한 번이다 (1.66s) | java.lang.AssertionError: [결제마다 카드사 조회 횟수] Expecting ArrayList: [2, 1, 1] to contain only: [1] but the following element(s) were unexpected: [2] 
+FAIL 서버 두 대가 같은 때 보정을 돌려도 결과 모름 결제마다 카드사 조회는 한 번이다 (3.372s) | java.lang.AssertionError: [결제마다 카드사 조회 횟수] Expecting ArrayList: [2, 2, 2] to contain only: [1] element(s) not found: [1] and element(s) not expected: [2, 2, 2] 
+## 카드사 답을 기다리는 결제에 다시 온 승인 — 운영 구현
+PASS 카드사 답을 기다리는 결제에 다른 결제 키로 승인이 오면 지금 상태에서는 할 수 없다고 답한다 (0.842s)
+PASS 카드사 답을 기다리는 결제에 다른 결제 키로 승인이 와도 카드사에 요청하지 않는다 (0.849s)
+PASS 카드사 답을 기다리는 결제에 같은 결제 키로 승인이 다시 오면 카드사에 다시 요청하지 않는다 (0.832s)
+FAIL 카드사 답을 기다리는 결제에 같은 결제 키로 승인이 다시 와도 할 수 없다고 답하지 않는다 (0.846s) | org.opentest4j.AssertionFailedError: [다시 온 승인의 답: com.example.payment.global.error.exception.InvalidPaymentTransitionException: Cannot AUTHENTICATE a payment in AUTHENTICATED status.] expected: null but was: INVALID_PAYMENT_TRANSITION
+## 같은 결제를 바꾸는 동시 기록 — 운영 구현
+FAIL 다른 결제 키로 승인 두 건이 동시에 오면 카드사에는 한 건만 승인된다 (1.058s) | org.opentest4j.AssertionFailedError: expected: 1 but was: 2
+FAIL 남은 금액을 함께 넘는 취소 두 건이 동시에 오면 나중 취소는 남은 금액보다 크다고 받지 않는다 (1.075s) | org.opentest4j.AssertionFailedError: expected: CANCEL_AMOUNT_EXCEEDS_BALANCE but was: null
+FAIL 같은 결제 키로 승인 두 건이 동시에 와도 카드사에는 승인을 한 번만 요청한다 (1.053s) | org.opentest4j.AssertionFailedError: expected: 1 but was: 2
+FAIL 같은 Idempotency-Key 로 취소 두 건이 동시에 와도 서버 오류로 답하지 않는다 (1.069s) | org.opentest4j.AssertionFailedError: [나중 취소의 답: org.springframework.dao.DataIntegrityViolationException: could not execute statement [Duplicate entry '8-cancel-1-order-1bdbf5c5-04a2-44da-b411-8ff5a6bca203' for key 'payment_cancel.uk_payment_cancel_idempotency_key'] [insert into payment_cancel (amount,balance_after,idempotency_key,payment_id,reason,req
+PASS 같은 Idempotency-Key 로 취소 두 건이 동시에 와도 카드사에서는 한 번만 취소된다 (1.056s)
+PASS 같은 Idempotency-Key 로 취소 두 건이 동시에 와도 취소 기록은 하나만 남는다 (1.059s)
+FAIL 알림 반영이 끝나기 전에 승인 답 기록이 겹쳐도 결제는 카드사와 같다 (1.172s) | java.lang.AssertionError: [카드사 상태 CANCELED 와 짝] Expecting Set12: [APPROVAL_CANCELED, CAPTURE_CANCELED] to contain: [APPROVED] but could not find the following element(s): [APPROVED] 
+PASS 같은 결제 키로 승인 두 건이 동시에 와도 서버 오류로 답하지 않는다 (1.044s)
+FAIL 남은 금액을 함께 넘는 취소 두 건이 동시에 오면 카드사에는 한 건만 보낸다 (1.074s) | org.opentest4j.AssertionFailedError: expected: 1 but was: 2
+PASS 남은 금액을 함께 넘는 취소 두 건이 동시에 와도 카드사에서 취소된 금액은 결제 금액을 넘지 않는다 (1.068s)
+## 같은 주문의 동시 준비 — 운영 구현
+PASS 같은 주문을 다른 금액으로 동시에 준비해도 결제 금액은 먼저 준비한 금액이다 (1.032s)
+PASS 같은 주문을 같은 금액으로 동시에 두 번 준비해도 결제는 하나만 생긴다 (1.03s)
+FAIL 같은 주문을 다른 금액으로 동시에 준비하면 나중 준비는 이미 있는 주문이라고 받지 않는다 (1.031s) | org.opentest4j.AssertionFailedError: expected: DUPLICATE_ORDER but was: INTERNAL_ERROR
+FAIL 같은 주문을 같은 금액으로 동시에 두 번 준비하면 나중 준비도 준비된 결제로 답을 받는다 (1.03s) | org.opentest4j.AssertionFailedError: [나중 준비의 답: org.springframework.dao.DataIntegrityViolationException: could not execute statement [Duplicate entry 'order-9ce6c730-0912-4002-b8b1-2d95bfad643f' for key 'payment.uk_payment_order_id'] [insert into payment (amount,authenticated_at,order_id,payment_key,status) values (?,?,?,?,?)]; SQL [insert into payment 
+## 겹쳐 온 요청 — 결제 API
+FAIL 같은 주문을 같은 금액으로 동시에 두 번 준비하면 나중 준비도 준비 응답을 받는다 (1.058s) | org.opentest4j.AssertionFailedError: expected: 201 but was: 500
+FAIL 카드사 답을 기다리는 결제에 같은 승인 요청을 다시 보내면 확인 중이라고 답한다 (0.86s) | org.opentest4j.AssertionFailedError: expected: 202 but was: 409
