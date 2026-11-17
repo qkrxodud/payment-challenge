@@ -140,4 +140,30 @@ class PaymentRequestCheckTest {
 
         assertThat(payment.isConfirmedWith(null)).isFalse();
     }
+
+    @Test
+    @DisplayName("카드사 답을 기다리는 결제는 인증할 때 받은 결제 키의 요청을 이미 카드사에 보낸 요청으로 본다")
+    void sameKeyWhileWaitingWasAlreadyRequested() {
+        Payment payment = Payment.create(ORDER_ID, new BigDecimal("15000"));
+        payment.authenticate("key-1", AUTHENTICATED_AT);
+
+        assertThat(payment.isRequestedWith("key-1")).isTrue();
+    }
+
+    @Test
+    @DisplayName("카드사 답을 기다리는 결제에 다른 결제 키로 온 요청은 이미 보낸 요청으로 보지 않는다")
+    void otherKeyWhileWaitingWasNotRequested() {
+        Payment payment = Payment.create(ORDER_ID, new BigDecimal("15000"));
+        payment.authenticate("key-1", AUTHENTICATED_AT);
+
+        assertThat(payment.isRequestedWith("key-2")).isFalse();
+    }
+
+    @Test
+    @DisplayName("인증 전 결제는 결제 키가 없어 어떤 요청도 이미 보낸 요청으로 보지 않는다")
+    void readyPaymentHasNoRequest() {
+        Payment payment = Payment.create(ORDER_ID, new BigDecimal("15000"));
+
+        assertThat(payment.isRequestedWith("key-1")).isFalse();
+    }
 }

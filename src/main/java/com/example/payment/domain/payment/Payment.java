@@ -348,6 +348,12 @@ public class Payment {
                 && status != PaymentStatus.AUTHENTICATED;
     }
 
+    // 7장: 이 결제 키로 이미 승인을 요청한 결제인가. 결과를 남긴 결제뿐 아니라 카드사 답을 기다리는 결제(인증 상태)도 포함한다 —
+    // 같은 결제 키로 다시 온 승인은 카드사에 다시 보내지 않는다(isConfirmedWith 는 4장까지의 판단으로 인증 상태를 빼며, 비교 구현이 쓴다)
+    public boolean isRequestedWith(String requestedKey) {
+        return Objects.nonNull(paymentKey) && paymentKey.equals(requestedKey);
+    }
+
     public boolean isAwaitingApprovalResult() {
         return status.isAwaitingApprovalResult();
     }

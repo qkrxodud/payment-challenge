@@ -2,9 +2,9 @@ package com.example.payment.application.payment.comparison;
 
 import com.example.payment.application.payment.PaymentQueryService;
 import com.example.payment.application.payment.PaymentRecorder;
+import com.example.payment.application.payment.dto.ConfirmAttempt;
 import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
 import com.example.payment.application.payment.dto.PaymentResult;
-import com.example.payment.domain.payment.Payment;
 import com.example.payment.domain.payment.PaymentApproval;
 import com.example.payment.domain.payment.PaymentGateway;
 import com.example.payment.global.error.exception.PaymentGatewayNoResponseException;
@@ -22,12 +22,13 @@ public class ImmediateLookupConfirmService {
     private final PaymentQueryService paymentQueryService;
 
     public PaymentResult confirm(ConfirmPaymentCommand command) {
-        Payment payment = paymentRecorder.authenticate(command);
-        if (payment.isConfirmedWith(command.paymentKey())) {
-            return PaymentResult.from(payment);
+        // 7장부터 인증은 카드사에 보낼 주문번호·금액이나 다시 온 요청의 지금 결과를 돌려준다
+        ConfirmAttempt attempt = paymentRecorder.authenticate(command);
+        if (attempt.isRepeated()) {
+            return attempt.repeated();
         }
         try {
-            PaymentApproval approval = paymentGateway.approve(command.paymentKey(), payment.getOrderId(), payment.getAmount());
+            PaymentApproval approval = paymentGateway.approve(command.paymentKey(), attempt.orderId(), attempt.amount());
             return paymentRecorder.recordApproval(command.orderId(), approval);
         } catch (PaymentGatewayNoResponseException noResponse) {
             paymentRecorder.recordApprovalUnknown(command.orderId());

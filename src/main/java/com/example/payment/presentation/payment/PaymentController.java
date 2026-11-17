@@ -68,9 +68,10 @@ public class PaymentController {
     }
 
     // 결과를 모르는 결제에 다시 온 승인 요청: 카드사에 다시 묻지 않고 확인 중이라는 뜻으로 202 를 준다(4장).
+    // 7장부터 카드사 답을 기다리는(인증 상태) 결제에 같은 결제 키로 다시 온 요청도 같은 뜻으로 202 를 준다.
     // 처음 요청이 시간 초과로 끝날 때는 504(PAYMENT_GATEWAY_NO_RESPONSE)를 그대로 준다
     private static HttpStatus statusOf(PaymentResult result) {
-        if (result.status().isApprovalUnknown()) {
+        if (result.status().isAwaitingApprovalResult()) {
             return HttpStatus.ACCEPTED;
         }
         return HttpStatus.OK;
