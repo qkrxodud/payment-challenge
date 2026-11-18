@@ -11,7 +11,7 @@
 실행: `JAVA_HOME=<JDK 17> ./gradlew check` (Docker 필요, 커버리지 90% 미만이면 실패)
 
 - `01-start-structure-test-result.txt`: 태그 `ch08-start`(상품·재고·포인트·쿠폰을 고객 금액을 믿고, 승인 뒤 잠그지 않고 읽어 줄이고, 실패해도 되돌리지 않는 출발 코드)에서 8장 테스트를 돌린 결과.
-  출발 구조 뒤 결정 4 커밋에 더한 계약 "부분 취소가 쌓여 남은 금액이 0원이 되면 잡아 둔 것이 돌아온다"를 출발 코드에 얹어 다시 돌린 값이다
+  출발 구조 뒤에 더한 계약 — 결정 4 커밋의 "부분 취소가 쌓여 남은 금액이 0원이 되면 잡아 둔 것이 돌아온다", 결정 3 보강 커밋의 포인트 겹쳐 쓰기 계약(PointContract 3개) — 을 출발 코드에 얹어 다시 돌린 값이다(42개)
 - `02-final-test-result.txt`: 태그 `ch08`(마지막 기록 커밋)에서 전체 테스트(`./gradlew clean check`)를 돌린 결과와 커버리지
 - `03-comparison-known-failing-result.txt`: `./gradlew knownFailingTest`로 계약을 못 지키는 비교 구현을 돌린 결과(2~7장 비교 구현 포함). 뒤이어 도는 7장 `jpaVersionTest` 결과를 맨 끝에 붙였다
 - `04-stock-measurement.txt`: `./gradlew stockMeasurement`로 재고를 줄이는 방식마다 재고 100개 상품에 승인 요청 300건을 한꺼번에 보낸 결과
@@ -27,8 +27,8 @@
 
 7장과 같은 방법이다(기록 붙잡기 `SlowWrites` + processlist 의 `User sleep` 확인, Mock PG 승인 답 붙잡기).
 
-- 같은 상품·같은 쿠폰의 두 주문(`StockContract`, `CouponContract`): 먼저 보낸 주문의 인증 기록(결제 상태를 AUTHENTICATED 로 바꾸는 UPDATE)을 1초 붙잡는다.
-  재고·쿠폰을 바꾸는 문장은 JdbcTemplate 으로 바로 나가고, 결제 상태 UPDATE 는 커밋 때 나간다 — 그래서 먼저 보낸 주문은 바꾼 재고 줄·쿠폰 줄의 잠금을
+- 같은 상품·같은 쿠폰·같은 회원 포인트의 두 주문(`StockContract`, `CouponContract`, `PointContract`): 먼저 보낸 주문의 인증 기록(결제 상태를 AUTHENTICATED 로 바꾸는 UPDATE)을 1초 붙잡는다.
+  재고·쿠폰·포인트를 바꾸는 문장은 JdbcTemplate 으로 바로 나가고, 결제 상태 UPDATE 는 커밋 때 나간다 — 그래서 먼저 보낸 주문은 바꾼 재고·쿠폰·포인트 줄의 잠금을
   쥔 채 잠든다. 잠든 것을 확인한 뒤 두 번째 주문의 승인을 보낸다. 두 번째 주문의 첫 일반 읽기는 먼저 보낸 주문이 커밋하기 전이다.
 - 거절 답 기록·보정·알림 처리가 겹침(`ReleaseContract`): 카드사가 거절을 남기고 거절 답은 붙잡아 둔다(8장부터 승인 답 붙잡기 문이 거절 답도 붙잡는다).
   거절 알림을 받아 알림 처리가 승인 실패를 남기다 1초 붙잡힌 동안 보정을 시작하고, 붙잡아 둔 거절 답을 보낸다.
