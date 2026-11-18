@@ -8,7 +8,6 @@ import com.example.payment.application.payment.dto.CancelPaymentCommand;
 import com.example.payment.application.payment.dto.CancelResult;
 import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
 import com.example.payment.application.payment.dto.PaymentResult;
-import com.example.payment.application.payment.dto.PreparePaymentCommand;
 import com.example.payment.presentation.payment.dto.CancelPaymentRequest;
 import com.example.payment.presentation.payment.dto.CancelResponse;
 import com.example.payment.presentation.payment.dto.ConfirmPaymentRequest;
@@ -39,8 +38,7 @@ public class PaymentController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public PaymentResponse prepare(@RequestBody PreparePaymentRequest request) {
-        return PaymentResponse.from(paymentPrepareService.prepare(
-                new PreparePaymentCommand(request.orderId(), request.amount())));
+        return PaymentResponse.from(paymentPrepareService.prepare(request.toCommand()));
     }
 
     // 결제창 인증을 마친 고객이 돌아오면 PG 가 준 paymentKey 와 결제창에서 인증한 금액으로 승인을 요청한다

@@ -64,11 +64,33 @@ public class Payment {
     @OrderBy("id asc")
     private List<PaymentCancel> cancels = new ArrayList<>();
 
+    // 8장: 상품을 담아 준비한 결제의 주문자. 금액만 받아 준비한 결제에는 없다
+    @Column(name = "member_id", updatable = false, length = 64)
+    private String memberId;
+
+    // 8장: 이 결제에 쓴 쿠폰. 없으면 비어 있다
+    @Column(name = "coupon_id", updatable = false)
+    private Long couponId;
+
+    // 8장: 이 결제에 쓴 포인트. 결제 금액(카드사에 승인받는 금액)에는 들어 있지 않다
+    @Column(name = "point_amount", nullable = false, updatable = false, precision = 19, scale = 2)
+    private BigDecimal pointAmount;
+
+    // 8장: 이 결제에 담긴 상품
+    @Getter(AccessLevel.NONE)
+    @OneToMany(mappedBy = "payment", cascade = CascadeType.ALL)
+    @OrderBy("productId asc")
+    private List<PaymentItem> items = new ArrayList<>();
+
     @Builder(access = AccessLevel.PRIVATE)
-    private Payment(String orderId, BigDecimal amount, PaymentStatus status) {
+    private Payment(String orderId, BigDecimal amount, PaymentStatus status, String memberId, Long couponId,
+                    BigDecimal pointAmount) {
         this.orderId = orderId;
         this.amount = amount;
         this.status = status;
+        this.memberId = memberId;
+        this.couponId = couponId;
+        this.pointAmount = Objects.requireNonNullElse(pointAmount, BigDecimal.ZERO);
     }
 
     public static Payment create(String orderId, BigDecimal amount) {
@@ -80,6 +102,29 @@ public class Payment {
                 .amount(amount)
                 .status(PaymentStatus.READY)
                 .build();
+    }
+
+    // 8장(출발 구조): 상품을 담은 주문의 결제. 금액은 고객이 보낸 금액이다
+    public static Payment order(String orderId, String memberId, List<PaymentItem> items, Long couponId,
+                                BigDecimal pointAmount, BigDecimal amount) {
+        if (isNotPositive(amount)) {
+            throw new InvalidAmountException(orderId);
+        }
+        Payment payment = Payment.builder()
+                .orderId(orderId)
+                .amount(amount)
+                .status(PaymentStatus.READY)
+                .memberId(memberId)
+                .couponId(couponId)
+                .pointAmount(pointAmount)
+                .build();
+        items.forEach(payment::addItem);
+        return payment;
+    }
+
+    private void addItem(PaymentItem item) {
+        item.belongTo(this);
+        items.add(item);
     }
 
     public void authenticate(String paymentKey, Instant now) {
@@ -294,6 +339,19 @@ public class Payment {
     // 새 취소로 받을 수 있는 금액: 남은 금액에서 카드사 답을 기다리는 취소까지 뺀 값
     private BigDecimal cancelableAmount() {
         return balanceAmount().subtract(sumOf(PaymentCancel::isAwaitingResult));
+    }
+
+    // 8장: 담긴 상품(상품 번호 순). 바꿀 수 없는 사본이다
+    public List<PaymentItem> getItems() {
+        return List.copyOf(items);
+    }
+
+    public boolean usesCoupon() {
+        return Objects.nonNull(couponId);
+    }
+
+    public boolean usesPoint() {
+        return pointAmount.signum() > 0;
     }
 
     // 받은 순서대로의 취소. 바꿀 수 없는 사본이다

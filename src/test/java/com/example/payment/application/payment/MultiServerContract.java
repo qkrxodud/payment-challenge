@@ -117,6 +117,8 @@ abstract class MultiServerContract {
         // 앞 테스트가 남긴 대상이 이번 주기 작업에 섞이지 않게 한다
         jdbcTemplate.update("delete from payment_webhook");
         jdbcTemplate.update("delete from payment_cancel");
+        // 8장부터 결제에 담긴 상품도 결제를 가리킨다
+        jdbcTemplate.update("delete from payment_item");
         jdbcTemplate.update("delete from payment");
     }
 

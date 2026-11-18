@@ -18,14 +18,22 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentPrepareRecorder {
 
     private final PaymentRepository paymentRepository;
+    private final PaymentOrders paymentOrders;
 
     // 같은 주문번호가 같은 금액으로 다시 오면 이미 있는 결제를 지금 상태 그대로 돌려준다. 금액이 다르면 거부한다(3장)
     @Transactional
     public PaymentResult prepare(PreparePaymentCommand command) {
         return paymentRepository.findByOrderId(command.orderId())
                 .map(existing -> repeat(existing, command))
-                .orElseGet(() -> PaymentResult.from(
-                        paymentRepository.save(Payment.create(command.orderId(), command.amount()))));
+                .orElseGet(() -> PaymentResult.from(paymentRepository.save(newPayment(command))));
+    }
+
+    // 8장: 상품을 담은 준비는 주문으로 결제를 만든다. 상품이 없으면 7장까지처럼 주문번호와 금액만으로 만든다
+    private Payment newPayment(PreparePaymentCommand command) {
+        if (command.hasItems()) {
+            return paymentOrders.order(command);
+        }
+        return Payment.create(command.orderId(), command.amount());
     }
 
     // 먼저 남긴 같은 주문번호의 결제를 다시 읽어 3장 규칙대로 답한다. 없으면 비어 있다

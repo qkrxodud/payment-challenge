@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentRecorder {
 
     private final PaymentRepository paymentRepository;
+    private final PaymentHoldings paymentHoldings;
     private final Clock clock;
 
     // 금액이 다르면 상태를 바꾸지 않고 거부한다. 같은 요청이 다시 왔으면 아무것도 바꾸지 않고 지금 결과를 돌려준다.
@@ -50,12 +51,14 @@ public class PaymentRecorder {
         return PaymentResult.from(payment);
     }
 
-    private static void settleWith(Payment payment, PaymentApproval approval) {
+    // 8장 출발 구조: 승인되면 담긴 상품의 재고와 쓴 쿠폰·포인트를 줄인다
+    private void settleWith(Payment payment, PaymentApproval approval) {
         if (approval.isDeclined()) {
             payment.failApproval();
             return;
         }
         payment.approve();
+        paymentHoldings.hold(payment);
     }
 
     // 카드사 답을 받지 못했다. 승인됐는지 모른다는 것을 남겨 두고 나중에 카드사에 확인한다.

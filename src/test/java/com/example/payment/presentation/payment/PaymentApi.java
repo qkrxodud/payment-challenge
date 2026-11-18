@@ -27,6 +27,13 @@ class PaymentApi {
         return post("", "{\"orderId\":\"" + orderId + "\",\"amount\":" + amount + "}");
     }
 
+    // 8장: 상품 하나를 담은 준비. 쿠폰은 없으면 null 로 보낸다
+    Answer prepareOrder(String orderId, long amount, String memberId, long productId, int quantity, Long couponId) {
+        return post("", "{\"orderId\":\"" + orderId + "\",\"amount\":" + amount + ",\"memberId\":\"" + memberId
+                + "\",\"items\":[{\"productId\":" + productId + ",\"quantity\":" + quantity + "}],\"couponId\":" + couponId
+                + ",\"usePoint\":0}");
+    }
+
     Answer confirm(String orderId, long amount) {
         return confirm(orderId, "key-" + orderId, String.valueOf(amount));
     }

@@ -21,6 +21,7 @@ import org.springframework.stereotype.Component;
  * 5장부터 취소 요청을 받은 횟수, 멱등키별 첫 응답, 지금 처리 중인 멱등키를 더한다.
  * 6장부터 승인을 기록한 뒤 답을 붙잡아 두는 문(시험이 열 때까지 승인 답을 보내지 않음)을 더한다.
  * 7장부터 주문번호 결제 조회를 받은 횟수를 센다(서버 여러 대가 같은 결제를 몇 번 조회하는지 본다).
+ * 8장부터 카드사 쪽에서 만료된 결제를 남길 수 있고, 붙잡은 승인 답의 문이 거절 답도 붙잡는다.
  * 상태를 두는 것 자체가 목적인 시험 도구라 스레드 안전 저장소만 쓴다.
  */
 @Component
@@ -115,6 +116,13 @@ public class ScenarioStore {
     // 4장부터: 거절도 기록해 두어 나중에 조회로 알 수 있게 한다
     public PaymentRecord recordDecline(String paymentKey, String orderId, BigDecimal amount) {
         PaymentRecord record = PaymentRecord.of(paymentKey, orderId, amount, PaymentState.ABORTED);
+        payments.put(orderId, record);
+        return record;
+    }
+
+    // 8장: 승인 요청이 오지 않아 카드사 쪽에서 만료된 결제를 남긴다
+    public PaymentRecord recordExpiry(String paymentKey, String orderId, BigDecimal amount) {
+        PaymentRecord record = PaymentRecord.of(paymentKey, orderId, amount, PaymentState.EXPIRED);
         payments.put(orderId, record);
         return record;
     }

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 결제 서버가 부르는 승인 API. 시나리오만큼 기다렸다가 승인하거나 거절한다. 승인할 때는 받은 금액을 기록한다.
  * 4장부터 거절도 기록하고, 결과를 기록할 때까지를 처리 중으로 본다.
  * 6장부터 승인·거절을 기록하면 웹훅으로 알린다. 시험이 승인 답을 붙잡아 두면, 기록과 알림 뒤에 답을 기다리게 한다.
+ * 8장부터 거절 답도 같은 문으로 붙잡는다(거절 답 기록과 알림 반영·보정이 겹치는 경우를 만든다).
  */
 @RestController
 @RequiredArgsConstructor
@@ -41,6 +42,7 @@ public class ConfirmController {
         }
         if (outcome.isDecline()) {
             webhookSender.statusChanged(scenarioStore.recordDecline(request.paymentKey(), request.orderId(), request.amount()));
+            scenarioStore.awaitConfirmAnswer();
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ErrorResponse("CARD_REJECTED", "The card company rejected this payment."));
         }

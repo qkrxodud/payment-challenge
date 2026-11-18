@@ -3,6 +3,7 @@ package com.example.payment;
 import com.example.mockpg.MerchantConsole;
 import com.example.mockpg.MockPgApplication;
 import com.example.mockpg.Outcome;
+import com.example.mockpg.PaymentExpiry;
 import com.example.mockpg.PaymentRecord;
 import com.example.mockpg.Scenario;
 import com.example.mockpg.ScenarioStore;
@@ -96,6 +97,11 @@ public class MockPgServer {
         context.getBean(MerchantConsole.class).cancel(orderId, amount, "Canceled on the merchant console");
     }
 
+    // 8장: 승인 요청이 닿지 않은 결제를 카드사 쪽에서 만료시킨다. 웹훅을 켜 두었으면 알림도 간다
+    public void expireAtCardCompany(String orderId, String paymentKey, BigDecimal amount) {
+        context.getBean(PaymentExpiry.class).expire(orderId, paymentKey, amount);
+    }
+
     // 6장: 결제 상태가 바뀔 때 이 주소로 웹훅을 보낸다. 재전송은 7회, 간격은 시험용으로 줄인 값
     public void sendWebhooksTo(String targetUrl) {
         webhooks().change(WebhookSettings.sendTo(targetUrl, TEST_RETRY_INTERVALS));
@@ -153,7 +159,7 @@ public class MockPgServer {
         webhooks().reset();
     }
 
-    // 6장: 승인은 기록하고 알리되, 승인 답은 releaseConfirmAnswers 까지 보내지 않는다
+    // 6장: 승인은 기록하고 알리되, 승인 답은 releaseConfirmAnswers 까지 보내지 않는다(8장부터 거절 답도)
     public void holdConfirmAnswers() {
         scenarios().holdConfirmAnswers();
     }

@@ -1,6 +1,7 @@
 package com.example.mockpg;
 
 import com.example.mockpg.dto.ConsoleCancelRequest;
+import com.example.mockpg.dto.ExpiryRequest;
 import com.example.mockpg.dto.ForgedWebhookRequest;
 import com.example.mockpg.dto.ScenarioRequest;
 import com.example.mockpg.dto.WebhookSettingsRequest;
@@ -16,7 +17,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 따로 띄운 가짜 PG(부하 테스트 등)를 밖에서 조작하는 API. 6장부터 웹훅 설정·쌓인 알림 보내기·위조 알림·관리 화면 취소를 더한다 */
+/**
+ * 따로 띄운 가짜 PG(부하 테스트 등)를 밖에서 조작하는 API. 6장부터 웹훅 설정·쌓인 알림 보내기·위조 알림·관리 화면 취소를 더한다.
+ * 8장부터 카드사 쪽 만료를 더한다
+ */
 @RestController
 @RequiredArgsConstructor
 public class ControlController {
@@ -24,6 +28,7 @@ public class ControlController {
     private final ScenarioStore scenarioStore;
     private final WebhookSender webhookSender;
     private final MerchantConsole merchantConsole;
+    private final PaymentExpiry paymentExpiry;
 
     @PutMapping("/control/scenario")
     public void change(@RequestBody ScenarioRequest request) {
@@ -84,5 +89,11 @@ public class ControlController {
     @PostMapping("/control/console-cancels/{orderId}")
     public void cancelOnConsole(@PathVariable String orderId, @RequestBody ConsoleCancelRequest request) {
         merchantConsole.cancel(orderId, request.cancelAmount(), request.cancelReason());
+    }
+
+    // 8장: 승인 요청이 닿지 않은 결제를 카드사 쪽에서 만료시킨다
+    @PostMapping("/control/expiries/{orderId}")
+    public void expire(@PathVariable String orderId, @RequestBody ExpiryRequest request) {
+        paymentExpiry.expire(orderId, request.paymentKey(), request.amount());
     }
 }

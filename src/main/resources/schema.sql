@@ -6,6 +6,10 @@ create table if not exists payment (
     payment_key varchar(200),
     -- 4장: 승인을 요청하려고 인증한 때. 보정은 상태와 이 시각으로 대상을 고른다
     authenticated_at datetime(6),
+    -- 8장: 상품을 담아 준비한 결제의 주문자, 쓴 쿠폰, 쓴 포인트. 금액만 받아 준비한 결제에는 주문자·쿠폰이 없고 포인트는 0 이다
+    member_id   varchar(64),
+    coupon_id   bigint,
+    point_amount decimal(19, 2) not null default 0,
     primary key (id),
     unique key uk_payment_order_id (order_id),
     key idx_payment_status_authenticated_at (status, authenticated_at)
@@ -66,3 +70,47 @@ create table if not exists job_lock (
 
 insert ignore into job_lock (name, locked_until) values ('payment-reconciliation', '1970-01-01 00:00:00');
 insert ignore into job_lock (name, locked_until) values ('payment-webhook', '1970-01-01 00:00:00');
+
+-- 8장: 상품과 재고. 재고는 상품마다 한 줄이라 같은 상품의 주문은 모두 이 한 줄을 바꾼다
+create table if not exists product (
+    id    bigint         not null auto_increment,
+    name  varchar(100)   not null,
+    price decimal(19, 2) not null,
+    primary key (id)
+);
+
+create table if not exists stock (
+    product_id bigint not null,
+    quantity   int    not null,
+    primary key (product_id),
+    constraint fk_stock_product foreign key (product_id) references product (id)
+);
+
+-- 8장: 결제에 담긴 상품. 준비할 때의 상품가를 함께 남긴다(나중에 상품가가 바뀌어도 이 결제의 금액은 그대로다)
+create table if not exists payment_item (
+    id         bigint         not null auto_increment,
+    payment_id bigint         not null,
+    product_id bigint         not null,
+    quantity   int            not null,
+    unit_price decimal(19, 2) not null,
+    primary key (id),
+    constraint fk_payment_item_payment foreign key (payment_id) references payment (id)
+);
+
+-- 8장: 회원의 포인트 잔액(회원마다 한 줄)
+create table if not exists point_wallet (
+    member_id varchar(64)    not null,
+    balance   decimal(19, 2) not null,
+    primary key (member_id)
+);
+
+-- 8장: 회원에게 발급한 정액 할인 쿠폰. 쓰면 USED 와 쓴 결제를 남긴다
+create table if not exists coupon (
+    id              bigint         not null auto_increment,
+    member_id       varchar(64)    not null,
+    discount_amount decimal(19, 2) not null,
+    -- ISSUED(쓸 수 있음), USED(결제에 쓰임)
+    status          varchar(20)    not null,
+    payment_id      bigint,
+    primary key (id)
+);

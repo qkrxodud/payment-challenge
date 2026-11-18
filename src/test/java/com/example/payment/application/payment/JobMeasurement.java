@@ -104,6 +104,8 @@ class JobMeasurement {
 
     private void measure(String name, BiConsumer<ApplicationContext, Instant> reconcile, int servers, int round) {
         jdbcTemplate.update("delete from payment_cancel");
+        // 8장부터 결제에 담긴 상품도 결제를 가리킨다
+        jdbcTemplate.update("delete from payment_item");
         jdbcTemplate.update("delete from payment_webhook");
         jdbcTemplate.update("delete from payment");
         List<String> orderIds = unknownPayments();

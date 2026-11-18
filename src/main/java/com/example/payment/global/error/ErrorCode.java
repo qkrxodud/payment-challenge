@@ -36,6 +36,16 @@ public enum ErrorCode {
     // PG 의 답을 정해진 시간 안에 받지 못했다. 승인됐는지 알 수 없다
     PAYMENT_GATEWAY_NO_RESPONSE(ErrorType.UPSTREAM_NO_RESPONSE,
             "The card company did not answer in time. Check the payment status before trying again."),
+    // 8장: 준비 요청에 담긴 상품이 없음
+    PRODUCT_NOT_FOUND(ErrorType.NOT_FOUND, "A product in this order was not found."),
+    // 8장: 담은 상품의 수량이 없거나 0 이하
+    INVALID_QUANTITY(ErrorType.INVALID_INPUT, "The quantity must be a positive number."),
+    // 8장: 담은 상품의 재고가 모자람. 카드사에 승인을 요청하지 않는다
+    OUT_OF_STOCK(ErrorType.CONFLICT, "A product in this order is out of stock."),
+    // 8장: 쿠폰이 없거나, 이 회원의 쿠폰이 아니거나, 이미 다른 결제에 쓰임
+    COUPON_NOT_AVAILABLE(ErrorType.CONFLICT, "This coupon cannot be used."),
+    // 8장: 쓰려는 포인트가 잔액보다 많음. 카드사에 승인을 요청하지 않는다
+    INSUFFICIENT_POINT(ErrorType.CONFLICT, "Not enough points are left."),
     INTERNAL_ERROR(ErrorType.INTERNAL, "Something went wrong on the server.");
 
     private final ErrorType type;
