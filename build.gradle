@@ -88,9 +88,9 @@ tasks.named('test') {
 	useJUnitPlatform {
 		// 계약을 지키지 못하는 비교 구현은 기본 빌드에서 빼고 knownFailingTest 로 따로 돌린다.
 		// 4장 측정은 reconciliationMeasurement, 5장 측정은 cancelMeasurement, 6장 측정은 webhookMeasurement,
-		// 7장 측정은 concurrencyMeasurement 로 따로 돌린다
+		// 7장 측정은 concurrencyMeasurement, 8장 측정은 stockMeasurement 로 따로 돌린다
 		excludeTags 'known-failing', 'measurement', 'cancel-measurement', 'webhook-measurement', 'concurrency-measurement',
-				'jpa-version', 'jpa-version-measurement'
+				'jpa-version', 'jpa-version-measurement', 'stock-measurement'
 	}
 	// 4장부터: 테스트는 보정을 직접 부른다. 주기 보정이 테스트 도중 끼어들지 않게 끈다
 	systemProperty 'payment.reconciliation.enabled', 'false'
@@ -205,6 +205,22 @@ tasks.register('jpaVersionMeasurement', Test) {
 	systemProperty 'payment.reconciliation.enabled', 'false'
 	systemProperty 'payment.webhook.enabled', 'false'
 	outputs.upToDateWhen { false }
+}
+
+tasks.register('stockMeasurement', Test) {
+	description = '8장: 재고 100개 상품에 승인 요청 300건을 한꺼번에 보내 재고를 줄이는 방식마다 과판매 수·승인 수·응답 시간·처리량을 남긴다'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'stock-measurement'
+	}
+	systemProperty 'payment.reconciliation.enabled', 'false'
+	systemProperty 'payment.webhook.enabled', 'false'
+	outputs.upToDateWhen { false }
+	doFirst {
+		delete layout.buildDirectory.file('measurement/ch08-stock.txt')
+	}
 }
 
 // 8장: 시험 컨텍스트마다 MySQL 컨테이너가 하나씩 뜬다. Spring 기본 캐시(32개)는 컨텍스트를 닫지 않고 두어, 8장 비교 구현으로 컨텍스트가 늘자
