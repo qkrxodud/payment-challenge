@@ -1,0 +1,47 @@
+tests=39 failures=19 errors=0 time=54.109s
+## 쿠폰 한 장을 두 주문에 — 운영 구현
+FAIL 다른 결제에 이미 쓴 쿠폰을 담은 주문은 카드사에 승인을 요청하지 않는다 (1.048s) | org.opentest4j.AssertionFailedError:  expected: 0  but was: 1
+FAIL 같은 쿠폰을 담은 두 주문이 겹치면 한 주문만 승인된다 (1.121s) | org.opentest4j.AssertionFailedError:  expected: 1L  but was: 2L
+FAIL 같은 쿠폰을 담은 두 주문이 겹치면 나중 주문은 쓸 수 없는 쿠폰이라고 받지 않는다 (1.099s) | org.opentest4j.AssertionFailedError:  expected: COUPON_NOT_AVAILABLE  but was: null
+## 재고를 줄이는 때 — 운영 구현
+FAIL 재고가 없는 상품의 주문은 재고가 없다고 받지 않는다 (0.052s) | org.opentest4j.AssertionFailedError:  expected: OUT_OF_STOCK  but was: null
+FAIL 재고가 없는 상품의 주문은 카드사에 승인을 요청하지 않는다 (0.046s) | org.opentest4j.AssertionFailedError:  expected: 0  but was: 1
+PASS 준비만 하고 승인을 요청하지 않은 주문은 재고를 줄이지 않는다 (0.026s)
+PASS 재고가 없는 상품의 주문은 카드사에서 승인된 뒤 취소되는 일이 없다 (0.042s)
+FAIL 카드사 답을 기다리는 주문이 잡은 재고는 다른 주문이 가져가지 못한다 (3.249s) | org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.application.payment.HoldTimingContract was not fulfilled within 3 seconds.
+PASS 승인된 주문은 담은 수량만큼 재고를 줄여 둔다 (0.05s)
+## 상품을 담은 결제 준비
+PASS 수량이 0 인 상품을 담은 준비는 받지 않는다 (0.025s)
+PASS 없는 쿠폰으로는 준비할 수 없다 (0.024s)
+PASS 없는 상품을 담은 준비는 받지 않는다 (0.015s)
+PASS 이미 결제에 쓴 쿠폰으로는 준비할 수 없다 (0.055s)
+PASS 다른 회원의 쿠폰으로는 준비할 수 없다 (0.027s)
+## 승인 없이 끝난 결제가 잡아 둔 재고·포인트·쿠폰 — 운영 구현
+FAIL 승인된 결제를 전액 취소하면 잡아 둔 재고·포인트·쿠폰이 돌아온다 (0.134s) | org.opentest4j.AssertionFailedError:  Expecting actual:   [3, "2000", "USED"] to contain exactly (and in same order):   [5, "3000", "ISSUED"] but some elements were not found:   [5, "3000", "ISSUED"] and others were not expected:   [3, "2000", "USED"] 
+FAIL 부분 취소가 쌓여 남은 금액이 0원이 되면 잡아 둔 재고·포인트·쿠폰이 돌아온다 (0.11s) | org.opentest4j.AssertionFailedError:  Expecting actual:   [3, "2000", "USED"] to contain exactly (and in same order):   [5, "3000", "ISSUED"] but some elements were not found:   [5, "3000", "ISSUED"] and others were not expected:   [3, "2000", "USED"] 
+PASS 승인 요청이 닿지 않아 카드사에서 만료된 결제를 보정이 승인 실패로 닫으면 잡아 둔 것이 돌아온다 (1.115s)
+PASS 승인 거절의 기록·보정·알림 처리가 겹쳐도 포인트는 한 번만 돌아온다 (1.188s)
+FAIL 결과를 모르던 결제를 보정이 승인으로 닫으면 잡아 둔 재고·포인트·쿠폰은 그대로다 (1.628s) | org.opentest4j.AssertionFailedError:  Expecting actual:   [5, "3000", "ISSUED"] to contain exactly (and in same order):   [3, "2000", "USED"] but some elements were not found:   [3, "2000", "USED"] and others were not expected:   [5, "3000", "ISSUED"] 
+FAIL 승인 결과를 모르는 동안은 잡아 둔 재고·포인트·쿠폰을 그대로 둔다 (1.064s) | org.opentest4j.AssertionFailedError:  Expecting actual:   [5, "3000", "ISSUED"] to contain exactly (and in same order):   [3, "2000", "USED"] but some elements were not found:   [3, "2000", "USED"] and others were not expected:   [5, "3000", "ISSUED"] 
+PASS 승인이 거절되면 잡아 둔 재고·포인트·쿠폰이 처음으로 돌아온다 (0.058s)
+PASS 승인 요청이 닿지 않아 카드사에서 만료된 결제를 알림 처리가 승인 실패로 닫으면 잡아 둔 것이 돌아온다 (1.085s)
+PASS 결과를 모르던 결제를 보정이 승인 실패로 닫으면 잡아 둔 것이 돌아온다 (1.63s)
+PASS 승인된 결제를 부분 취소하면 재고·포인트·쿠폰은 그대로다 (0.067s)
+PASS 승인 거절의 기록·보정·알림 처리가 겹쳐도 재고는 한 번만 돌아온다 (1.164s)
+## 결제 금액 — 운영 구현
+FAIL 금액을 낮춰 보낸 주문으로 승인을 요청해도 카드사에서 낮춘 금액이 승인되지 않는다 (0.061s) | java.lang.AssertionError:  Expecting   [1000.00] not to contain   [1000] but found   [1000] when comparing values using ServerPriceContract$$Lambda$3266/0x000000700214ec18
+FAIL 고객이 보낸 금액이 상품가·쿠폰·포인트로 계산한 금액과 다르면 준비를 받지 않는다 (0.03s) | org.opentest4j.AssertionFailedError:  expected: AMOUNT_MISMATCH  but was: null
+PASS 상품을 담아 준비하면 결제 금액은 상품가 합에서 쿠폰 할인과 쓴 포인트를 뺀 금액이다 (0.026s)
+PASS 상품을 담지 않고 금액만 보낸 준비는 보낸 금액으로 준비된다 (0.024s)
+## 같은 상품에 몰린 주문의 재고 — 운영 구현
+PASS 재고 10개에 주문 30건이 한꺼번에 와도 재고는 0 아래로 내려가지 않는다 (0.497s)
+FAIL 재고 10개에 주문 30건이 한꺼번에 와도 남은 재고는 승인된 주문 수만큼만 줄어 있다 (0.44s) | org.opentest4j.AssertionFailedError:  expected: -20L  but was: 6L
+FAIL 재고 1개에 두 주문이 겹치면 나중 주문은 재고가 없다고 받지 않는다 (1.071s) | org.opentest4j.AssertionFailedError:  expected: OUT_OF_STOCK  but was: null
+FAIL 재고 10개에 주문 30건이 한꺼번에 와도 10건만 승인된다 (0.422s) | org.opentest4j.AssertionFailedError:  expected: 10L  but was: 30L
+FAIL 재고 1개에 두 주문이 겹쳐도 카드사 승인은 한 건이다 (1.074s) | org.opentest4j.AssertionFailedError:  expected: 1  but was: 2
+FAIL 재고 1개에 두 주문이 겹치면 한 주문만 승인된다 (1.078s) | org.opentest4j.AssertionFailedError:  expected: 1L  but was: 2L
+## 결제 API — 상품을 담은 주문(8장)
+FAIL 재고가 없는 상품의 승인 요청은 재고가 없다고 409 로 답한다 (0.084s) | org.opentest4j.AssertionFailedError:  expected: 409  but was: 200
+PASS 상품을 담아 맞는 금액으로 준비하면 그 금액의 준비 응답을 받는다 (0.023s)
+FAIL 상품가로 계산한 금액과 다른 금액으로 준비하면 금액이 맞지 않는다고 400 으로 답한다 (0.02s) | org.opentest4j.AssertionFailedError:  expected: 400  but was: 201
+PASS 쓸 수 없는 쿠폰을 담아 준비하면 409 로 답한다 (0.031s)
