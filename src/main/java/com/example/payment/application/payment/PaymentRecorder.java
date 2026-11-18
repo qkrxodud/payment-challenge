@@ -7,6 +7,7 @@ import com.example.payment.domain.payment.GatewayPayment;
 import com.example.payment.domain.payment.Payment;
 import com.example.payment.domain.payment.PaymentApproval;
 import com.example.payment.domain.payment.PaymentRepository;
+import com.example.payment.domain.payment.PaymentStatus;
 import com.example.payment.global.error.exception.PaymentNotFoundException;
 import java.time.Clock;
 import lombok.RequiredArgsConstructor;
@@ -44,13 +45,16 @@ public class PaymentRecorder {
         return ConfirmAttempt.send(payment.getOrderId(), payment.getAmount());
     }
 
-    // 6장부터: 승인 답을 기다리는 사이 웹훅이 먼저 결과를 남겼으면 건드리지 않고 지금 결과로 답한다
+    // 6장부터: 승인 답을 기다리는 사이 웹훅이 먼저 결과를 남겼으면 건드리지 않고 지금 결과로 답한다.
+    // 8장 결정 4부터 이 기록이 승인 실패로 닫았으면 같은 트랜잭션에서 잡아 둔 재고·포인트·쿠폰을 돌려준다
     @Transactional
     public PaymentResult recordApproval(String orderId, PaymentApproval approval) {
         Payment payment = find(orderId);
+        PaymentStatus before = payment.getStatus();
         if (payment.isAwaitingApprovalResult()) {
             settleWith(payment, approval);
         }
+        paymentHoldings.releaseIfClosed(payment, before);
         return PaymentResult.from(payment);
     }
 
@@ -73,13 +77,16 @@ public class PaymentRecorder {
     }
 
     // 카드사에 확인한 결과를 남긴다. 그 사이 다른 길로 결과가 남은 결제는 건드리지 않는다.
-    // 6장부터 카드사 결제 상태와 취소 이력을 함께 받아 웹훅과 같은 길로 닫는다(카드사에서 승인 뒤 취소됐으면 승인 취소)
+    // 6장부터 카드사 결제 상태와 취소 이력을 함께 받아 웹훅과 같은 길로 닫는다(카드사에서 승인 뒤 취소됐으면 승인 취소).
+    // 8장 결정 4부터 이 기록이 승인 실패(카드사 거절·만료·기록 없음)나 승인 취소로 닫았으면 잡아 둔 것을 돌려준다
     @Transactional
     public void recordInquiry(String orderId, GatewayPayment gatewayPayment) {
         Payment payment = find(orderId);
+        PaymentStatus before = payment.getStatus();
         if (payment.isAwaitingApprovalResult()) {
             payment.reconcile(gatewayPayment, clock.instant());
         }
+        paymentHoldings.releaseIfClosed(payment, before);
     }
 
     private Payment find(String orderId) {

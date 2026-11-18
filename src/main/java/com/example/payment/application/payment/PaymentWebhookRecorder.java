@@ -1,7 +1,9 @@
 package com.example.payment.application.payment;
 
 import com.example.payment.domain.payment.GatewayPayment;
+import com.example.payment.domain.payment.Payment;
 import com.example.payment.domain.payment.PaymentRepository;
+import com.example.payment.domain.payment.PaymentStatus;
 import com.example.payment.domain.webhook.PaymentWebhook;
 import com.example.payment.domain.webhook.PaymentWebhookRepository;
 import java.time.Clock;
@@ -21,13 +23,21 @@ public class PaymentWebhookRecorder {
 
     private final PaymentRepository paymentRepository;
     private final PaymentWebhookRepository paymentWebhookRepository;
+    private final PaymentHoldings paymentHoldings;
     private final Clock clock;
 
-    // 그 사이 결제가 사라질 일은 없지만, 없으면 옮길 것도 없다
+    // 그 사이 결제가 사라질 일은 없지만, 없으면 옮길 것도 없다.
+    // 8장 결정 4부터 따라간 결과가 승인 실패(카드사 거절·만료)나 취소 상태면 같은 트랜잭션에서 잡아 둔 것을 돌려준다
     @Transactional
     public void follow(String orderId, GatewayPayment gatewayPayment) {
         paymentRepository.findByOrderIdForUpdate(orderId)
-                .ifPresent(payment -> payment.follow(gatewayPayment, clock.instant()));
+                .ifPresent(payment -> follow(payment, gatewayPayment));
+    }
+
+    private void follow(Payment payment, GatewayPayment gatewayPayment) {
+        PaymentStatus before = payment.getStatus();
+        payment.follow(gatewayPayment, clock.instant());
+        paymentHoldings.releaseIfClosed(payment, before);
     }
 
     // 결제를 맞추고, 그 결제를 다시 보라던 알림들을 닫는다

@@ -27,4 +27,10 @@ public class ForUpdateStockRepository implements StockRepository {
         jdbcTemplate.update("update stock set quantity = quantity - ? where product_id = ?", quantity, productId);
         return true;
     }
+
+    // 8장 결정 4부터: 돌려주기는 운영과 같다
+    @Override
+    public void increase(Long productId, int quantity) {
+        jdbcTemplate.update("update stock set quantity = quantity + ? where product_id = ?", quantity, productId);
+    }
 }

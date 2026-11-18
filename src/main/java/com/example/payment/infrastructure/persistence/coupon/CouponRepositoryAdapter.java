@@ -35,4 +35,10 @@ public class CouponRepositoryAdapter implements CouponRepository {
         }
         return false;
     }
+
+    @Override
+    public void restore(Long couponId, Long paymentId) {
+        jdbcTemplate.update("update coupon set status = 'ISSUED', payment_id = null where id = ? and payment_id = ? and status = 'USED'",
+                couponId, paymentId);
+    }
 }

@@ -175,6 +175,18 @@ abstract class ReleaseContract extends OrderPaymentContract {
         assertHeld();
     }
 
+    @Test
+    @DisplayName("부분 취소가 쌓여 남은 금액이 0원이 되면 잡아 둔 재고·포인트·쿠폰이 돌아온다")
+    void partialCancelsToZeroReturnHoldings() {
+        PaymentResult approved = orderAndConfirm(orderOf()).result();
+        paymentCancelService.cancel(cancelOf(approved.orderId(), new BigDecimal("10000")));
+
+        paymentCancelService.cancel(new CancelPaymentCommand(approved.orderId(), "cancel-rest-" + approved.orderId(),
+                new BigDecimal("7000"), "Customer changed their mind"));
+
+        assertReturned();
+    }
+
     // 승인이 거절된 결제를 거절 답 기록·보정·알림 처리가 함께 닫는다. 알림 처리가 승인 실패를 남기다 1초 붙잡힌 동안
     // 보정을 시작하고 붙잡아 둔 거절 답을 보낸다
     void closeTogether() {

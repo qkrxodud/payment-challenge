@@ -3,8 +3,10 @@ package com.example.payment.application.payment.comparison;
 import com.example.payment.application.payment.PaymentHoldings;
 import com.example.payment.domain.coupon.CouponRepository;
 import com.example.payment.domain.payment.Payment;
+import com.example.payment.domain.payment.PaymentStatus;
 import com.example.payment.domain.point.PointRepository;
 import com.example.payment.domain.stock.StockRepository;
+import java.time.Clock;
 import org.springframework.context.annotation.Primary;
 
 /**
@@ -15,8 +17,8 @@ import org.springframework.context.annotation.Primary;
 public class DeferredHoldings extends PaymentHoldings {
 
     public DeferredHoldings(StockRepository stockRepository, CouponRepository couponRepository,
-                            PointRepository pointRepository) {
-        super(stockRepository, couponRepository, pointRepository);
+                            PointRepository pointRepository, Clock clock) {
+        super(stockRepository, couponRepository, pointRepository, clock);
     }
 
     @Override
@@ -26,5 +28,11 @@ public class DeferredHoldings extends PaymentHoldings {
 
     public void holdNow(Payment payment) {
         super.hold(payment);
+    }
+
+    // 8장 결정 4부터: 이 비교는 잡는 때만 본다. 잡지 못한 채 승인을 취소한 결제도 있어(승인 뒤 잡기) 상태로 되돌리지 않는다
+    @Override
+    public void releaseIfClosed(Payment payment, PaymentStatus before) {
+        // 되돌리지 않는다
     }
 }

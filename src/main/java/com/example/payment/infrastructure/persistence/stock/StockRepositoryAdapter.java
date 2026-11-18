@@ -22,4 +22,9 @@ public class StockRepositoryAdapter implements StockRepository {
         return jdbcTemplate.update("update stock set quantity = quantity - ? where product_id = ? and quantity >= ?",
                 quantity, productId, quantity) == 1;
     }
+
+    @Override
+    public void increase(Long productId, int quantity) {
+        jdbcTemplate.update("update stock set quantity = quantity + ? where product_id = ?", quantity, productId);
+    }
 }

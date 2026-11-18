@@ -114,3 +114,17 @@ create table if not exists coupon (
     payment_id      bigint,
     primary key (id)
 );
+
+-- 8장 결정 4: 포인트 증감 이력. 결제 하나에 쓰기(USE)와 되돌리기(RESTORE)는 한 번씩만 올라간다 —
+-- 같은 실패를 여러 곳이 닫으려 해도 두 번째 되돌리기는 이 키에 막혀 잔액을 다시 늘리지 않는다
+create table if not exists point_history (
+    id         bigint         not null auto_increment,
+    member_id  varchar(64)    not null,
+    payment_id bigint         not null,
+    -- USE(결제에 씀), RESTORE(결제가 승인 없이 끝나거나 전액 취소돼 돌려줌)
+    type       varchar(20)    not null,
+    amount     decimal(19, 2) not null,
+    created_at datetime(6)    not null,
+    primary key (id),
+    unique key uk_point_history_payment_type (payment_id, type)
+);

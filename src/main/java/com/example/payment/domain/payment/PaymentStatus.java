@@ -70,6 +70,17 @@ public enum PaymentStatus {
         return this == APPROVED || this == CAPTURED;
     }
 
+    // 8장: 결제가 잡아 둔 재고·포인트·쿠폰을 쥐고 있는 상태인가. 인증 때 잡고(결정 2), 승인 결과를 기다리는 동안(결과 모름 포함)과
+    // 승인이 남은 동안 쥔다
+    public boolean keepsHoldings() {
+        return isAwaitingApprovalResult() || holdsApproval();
+    }
+
+    // 8장: 승인 없이 끝났거나 승인이 모두 취소된 상태인가(승인 실패, 만료, 승인 취소, 매입 취소). 잡아 둔 것을 돌려줄 상태다
+    public boolean dropsHoldings() {
+        return this == APPROVAL_FAILED || this == EXPIRED || this == APPROVAL_CANCELED || this == CAPTURE_CANCELED;
+    }
+
     public boolean isApprovalUnknown() {
         return this == APPROVAL_UNKNOWN;
     }

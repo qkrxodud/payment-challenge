@@ -38,4 +38,11 @@ public class VersionCheckStockRepository implements StockRepository {
         }
         return true;
     }
+
+    // 8장 결정 4부터: 돌려줄 때도 변경 번호를 올린다(같은 재고를 읽어 둔 다른 주문이 그 뒤 값을 덮어쓰지 않게)
+    @Override
+    public void increase(Long productId, int quantity) {
+        jdbcTemplate.update("update stock set quantity = quantity + ?, version = version + 1 where product_id = ?", quantity,
+                productId);
+    }
 }

@@ -356,6 +356,13 @@ public class Payment {
         return List.copyOf(items);
     }
 
+    // 8장 결정 4: 이 상태(before)에서 지금 상태로 오며 잡아 둔 재고·포인트·쿠폰을 돌려줄 때가 됐는가.
+    // 쥐고 있던 상태에서 승인 없이 끝나거나(승인 실패·만료) 승인이 모두 취소된 상태로 온 한 번만 맞다. 결과 모름은 쥔 채로 둔다 —
+    // 카드사에 승인이 남았을 수 있다(4장 보정이 정한다). 이미 끝난 결제를 다시 보면(before 도 끝난 상태) 아니다
+    public boolean releasesHoldingsFrom(PaymentStatus before) {
+        return before.keepsHoldings() && status.dropsHoldings();
+    }
+
     public boolean usesCoupon() {
         return Objects.nonNull(couponId);
     }
