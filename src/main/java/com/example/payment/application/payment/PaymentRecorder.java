@@ -29,7 +29,9 @@ public class PaymentRecorder {
 
     // 금액이 다르면 상태를 바꾸지 않고 거부한다. 같은 요청이 다시 왔으면 아무것도 바꾸지 않고 지금 결과를 돌려준다.
     // 7장부터(결정 2) 카드사 답을 기다리는(인증 상태) 결제에 같은 결제 키로 온 요청도 다시 온 요청으로 본다 — 카드사에 다시 보내지 않고
-    // 지금 상태(인증)로 답한다(API 는 4장 결과 모름처럼 확인 중 202). 다른 결제 키는 지금처럼 인증할 수 없는 상태로 거부한다(409)
+    // 지금 상태(인증)로 답한다(API 는 4장 결과 모름처럼 확인 중 202). 다른 결제 키는 지금처럼 인증할 수 없는 상태로 거부한다(409).
+    // 8장 결정 2부터 인증과 같은 트랜잭션에서 담긴 상품의 재고와 쓴 쿠폰·포인트를 잡는다. 모자라면 인증도 남지 않고(준비 상태 그대로)
+    // 카드사에 승인을 요청하지 않는다
     @Transactional
     public ConfirmAttempt authenticate(ConfirmPaymentCommand command) {
         Payment payment = find(command.orderId());
@@ -38,6 +40,7 @@ public class PaymentRecorder {
             return ConfirmAttempt.repeat(PaymentResult.from(payment));
         }
         payment.authenticate(command.paymentKey(), clock.instant());
+        paymentHoldings.hold(payment);
         return ConfirmAttempt.send(payment.getOrderId(), payment.getAmount());
     }
 
@@ -51,14 +54,12 @@ public class PaymentRecorder {
         return PaymentResult.from(payment);
     }
 
-    // 8장 출발 구조: 승인되면 담긴 상품의 재고와 쓴 쿠폰·포인트를 줄인다
-    private void settleWith(Payment payment, PaymentApproval approval) {
+    private static void settleWith(Payment payment, PaymentApproval approval) {
         if (approval.isDeclined()) {
             payment.failApproval();
             return;
         }
         payment.approve();
-        paymentHoldings.hold(payment);
     }
 
     // 카드사 답을 받지 못했다. 승인됐는지 모른다는 것을 남겨 두고 나중에 카드사에 확인한다.

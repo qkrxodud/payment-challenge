@@ -8,6 +8,6 @@ public interface CouponRepository {
 
     Optional<Coupon> findById(Long id);
 
-    // 쿠폰을 이 결제에 쓴 것으로 남긴다
-    void use(Long couponId, Long paymentId);
+    // 아직 쓰지 않은 쿠폰이면 이 결제에 쓴 것으로 남기고 맞다고 답한다. 이미 쓰였으면 아니라고 답한다
+    boolean use(Long couponId, Long paymentId);
 }
