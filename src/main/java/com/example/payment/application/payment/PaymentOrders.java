@@ -11,6 +11,7 @@ import com.example.payment.domain.product.ProductRepository;
 import com.example.payment.global.error.exception.CouponNotAvailableException;
 import com.example.payment.global.error.exception.InvalidQuantityException;
 import com.example.payment.global.error.exception.ProductNotFoundException;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -21,7 +22,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * 8장: 상품을 담은 준비 요청으로 결제를 만든다. 담긴 상품을 찾아 그때의 상품가를 남기고, 쿠폰은 이 회원이 지금 쓸 수 있는지 본다.
- * 출발 구조: 결제 금액은 고객이 보낸 금액 그대로다.
+ * 결정 1: 결제 금액은 서버가 계산한다(상품가 합 − 쿠폰 할인 − 쓴 포인트). 고객이 보낸 금액이 그와 다르면 3장 승인 때와 같은 이유
+ * (금액이 맞지 않음, 400 AMOUNT_MISMATCH)로 받지 않는다 — 고객이 할인을 부풀리거나 금액을 낮춰 보내도 그 금액으로 결제가 남지 않는다.
  */
 @Component
 @RequiredArgsConstructor
@@ -32,9 +34,10 @@ public class PaymentOrders {
 
     public Payment order(PreparePaymentCommand command) {
         List<PaymentItem> items = itemsOf(command);
-        checkCoupon(command);
-        return Payment.order(command.orderId(), command.memberId(), items, command.couponId(), command.usePoint(),
-                command.amount());
+        Payment payment = Payment.order(command.orderId(), command.memberId(), items, command.couponId(),
+                discountOf(command), command.usePoint());
+        payment.verifyAmount(command.amount());
+        return payment;
     }
 
     private List<PaymentItem> itemsOf(PreparePaymentCommand command) {
@@ -57,14 +60,15 @@ public class PaymentOrders {
         return PaymentItem.of(product.getId(), line.quantity(), product.getPrice());
     }
 
-    private void checkCoupon(PreparePaymentCommand command) {
+    // 쿠폰 할인 금액. 쿠폰이 없으면 0 원이다
+    private BigDecimal discountOf(PreparePaymentCommand command) {
         if (Objects.isNull(command.couponId())) {
-            return;
+            return BigDecimal.ZERO;
         }
         Coupon coupon = couponRepository.findById(command.couponId())
                 .orElseThrow(() -> new CouponNotAvailableException(command.orderId()));
         if (coupon.isUsableBy(command.memberId())) {
-            return;
+            return coupon.getDiscountAmount();
         }
         throw new CouponNotAvailableException(command.orderId());
     }

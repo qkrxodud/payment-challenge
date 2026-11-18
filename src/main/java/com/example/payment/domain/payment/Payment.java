@@ -104,9 +104,19 @@ public class Payment {
                 .build();
     }
 
-    // 8장(출발 구조): 상품을 담은 주문의 결제. 금액은 고객이 보낸 금액이다
+    // 8장 결정 1: 상품을 담은 주문의 결제. 금액은 서버가 정한다 — 담긴 상품가 합에서 쿠폰 할인과 쓴 포인트를 뺀 금액이다.
+    // 쓴 포인트가 음수이거나, 할인·포인트를 빼고 남는 금액이 없으면 받지 않는다
     public static Payment order(String orderId, String memberId, List<PaymentItem> items, Long couponId,
-                                BigDecimal pointAmount, BigDecimal amount) {
+                                BigDecimal couponDiscount, BigDecimal pointAmount) {
+        BigDecimal usedPoint = Objects.requireNonNullElse(pointAmount, BigDecimal.ZERO);
+        if (usedPoint.signum() < 0) {
+            throw new InvalidAmountException(orderId);
+        }
+        BigDecimal amount = items.stream()
+                .map(PaymentItem::totalPrice)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .subtract(couponDiscount)
+                .subtract(usedPoint);
         if (isNotPositive(amount)) {
             throw new InvalidAmountException(orderId);
         }
@@ -116,7 +126,7 @@ public class Payment {
                 .status(PaymentStatus.READY)
                 .memberId(memberId)
                 .couponId(couponId)
-                .pointAmount(pointAmount)
+                .pointAmount(usedPoint)
                 .build();
         items.forEach(payment::addItem);
         return payment;

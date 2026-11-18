@@ -20,12 +20,14 @@ public class PaymentPrepareRecorder {
     private final PaymentRepository paymentRepository;
     private final PaymentOrders paymentOrders;
 
-    // 같은 주문번호가 같은 금액으로 다시 오면 이미 있는 결제를 지금 상태 그대로 돌려준다. 금액이 다르면 거부한다(3장)
+    // 같은 주문번호가 같은 금액으로 다시 오면 이미 있는 결제를 지금 상태 그대로 돌려준다. 금액이 다르면 거부한다(3장).
+    // 8장 결정 1부터 상품을 담은 준비는 먼저 서버가 금액을 계산해 고객이 보낸 금액과 맞춰 본다 — 맞지 않으면 다시 온 준비여도 받지 않는다
     @Transactional
     public PaymentResult prepare(PreparePaymentCommand command) {
+        Payment prepared = newPayment(command);
         return paymentRepository.findByOrderId(command.orderId())
                 .map(existing -> repeat(existing, command))
-                .orElseGet(() -> PaymentResult.from(paymentRepository.save(newPayment(command))));
+                .orElseGet(() -> PaymentResult.from(paymentRepository.save(prepared)));
     }
 
     // 8장: 상품을 담은 준비는 주문으로 결제를 만든다. 상품이 없으면 7장까지처럼 주문번호와 금액만으로 만든다
