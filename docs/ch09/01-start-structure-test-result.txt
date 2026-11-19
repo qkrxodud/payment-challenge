@@ -1,0 +1,9 @@
+tests=7 failures=5 errors=0 time=38.310s
+## 결제 이벤트 — 운영 구현
+FAIL 브로커가 1.5초 늦게 답해도 결제 승인은 1초 안에 답한다 (3.184s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual: 3.045216292S to be less than: 1S
+PASS 승인된 결제의 주문은 주문 서비스에서 결제 완료가 된다 (2.065s)
+FAIL 승인 기록이 실패한 결제의 승인은 주문 서비스에 가지 않는다 (2.356s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.application.payment.PaymentEventContract was not fulfilled within 2 seconds.
+PASS 승인이 거절된 결제의 주문은 주문 서비스에서 결제 실패가 된다 (0.23s)
+FAIL 같은 결제의 승인과 취소는 만든 순서대로 주문 서비스에 도착한다 (1.274s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Expecting actual: ["APPROVAL_CANCELED", "APPROVED"] to contain exactly (and in same order): ["APPROVED", "APPROVAL_CANCELED"] but there were differences at these indexes: - element at index 0: expected "APPROVED" but was "APPROVAL_CANCELED" - element at index 1: 
+FAIL 브로커가 끊긴 동안 승인된 결제도 브로커가 돌아오면 주문 서비스에 승인이 도착한다 (19.187s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.OrderServer was not fulfilled within 15 seconds.
+FAIL 승인 뒤 전액 취소된 결제의 주문은 주문 서비스에서 취소 상태다 (1.283s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: "CANCELED" but was: "PAID"
