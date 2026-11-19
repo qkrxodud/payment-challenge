@@ -156,6 +156,8 @@ abstract class PaymentEventContract {
     @Test
     @DisplayName("브로커가 1.5초 늦게 답해도 결제 승인은 1초 안에 답한다")
     void slowBrokerDoesNotSlowApproval() {
+        // 컨텍스트가 뜬 뒤 첫 승인은 늦을 수 있어(처음 쓰는 연결·클래스) 한 번 승인해 둔 뒤 잰다
+        approvedOrder();
         String orderId = prepare();
         broker.slowDown(SLOW);
 

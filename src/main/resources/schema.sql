@@ -128,3 +128,18 @@ create table if not exists point_history (
     primary key (id),
     unique key uk_point_history_payment_type (payment_id, type)
 );
+
+-- 9장 결정 1: 주문 서비스에 알릴 결제 결과. 결제 상태를 바꾼 그 트랜잭션에서 한 줄 남긴다 — 상태가 커밋되면 이 줄도 남고,
+-- 커밋이 실패하면 함께 남지 않는다. 보내는 일은 따로 한다. 번호(id)가 이벤트의 고유 번호이고, 같은 결제의 이벤트는 번호 순이 만든 순서다.
+-- 결제를 가리키는 외래 키는 두지 않는다(결제 기록과 따로 보내고 지우는 기록이다)
+create table if not exists payment_outbox (
+    id          bigint      not null auto_increment,
+    payment_id  bigint      not null,
+    order_id    varchar(64) not null,
+    status      varchar(30) not null,
+    occurred_at datetime(6) not null,
+    -- 브로커가 받았다고 답한 때. 아직 보내지 않았으면 비어 있다
+    sent_at     datetime(6),
+    primary key (id),
+    key idx_payment_outbox_sent_at_id (sent_at, id)
+);
