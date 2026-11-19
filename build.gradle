@@ -100,6 +100,8 @@ tasks.named('test') {
 	systemProperty 'payment.reconciliation.enabled', 'false'
 	// 6장부터: 받은 웹훅 처리도 테스트가 직접 부른다
 	systemProperty 'payment.webhook.enabled', 'false'
+	// 9장부터: 남긴 결제 결과를 보내는 릴레이도 끈다. 결제 이벤트 계약 테스트만 켜서 돌린다
+	systemProperty 'payment.outbox.enabled', 'false'
 	finalizedBy jacocoTestReport
 }
 
@@ -113,6 +115,7 @@ tasks.register('knownFailingTest', Test) {
 	}
 	systemProperty 'payment.reconciliation.enabled', 'false'
 	systemProperty 'payment.webhook.enabled', 'false'
+	systemProperty 'payment.outbox.enabled', 'false'
 	ignoreFailures = true
 	// 7장: 실제 JPA @Version 비교는 시험용 결제를 앞세운 클래스 경로가 필요해 따로 돈다. knownFailingTest 를 부르면 함께 돈다
 	finalizedBy 'jpaVersionTest'
@@ -128,6 +131,7 @@ tasks.register('jpaVersionTest', Test) {
 	}
 	systemProperty 'payment.reconciliation.enabled', 'false'
 	systemProperty 'payment.webhook.enabled', 'false'
+	systemProperty 'payment.outbox.enabled', 'false'
 	ignoreFailures = true
 }
 
@@ -141,6 +145,7 @@ tasks.register('reconciliationMeasurement', Test) {
 	}
 	systemProperty 'payment.reconciliation.enabled', 'false'
 	systemProperty 'payment.webhook.enabled', 'false'
+	systemProperty 'payment.outbox.enabled', 'false'
 	outputs.upToDateWhen { false }
 	doFirst {
 		delete layout.buildDirectory.file('measurement/ch04-reconciliation.txt')
@@ -157,6 +162,7 @@ tasks.register('cancelMeasurement', Test) {
 	}
 	systemProperty 'payment.reconciliation.enabled', 'false'
 	systemProperty 'payment.webhook.enabled', 'false'
+	systemProperty 'payment.outbox.enabled', 'false'
 	outputs.upToDateWhen { false }
 	doFirst {
 		delete layout.buildDirectory.file('measurement/ch05-cancel.txt')
@@ -174,6 +180,7 @@ tasks.register('webhookMeasurement', Test) {
 	// 측정은 받은 알림 처리와 주기 보정을 직접 돌린다(0.2초마다)
 	systemProperty 'payment.reconciliation.enabled', 'false'
 	systemProperty 'payment.webhook.enabled', 'false'
+	systemProperty 'payment.outbox.enabled', 'false'
 	outputs.upToDateWhen { false }
 	doFirst {
 		delete layout.buildDirectory.file('measurement/ch06-webhook.txt')
@@ -191,6 +198,7 @@ tasks.register('concurrencyMeasurement', Test) {
 	}
 	systemProperty 'payment.reconciliation.enabled', 'false'
 	systemProperty 'payment.webhook.enabled', 'false'
+	systemProperty 'payment.outbox.enabled', 'false'
 	outputs.upToDateWhen { false }
 	doFirst {
 		delete layout.buildDirectory.file('measurement/ch07-concurrency.txt')
@@ -208,6 +216,7 @@ tasks.register('jpaVersionMeasurement', Test) {
 	}
 	systemProperty 'payment.reconciliation.enabled', 'false'
 	systemProperty 'payment.webhook.enabled', 'false'
+	systemProperty 'payment.outbox.enabled', 'false'
 	outputs.upToDateWhen { false }
 }
 
@@ -221,6 +230,7 @@ tasks.register('stockMeasurement', Test) {
 	}
 	systemProperty 'payment.reconciliation.enabled', 'false'
 	systemProperty 'payment.webhook.enabled', 'false'
+	systemProperty 'payment.outbox.enabled', 'false'
 	outputs.upToDateWhen { false }
 	doFirst {
 		delete layout.buildDirectory.file('measurement/ch08-stock.txt')

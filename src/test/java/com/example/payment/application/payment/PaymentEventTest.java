@@ -1,5 +1,6 @@
 package com.example.payment.application.payment;
 
+import java.util.Objects;
 import org.junit.jupiter.api.DisplayName;
 import org.springframework.test.context.TestPropertySource;
 
@@ -11,4 +12,11 @@ import org.springframework.test.context.TestPropertySource;
 @TestPropertySource(properties = "spring.kafka.producer.properties.partitioner.class=org.apache.kafka.clients.producer.RoundRobinPartitioner")
 @DisplayName("결제 이벤트 — 운영 구현")
 class PaymentEventTest extends PaymentEventContract {
+
+    // 9장 결정 2부터: 릴레이가 아직 보내지 않은 결과
+    @Override
+    int pendingEvents() {
+        Integer pending = jdbcTemplate.queryForObject("select count(*) from payment_outbox where sent_at is null", Integer.class);
+        return Objects.requireNonNullElse(pending, 0);
+    }
 }

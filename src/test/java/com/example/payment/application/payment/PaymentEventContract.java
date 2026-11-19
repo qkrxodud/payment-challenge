@@ -33,7 +33,13 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * 브로커를 끊고 늦추는 일은 시험 JVM 과 브로커 사이의 중계(BrokerLink)로 한다. 브로커가 받았다는 답을 기다리는 시간은 3초로 줄였다(KafkaBroker).
  * 결제 금액은 15000원이다.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.NONE,
+        properties = {
+                // 9장 결정 2부터: 남긴 결과를 보내는 릴레이를 이 계약에서는 켜고 0.1초마다 돌린다
+                "payment.outbox.enabled=true",
+                "payment.outbox.interval=100ms"
+        })
 @Import({TestcontainersConfiguration.class, MockPgConfiguration.class, OrderServerConfiguration.class})
 abstract class PaymentEventContract {
 
