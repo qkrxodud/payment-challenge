@@ -24,10 +24,12 @@ public class PaymentWebhookRecorder {
     private final PaymentRepository paymentRepository;
     private final PaymentWebhookRepository paymentWebhookRepository;
     private final PaymentHoldings paymentHoldings;
+    private final PaymentEvents paymentEvents;
     private final Clock clock;
 
     // 그 사이 결제가 사라질 일은 없지만, 없으면 옮길 것도 없다.
-    // 8장 결정 4부터 따라간 결과가 승인 실패(카드사 거절·만료)나 취소 상태면 같은 트랜잭션에서 잡아 둔 것을 돌려준다
+    // 8장 결정 4부터 따라간 결과가 승인 실패(카드사 거절·만료)나 취소 상태면 같은 트랜잭션에서 잡아 둔 것을 돌려준다.
+    // 9장부터 따라가 결제 결과가 정해졌으면 주문 서비스에 알린다
     @Transactional
     public void follow(String orderId, GatewayPayment gatewayPayment) {
         paymentRepository.findByOrderIdForUpdate(orderId)
@@ -38,6 +40,7 @@ public class PaymentWebhookRecorder {
         PaymentStatus before = payment.getStatus();
         payment.follow(gatewayPayment, clock.instant());
         paymentHoldings.releaseIfClosed(payment, before);
+        paymentEvents.publishIfChanged(payment, before);
     }
 
     // 결제를 맞추고, 그 결제를 다시 보라던 알림들을 닫는다

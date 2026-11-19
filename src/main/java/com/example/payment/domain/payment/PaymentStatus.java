@@ -81,6 +81,12 @@ public enum PaymentStatus {
         return this == APPROVAL_FAILED || this == EXPIRED || this == APPROVAL_CANCELED || this == CAPTURE_CANCELED;
     }
 
+    // 9장: 주문 서비스에 알리는 결제 결과 상태인가(승인, 승인 실패, 만료, 매입, 승인 취소, 매입 취소).
+    // 준비·인증·결과 모름은 결과가 아니라 알리지 않는다
+    public boolean isOutcome() {
+        return holdsApproval() || dropsHoldings();
+    }
+
     public boolean isApprovalUnknown() {
         return this == APPROVAL_UNKNOWN;
     }

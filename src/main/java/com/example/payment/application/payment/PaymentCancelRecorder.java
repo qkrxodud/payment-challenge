@@ -31,6 +31,7 @@ public class PaymentCancelRecorder {
 
     private final PaymentRepository paymentRepository;
     private final PaymentHoldings paymentHoldings;
+    private final PaymentEvents paymentEvents;
     private final Clock clock;
 
     // 같은 Idempotency-Key 로 이미 받은 취소가 결과를 남겼으면 그 결과를 돌려준다.
@@ -52,13 +53,15 @@ public class PaymentCancelRecorder {
     }
 
     // 카드사 답(취소 또는 거절)을 남긴다. 카드사가 같은 키의 앞 요청을 아직 처리 중이면 그대로 둔다.
-    // 8장 결정 4부터 이 취소로 남은 금액이 0원이 돼 결제가 취소 상태가 되면 잡아 둔 재고·포인트·쿠폰을 돌려준다(부분 취소는 카드 금액만)
+    // 8장 결정 4부터 이 취소로 남은 금액이 0원이 돼 결제가 취소 상태가 되면 잡아 둔 재고·포인트·쿠폰을 돌려준다(부분 취소는 카드 금액만).
+    // 9장부터 결제가 취소 상태가 되면 주문 서비스에 알린다(부분 취소는 결제 상태가 그대로라 알리지 않는다)
     @Transactional
     public CancelResult recordOutcome(String orderId, String idempotencyKey, CancelOutcome outcome) {
         Payment payment = find(orderId);
         PaymentStatus before = payment.getStatus();
         PaymentCancel cancel = closeWith(payment, idempotencyKey, outcome);
         paymentHoldings.releaseIfClosed(payment, before);
+        paymentEvents.publishIfChanged(payment, before);
         return CancelResults.of(payment, cancel);
     }
 
@@ -69,13 +72,14 @@ public class PaymentCancelRecorder {
     }
 
     // 카드사에 확인한 취소들로 결과를 기다리는 취소를 닫는다
-    // 8장 결정 4부터 이 보정으로 결제가 취소 상태가 되면 잡아 둔 것을 돌려준다
+    // 8장 결정 4부터 이 보정으로 결제가 취소 상태가 되면 잡아 둔 것을 돌려준다. 9장부터 주문 서비스에도 알린다
     @Transactional
     public void recordInquiry(String orderId, List<GatewayCancel> gatewayCancels, Instant requestedBefore) {
         Payment payment = find(orderId);
         PaymentStatus before = payment.getStatus();
         payment.settleCancels(gatewayCancels, requestedBefore);
         paymentHoldings.releaseIfClosed(payment, before);
+        paymentEvents.publishIfChanged(payment, before);
     }
 
     private static PaymentCancel closeWith(Payment payment, String idempotencyKey, CancelOutcome outcome) {

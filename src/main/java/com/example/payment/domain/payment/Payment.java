@@ -363,6 +363,12 @@ public class Payment {
         return before.keepsHoldings() && status.dropsHoldings();
     }
 
+    // 9장: 이 상태(before)에서 지금 상태로 오며 결제 결과가 새로 정해졌는가. 상태가 바뀌었고 바뀐 상태가 결과일 때만 맞다 —
+    // 이미 지난 상태를 다시 보거나(웹훅·보정이 같은 결과를 다시 봄) 부분 취소처럼 상태가 그대로면 아니다
+    public boolean announcesFrom(PaymentStatus before) {
+        return status != before && status.isOutcome();
+    }
+
     public boolean usesCoupon() {
         return Objects.nonNull(couponId);
     }

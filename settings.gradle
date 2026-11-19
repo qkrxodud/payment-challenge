@@ -2,3 +2,5 @@ rootProject.name = 'payment-challenge'
 
 // 2장부터: 지연·거절을 조작할 수 있는 가짜 PG 서버
 include 'mock-pg'
+// 9장부터: 결제 이벤트를 받아 주문 상태를 바꾸는 주문 서비스
+include 'order-service'

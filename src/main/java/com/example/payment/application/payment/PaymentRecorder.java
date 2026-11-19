@@ -26,6 +26,7 @@ public class PaymentRecorder {
 
     private final PaymentRepository paymentRepository;
     private final PaymentHoldings paymentHoldings;
+    private final PaymentEvents paymentEvents;
     private final Clock clock;
 
     // 금액이 다르면 상태를 바꾸지 않고 거부한다. 같은 요청이 다시 왔으면 아무것도 바꾸지 않고 지금 결과를 돌려준다.
@@ -46,7 +47,8 @@ public class PaymentRecorder {
     }
 
     // 6장부터: 승인 답을 기다리는 사이 웹훅이 먼저 결과를 남겼으면 건드리지 않고 지금 결과로 답한다.
-    // 8장 결정 4부터 이 기록이 승인 실패로 닫았으면 같은 트랜잭션에서 잡아 둔 재고·포인트·쿠폰을 돌려준다
+    // 8장 결정 4부터 이 기록이 승인 실패로 닫았으면 같은 트랜잭션에서 잡아 둔 재고·포인트·쿠폰을 돌려준다.
+    // 9장부터 이 기록이 승인·승인 실패로 닫았으면 주문 서비스에 알린다
     @Transactional
     public PaymentResult recordApproval(String orderId, PaymentApproval approval) {
         Payment payment = find(orderId);
@@ -55,6 +57,7 @@ public class PaymentRecorder {
             settleWith(payment, approval);
         }
         paymentHoldings.releaseIfClosed(payment, before);
+        paymentEvents.publishIfChanged(payment, before);
         return PaymentResult.from(payment);
     }
 
@@ -78,7 +81,8 @@ public class PaymentRecorder {
 
     // 카드사에 확인한 결과를 남긴다. 그 사이 다른 길로 결과가 남은 결제는 건드리지 않는다.
     // 6장부터 카드사 결제 상태와 취소 이력을 함께 받아 웹훅과 같은 길로 닫는다(카드사에서 승인 뒤 취소됐으면 승인 취소).
-    // 8장 결정 4부터 이 기록이 승인 실패(카드사 거절·만료·기록 없음)나 승인 취소로 닫았으면 잡아 둔 것을 돌려준다
+    // 8장 결정 4부터 이 기록이 승인 실패(카드사 거절·만료·기록 없음)나 승인 취소로 닫았으면 잡아 둔 것을 돌려준다.
+    // 9장부터 이 보정으로 결제 결과가 정해졌으면 주문 서비스에 알린다
     @Transactional
     public void recordInquiry(String orderId, GatewayPayment gatewayPayment) {
         Payment payment = find(orderId);
@@ -87,6 +91,7 @@ public class PaymentRecorder {
             payment.reconcile(gatewayPayment, clock.instant());
         }
         paymentHoldings.releaseIfClosed(payment, before);
+        paymentEvents.publishIfChanged(payment, before);
     }
 
     private Payment find(String orderId) {

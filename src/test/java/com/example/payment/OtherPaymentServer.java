@@ -14,7 +14,7 @@ import org.springframework.core.type.classreading.MetadataReaderFactory;
 import org.testcontainers.mysql.MySQLContainer;
 
 /**
- * 7장: 시험 JVM 안에 결제 서버를 한 대 더 띄운다(서버 여러 대). 시험 서버와 같은 MySQL, 같은 Mock PG 를 쓴다.
+ * 7장: 시험 JVM 안에 결제 서버를 한 대 더 띄운다(서버 여러 대). 시험 서버와 같은 MySQL, 같은 Mock PG 를 쓴다(9장부터 같은 Kafka 브로커도).
  * 주기 작업(보정, 받은 알림 처리)은 끄고 시험이 직접 부른다. 웹 서버는 띄우지 않는다 — 주기 작업만 본다.
  * 시험 설정(@TestConfiguration: 시험용 MySQL·Mock PG 를 따로 띄우는 설정)은 읽지 않는다.
  */
@@ -31,6 +31,8 @@ public class OtherPaymentServer {
                 "payment.pg.base-url=" + mockPg.baseUrl(),
                 "payment.reconciliation.enabled=false",
                 "payment.webhook.enabled=false"));
+        // 9장부터: 시험 서버와 같은 Kafka 브로커
+        all.addAll(KafkaBroker.clientProperties());
         all.addAll(properties);
         // 기본 속성(properties)은 application.properties 보다 약하다. 실행 인자로 넘겨 설정 파일 값(PG 주소 등)보다 앞세운다
         return new SpringApplicationBuilder(PaymentChallengeApplication.class)

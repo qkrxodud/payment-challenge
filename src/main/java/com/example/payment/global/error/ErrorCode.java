@@ -46,6 +46,8 @@ public enum ErrorCode {
     COUPON_NOT_AVAILABLE(ErrorType.CONFLICT, "This coupon cannot be used."),
     // 8장: 쓰려는 포인트가 잔액보다 많음. 카드사에 승인을 요청하지 않는다
     INSUFFICIENT_POINT(ErrorType.CONFLICT, "Not enough points are left."),
+    // 9장: 결제 이벤트를 브로커에 보냈다는 답을 받지 못함. 보내는 쪽(결제 기록·릴레이)이 잡아 처리하고 응답으로 내보내지 않는다
+    PAYMENT_EVENT_NOT_SENT(ErrorType.INTERNAL, "Something went wrong on the server."),
     INTERNAL_ERROR(ErrorType.INTERNAL, "Something went wrong on the server.");
 
     private final ErrorType type;
