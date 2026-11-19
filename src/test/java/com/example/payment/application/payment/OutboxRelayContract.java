@@ -132,6 +132,44 @@ abstract class OutboxRelayContract {
         assertThat(eventNumbersOf(orderId)).doesNotHaveDuplicates();
     }
 
+    @Test
+    @DisplayName("한 결제의 앞 이벤트를 보내지 못하면 그 주기에는 그 결제의 다음 이벤트도 보내지 않는다")
+    void laterEventOfFailedPaymentWaits() {
+        String orderId = approvedThenCanceled();
+        SendFaults.failFirstSend(orderId, "APPROVED");
+
+        relayOn(thisServer);
+
+        await().during(Duration.ofSeconds(1)).atMost(Duration.ofSeconds(2))
+                .until(() -> orderServer.receivedCount(orderId, "APPROVAL_CANCELED") == 0);
+    }
+
+    @Test
+    @DisplayName("한 결제의 이벤트를 보내지 못해도 그 주기에 다른 결제의 이벤트는 보낸다")
+    void otherPaymentsAreStillSent() {
+        String failingOrderId = approvedThenCanceled();
+        String otherOrderId = approvedThenCanceled();
+        SendFaults.failFirstSend(failingOrderId, "APPROVED");
+
+        relayOn(thisServer);
+
+        orderServer.awaitReceived(otherOrderId, "APPROVAL_CANCELED", ARRIVAL);
+        assertThat(orderServer.receivedStatuses(otherOrderId)).containsExactly("APPROVED", "APPROVAL_CANCELED");
+    }
+
+    @Test
+    @DisplayName("보내지 못한 결제의 이벤트는 다음 주기에 만든 순서대로 도착한다")
+    void failedPaymentIsSentInOrderNextTime() {
+        String orderId = approvedThenCanceled();
+        SendFaults.failFirstSend(orderId, "APPROVED");
+        relayOn(thisServer);
+
+        relayOn(thisServer);
+
+        await().atMost(ARRIVAL).until(() -> orderServer.receivedStatuses(orderId).size() >= 2);
+        assertThat(orderServer.receivedStatuses(orderId)).containsExactly("APPROVED", "APPROVAL_CANCELED");
+    }
+
     // 승인 뒤 전액 취소한 결제의 두 결과를 두 서버가 같은 때 릴레이로 보낸다. 남은 것이 없을 때까지 시험 서버에서 주기를 더 돌린 뒤
     // 두 이벤트가 모두 도착하고 1초 더 기다린다(늦게 보낸 같은 이벤트가 있으면 그것까지)
     String relayedByTwoServers() {
