@@ -23,6 +23,8 @@ public class ExclusiveJobRunner {
 
     public static final String RECONCILIATION = "payment-reconciliation";
     public static final String WEBHOOK = "payment-webhook";
+    // 9장 결정 3: 남긴 결제 결과를 보내는 릴레이. 한 대가 번호 순으로 보내야 같은 결제의 이벤트 순서를 지키기 쉽다
+    public static final String OUTBOX = "payment-outbox-relay";
 
     private final JobLockRepository jobLockRepository;
     private final JobLockProperties jobLockProperties;

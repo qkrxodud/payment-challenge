@@ -70,6 +70,8 @@ create table if not exists job_lock (
 
 insert ignore into job_lock (name, locked_until) values ('payment-reconciliation', '1970-01-01 00:00:00');
 insert ignore into job_lock (name, locked_until) values ('payment-webhook', '1970-01-01 00:00:00');
+-- 9장 결정 3: 남긴 결제 결과를 보내는 릴레이도 한 대만 돈다
+insert ignore into job_lock (name, locked_until) values ('payment-outbox-relay', '1970-01-01 00:00:00');
 
 -- 8장: 상품과 재고. 재고는 상품마다 한 줄이라 같은 상품의 주문은 모두 이 한 줄을 바꾼다
 create table if not exists product (
