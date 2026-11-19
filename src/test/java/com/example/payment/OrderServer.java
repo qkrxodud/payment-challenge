@@ -93,6 +93,34 @@ public class OrderServer {
                 orderId, status).stream().findFirst().orElse(null);
     }
 
+    // 9장 측정: 이 주문에 대해 받은 이벤트를 받은 순서대로(결제 결과, 만든 때부터 받은 때까지)
+    public List<Receipt> receipts(String orderId) {
+        return orders.query("select payment_status, occurred_at, received_at from received_payment_event where order_id = ? order by id",
+                (row, number) -> new Receipt(row.getString("payment_status"),
+                        Duration.between(row.getTimestamp("occurred_at").toInstant(), row.getTimestamp("received_at").toInstant())),
+                orderId);
+    }
+
+    /** 받은 이벤트 한 건: 결제 결과와 도착 지연 */
+    public static class Receipt {
+
+        private final String status;
+        private final Duration delay;
+
+        Receipt(String status, Duration delay) {
+            this.status = status;
+            this.delay = delay;
+        }
+
+        public String status() {
+            return status;
+        }
+
+        public Duration delay() {
+            return delay;
+        }
+    }
+
     public void awaitReceived(String orderId, String status, Duration atMost) {
         await().atMost(atMost).pollInterval(Duration.ofMillis(50)).until(() -> receivedCount(orderId, status) > 0);
     }

@@ -6,6 +6,8 @@ import com.example.payment.domain.payment.PaymentStatus;
 import com.example.payment.global.error.exception.PaymentEventNotSentException;
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -51,7 +53,8 @@ public class SkipLockedOutboxRelay {
                         + "where sent_at is null order by id limit 1 for update skip locked",
                 (row, number) -> PaymentEvent.of(String.valueOf(row.getLong("id")), row.getLong("payment_id"),
                         row.getString("order_id"), PaymentStatus.valueOf(row.getString("status")),
-                        row.getTimestamp("occurred_at").toInstant()));
+                        // 운영 결과는 JPA 가 UTC 로 남긴다. JDBC 시각(getTimestamp)으로 읽으면 JVM 시간대로 읽혀 9시간 어긋난다(측정에서 봄)
+                        row.getObject("occurred_at", LocalDateTime.class).toInstant(ZoneOffset.UTC)));
         if (claimed.isEmpty()) {
             return false;
         }
