@@ -1,6 +1,7 @@
 package com.example.payment.application.payment.comparison;
 
 import com.example.payment.application.payment.PaymentHoldings;
+import com.example.payment.application.payment.StockCommands;
 import com.example.payment.domain.coupon.CouponRepository;
 import com.example.payment.domain.error.exception.OutOfStockException;
 import com.example.payment.domain.payment.Payment;
@@ -19,9 +20,9 @@ import org.springframework.context.annotation.Primary;
 @Primary
 public class DeferredHoldings extends PaymentHoldings {
 
-    public DeferredHoldings(StockReservations stockReservations, CouponRepository couponRepository,
+    public DeferredHoldings(StockReservations stockReservations, StockCommands stockCommands, CouponRepository couponRepository,
                             PointRepository pointRepository, Clock clock) {
-        super(stockReservations, couponRepository, pointRepository, clock);
+        super(stockReservations, stockCommands, couponRepository, pointRepository, clock);
     }
 
     @Override

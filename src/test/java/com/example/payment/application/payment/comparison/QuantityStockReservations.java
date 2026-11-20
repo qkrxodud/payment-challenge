@@ -7,19 +7,16 @@ import com.example.payment.domain.stock.StockReservations;
 import com.example.payment.global.config.InventoryProperties;
 import java.net.http.HttpClient;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
 
 /**
- * 비교 구현(10장 결정 3, 수량만): 예약 기록 없이 재고 서비스에 수량만 바로 줄이고(잡기) 늘린다(해제). 확정할 것이 없다.
+ * 비교 구현(10장 결정 3, 수량만): 예약 기록 없이 재고 서비스에 수량만 바로 줄인다(잡기). 해제는 QuantityStockCommandSender 가 수량을 실어 보낸다.
  * 어느 결제의 요청인지 보내지 않으므로, 해제가 줄이기보다 먼저 도착하면 먼저 늘리고 늦게 온 줄이기를 그대로 반영하고,
- * 같은 해제가 두 번 오면 두 번 늘린다. 재고 서비스에는 QuantityStockController·QuantityStockRecorder 를 끼운다.
+ * 같은 해제가 두 번 오면 두 번 늘린다. 재고 서비스에는 QuantityStockController·QuantityStockRecorder·QuantityStockCommandListener 를 끼운다.
  */
-@Slf4j
 @Primary
 public class QuantityStockReservations implements StockReservations {
 
@@ -46,24 +43,6 @@ public class QuantityStockReservations implements StockReservations {
                     .exchange((request, response) -> response.getStatusCode().is2xxSuccessful());
         } catch (ResourceAccessException noResponse) {
             throw new InventoryNoResponseException(orderId);
-        }
-    }
-
-    @Override
-    public void confirm(Long reservationId, String orderId) {
-        // 수량은 잡을 때 이미 줄였다. 확정할 기록이 없다
-    }
-
-    @Override
-    public void release(Long reservationId, String orderId, List<PaymentItem> items) {
-        try {
-            inventoryRestClient.post()
-                    .uri("/stocks/increase")
-                    .body(requestOf(items))
-                    .retrieve()
-                    .toBodilessEntity();
-        } catch (RestClientException notSent) {
-            log.warn("Could not return stock of order {}: {}.", orderId, notSent.getClass().getSimpleName());
         }
     }
 

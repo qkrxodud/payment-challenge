@@ -64,8 +64,10 @@ public class InventoryServer {
                                         List<Class<?>> components, List<String> extraProperties) {
         createSchema(mysql);
         Admin admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KafkaBroker.bootstrapServers()));
-        // 10장 결정 1 비교(승인 먼저)는 재고 서비스가 답을 이 토픽 뒤에 "-replies" 를 붙인 토픽으로 돌려준다
-        List<String> topics = new ArrayList<>(List.of(commandsTopic, commandsTopic + "-replies"));
+        // 비교 구현이 쓰는 토픽: 결정 1 비교(승인 먼저)의 차감 요청(-requests)과 재고 서비스의 답(-replies),
+        // 결정 3 비교(수량만)의 수량 명령(-quantity)
+        List<String> topics = new ArrayList<>(List.of(commandsTopic, commandsTopic + "-replies",
+                commandsTopic + "-requests", commandsTopic + "-quantity"));
         if (Objects.nonNull(eventsTopic)) {
             topics.add(eventsTopic);
         }
@@ -126,7 +128,7 @@ public class InventoryServer {
 
     // 재고 서비스가 결제 이벤트를 읽는 비교 구현의 결제 이벤트 토픽. 그 비교가 아니면 비어 있다
     public Optional<String> eventsTopic() {
-        return topics.stream().skip(2).findFirst();
+        return topics.stream().skip(4).findFirst();
     }
 
     public void stock(Long productId, int quantity) {

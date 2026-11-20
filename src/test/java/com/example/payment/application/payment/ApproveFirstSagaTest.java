@@ -5,6 +5,7 @@ import static org.awaitility.Awaitility.await;
 import com.example.payment.application.payment.comparison.ApproveFirstConfirmService;
 import com.example.payment.application.payment.comparison.ApproveFirstHoldings;
 import com.example.payment.application.payment.comparison.ApproveFirstReplyListener;
+import com.example.payment.application.payment.comparison.QuantityStockCommandSender;
 import com.example.payment.application.payment.comparison.QuantityStockReservations;
 import com.example.payment.application.payment.comparison.StockReplies;
 import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
@@ -25,11 +26,12 @@ import org.springframework.test.context.TestPropertySource;
  */
 @Tag("known-failing")
 @Import({ApproveFirstHoldings.class, ApproveFirstConfirmService.class, ApproveFirstReplyListener.class,
-        QuantityStockReservations.class})
+        QuantityStockReservations.class, QuantityStockCommandSender.class})
 @TestPropertySource(properties = "test.inventory.components="
         + "com.example.payment.application.payment.comparison.ApproveFirstStockListener,"
         + "com.example.payment.application.payment.comparison.QuantityStockRecorder,"
-        + "com.example.inventorycomparison.QuantityStockController")
+        + "com.example.inventorycomparison.QuantityStockController,"
+        + "com.example.payment.application.payment.comparison.QuantityStockCommandListener")
 @DisplayName("결제와 나눈 재고를 함께 끝내기 — 비교(결정 1): 승인 먼저, Kafka 로 재고 차감, 모자라면 카드사 취소로 보상")
 class ApproveFirstSagaTest extends SagaContract {
 
@@ -44,7 +46,7 @@ class ApproveFirstSagaTest extends SagaContract {
     @Override
     Class<?>[] otherServerComponents() {
         return new Class<?>[]{ApproveFirstHoldings.class, ApproveFirstConfirmService.class, ApproveFirstReplyListener.class,
-            QuantityStockReservations.class};
+            QuantityStockReservations.class, QuantityStockCommandSender.class};
     }
 
     @Override

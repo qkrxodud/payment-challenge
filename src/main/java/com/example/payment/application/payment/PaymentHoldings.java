@@ -26,12 +26,15 @@ import org.springframework.stereotype.Component;
  * 10장 결정 2: 이 Saga(재고 예약 → 카드사 승인 → 확정/해제)의 진행은 결제 서버가 쥔다(오케스트레이션). 다음 단계는 결제 상태가 정하고,
  * 예약·확정·해제는 결제 서버가 정해 재고 서비스에 보낸다 — 재고 서비스는 결제 상태가 무엇인지 몰라도 된다(받은 명령대로 예약 상태만 바꾼다).
  * 결제 상태가 바뀌는 곳은 결제를 바꾸는 기록 다섯 곳뿐이고 모두 settle 을 부르므로, 어느 상태 전이가 어느 재고 단계인지는 여기 한 곳에 있다.
+ * 10장 결정 5: 확정·해제는 그 자리에서 HTTP 로 보내지 않고 같은 트랜잭션에서 payment_outbox 에 남긴다(StockCommands). 릴레이가 보낸다.
+ * 결과 모름 결제는 4장 보정이 결과를 정할 때까지 아무 명령도 남기지 않는다 — 예약을 쥔 채로 둔다.
  */
 @Component
 @RequiredArgsConstructor
 public class PaymentHoldings {
 
     private final StockReservations stockReservations;
+    private final StockCommands stockCommands;
     private final CouponRepository couponRepository;
     private final PointRepository pointRepository;
     private final Clock clock;
@@ -76,7 +79,7 @@ public class PaymentHoldings {
 
     private void confirmIfApproved(Payment payment, PaymentStatus before) {
         if (payment.confirmsHoldingsFrom(before) && payment.hasItems()) {
-            stockReservations.confirm(payment.getId(), payment.getOrderId());
+            stockCommands.confirm(payment);
         }
     }
 
@@ -96,7 +99,7 @@ public class PaymentHoldings {
 
     public void release(Payment payment) {
         if (payment.hasItems()) {
-            stockReservations.release(payment.getId(), payment.getOrderId(), payment.getItems());
+            stockCommands.release(payment);
         }
         releaseCouponAndPoint(payment);
     }

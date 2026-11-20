@@ -50,11 +50,16 @@ public class StockReservationRepositoryAdapter implements StockReservationReposi
         return find("select reservation_id, status, updated_at from stock_reservation where reservation_id = ?", reservationId);
     }
 
+    // 예약 줄을 다 읽은 뒤에 담긴 상품을 읽는다. 줄을 읽는 도중(행 매퍼 안)에 상품을 읽으면 트랜잭션 밖의 조회는 연결을 하나 더 쥐어,
+    // 조회가 몰리면 연결 풀이 바닥나 서로 기다린다(10장 결정 4 조회 비교의 몰림 시험에서 실행으로 봄)
     private Optional<StockReservation> find(String sql, Long reservationId) {
-        List<StockReservation> found = jdbcTemplate.query(sql, (row, number) -> StockReservation.of(reservationId,
-                itemsOf(reservationId), ReservationStatus.valueOf(row.getString("status")),
+        List<StockReservation> found = jdbcTemplate.query(sql, (row, number) -> StockReservation.of(reservationId, List.of(),
+                ReservationStatus.valueOf(row.getString("status")),
                 row.getObject("updated_at", LocalDateTime.class).toInstant(ZoneOffset.UTC)), reservationId);
-        return found.stream().findFirst();
+        return found.stream()
+                .findFirst()
+                .map(reservation -> StockReservation.of(reservationId, itemsOf(reservationId), reservation.getStatus(),
+                        reservation.getUpdatedAt()));
     }
 
     private List<StockLine> itemsOf(Long reservationId) {

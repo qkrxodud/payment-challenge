@@ -4,6 +4,7 @@ import com.example.payment.domain.error.exception.PaymentEventNotSentException;
 import com.example.payment.domain.outbox.PaymentOutbox;
 import com.example.payment.domain.outbox.PaymentOutboxRepository;
 import com.example.payment.domain.payment.PaymentEventSender;
+import com.example.payment.domain.stock.StockCommandSender;
 import com.example.payment.global.config.OutboxProperties;
 import java.time.Clock;
 import java.util.HashSet;
@@ -21,6 +22,8 @@ import org.springframework.stereotype.Component;
  * 결정 5: 보장은 적어도 한 번이다. 먼저 보내고, 받았다는 답이 온 뒤에 보낸 것을 남긴다 — 그 사이에 릴레이가 죽거나 남기기가 실패하면
  * 다음 주기에 같은 결과를 다시 보내 같은 이벤트가 두 번 갈 수 있다. 대신 남긴 결과를 잃지는 않는다. 이벤트의 고유 번호(남긴 결과의 번호)로
  * 받는 쪽이 같은 이벤트를 가릴 수 있다(가리는 일은 11장). 받았다는 답을 못 받았어도 브로커에는 남았을 수 있어, 그때 다시 보내도 중복이 생긴다.
+ * 10장 결정 5: 재고 명령(예약 확정·해제)도 같은 릴레이가 같은 순서·같은 보장(적어도 한 번)으로 보낸다. 재고 서비스는 같은 명령이 다시 와도
+ * 예약 상태 전이(결정 3)로 한 번만 반영한다.
  */
 @Slf4j
 @Component
@@ -29,6 +32,7 @@ public class PaymentOutboxRelay {
 
     private final PaymentOutboxRepository paymentOutboxRepository;
     private final PaymentEventSender paymentEventSender;
+    private final StockCommandSender stockCommandSender;
     private final OutboxProperties outboxProperties;
     private final Clock clock;
 
@@ -51,7 +55,7 @@ public class PaymentOutboxRelay {
 
     private boolean isNotSent(PaymentOutbox outbox) {
         try {
-            paymentEventSender.send(outbox.toEvent());
+            send(outbox);
         } catch (PaymentEventNotSentException notSent) {
             log.warn("Could not send payment event {}. It will be sent again next time.", outbox.getId());
             return true;
@@ -59,5 +63,14 @@ public class PaymentOutboxRelay {
         // 결정 5: 받았다는 답이 온 뒤에만 남긴다. 이 기록이 실패하면 주기가 거기서 끝나고, 다음 주기에 다시 보낸다
         paymentOutboxRepository.markSent(outbox.getId(), clock.instant());
         return false;
+    }
+
+    // 10장 결정 5: 재고 명령은 재고 서비스의 토픽으로, 결제 결과는 결제 이벤트 토픽으로 보낸다
+    private void send(PaymentOutbox outbox) {
+        if (outbox.isStockCommand()) {
+            stockCommandSender.send(outbox.toStockCommand());
+            return;
+        }
+        paymentEventSender.send(outbox.toEvent());
     }
 }

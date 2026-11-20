@@ -5,7 +5,7 @@ import com.example.inventory.domain.stock.StockLine;
 import com.example.payment.application.payment.comparison.dto.StockReplyMessage;
 import com.example.payment.application.payment.comparison.dto.StockRequestMessage;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import tools.jackson.databind.json.JsonMapper;
@@ -22,15 +22,14 @@ public class ApproveFirstStockListener {
     private final String repliesTopic;
 
     public ApproveFirstStockListener(QuantityStockRecorder quantityStockRecorder, KafkaTemplate<String, String> kafkaTemplate,
-                                     JsonMapper jsonMapper,
-                                     @Value("${inventory.stock-commands.topic}-replies") String repliesTopic) {
+                                     JsonMapper jsonMapper, Environment environment) {
         this.quantityStockRecorder = quantityStockRecorder;
         this.kafkaTemplate = kafkaTemplate;
         this.jsonMapper = jsonMapper;
-        this.repliesTopic = repliesTopic;
+        this.repliesTopic = environment.getRequiredProperty("inventory.stock-commands.topic") + "-replies";
     }
 
-    @KafkaListener(topics = "${inventory.stock-commands.topic}")
+    @KafkaListener(topics = "${inventory.stock-commands.topic}-requests")
     public void receive(ConsumerRecord<String, String> record) {
         StockRequestMessage request = jsonMapper.readValue(record.value(), StockRequestMessage.class);
         StockReplyMessage reply = new StockReplyMessage(request.orderId(), decrease(request));

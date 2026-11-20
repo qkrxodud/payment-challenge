@@ -6,7 +6,7 @@ import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
 import com.example.payment.application.payment.dto.PaymentResult;
 import com.example.payment.domain.payment.PaymentStatus;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import tools.jackson.databind.json.JsonMapper;
@@ -25,13 +25,12 @@ public class ApproveFirstConfirmService {
     private final String commandsTopic;
 
     public ApproveFirstConfirmService(PaymentConfirmService paymentConfirmService, KafkaTemplate<String, String> kafkaTemplate,
-                                      JdbcTemplate jdbcTemplate, JsonMapper jsonMapper,
-                                      @Value("${payment.inventory.commands-topic}") String commandsTopic) {
+                                      JdbcTemplate jdbcTemplate, JsonMapper jsonMapper, Environment environment) {
         this.paymentConfirmService = paymentConfirmService;
         this.kafkaTemplate = kafkaTemplate;
         this.jdbcTemplate = jdbcTemplate;
         this.jsonMapper = jsonMapper;
-        this.commandsTopic = commandsTopic;
+        this.commandsTopic = environment.getRequiredProperty("payment.inventory.commands-topic");
     }
 
     public PaymentResult confirm(ConfirmPaymentCommand command) {
@@ -46,6 +45,6 @@ public class ApproveFirstConfirmService {
         List<StockRequestMessage.Line> items = jdbcTemplate.query("select i.product_id, i.quantity from payment_item i "
                         + "join payment p on p.id = i.payment_id where p.order_id = ?",
                 (row, number) -> new StockRequestMessage.Line(row.getLong("product_id"), row.getInt("quantity")), orderId);
-        kafkaTemplate.send(commandsTopic, orderId, jsonMapper.writeValueAsString(new StockRequestMessage(orderId, items))).join();
+        kafkaTemplate.send(commandsTopic + "-requests", orderId, jsonMapper.writeValueAsString(new StockRequestMessage(orderId, items))).join();
     }
 }

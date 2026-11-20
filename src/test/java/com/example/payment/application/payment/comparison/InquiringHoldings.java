@@ -1,6 +1,7 @@
 package com.example.payment.application.payment.comparison;
 
 import com.example.payment.application.payment.PaymentHoldings;
+import com.example.payment.application.payment.StockCommands;
 import com.example.payment.application.payment.comparison.dto.ReservationView;
 import com.example.payment.domain.coupon.CouponRepository;
 import com.example.payment.domain.error.exception.InventoryNoResponseException;
@@ -29,9 +30,9 @@ public class InquiringHoldings extends PaymentHoldings {
 
     private final RestClient inventoryRestClient;
 
-    public InquiringHoldings(StockReservations stockReservations, CouponRepository couponRepository,
+    public InquiringHoldings(StockReservations stockReservations, StockCommands stockCommands, CouponRepository couponRepository,
                              PointRepository pointRepository, Clock clock, InventoryProperties inventoryProperties) {
-        super(stockReservations, couponRepository, pointRepository, clock);
+        super(stockReservations, stockCommands, couponRepository, pointRepository, clock);
         HttpClient httpClient = HttpClient.newBuilder()
                 .connectTimeout(inventoryProperties.getConnectTimeout())
                 .build();

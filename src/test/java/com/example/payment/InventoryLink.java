@@ -129,15 +129,16 @@ public class InventoryLink {
         thread.start();
     }
 
-    private synchronized boolean keepIfHolding(Hop hop, byte[] chunk) {
+    // 요청을 붙잡는 중이면 이 조각을 쥐고 아니라고 답한다. 붙잡지 않으면 바로 넘기라고 맞다고 답한다
+    private synchronized boolean isForwarding(Hop hop, byte[] chunk) {
         if (holding) {
             if (hop.isEmpty()) {
                 held.add(hop);
             }
             hop.keep(chunk);
-            return true;
+            return false;
         }
-        return false;
+        return true;
     }
 
     private void sleepBeforeAnswer() {
@@ -210,7 +211,7 @@ public class InventoryLink {
                 int read = in.read(buffer);
                 while (read >= 0) {
                     byte[] chunk = Arrays.copyOf(buffer, read);
-                    if (!keepIfHolding(this, chunk)) {
+                    if (isForwarding(this, chunk)) {
                         out.write(chunk);
                         out.flush();
                     }

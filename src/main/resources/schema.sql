@@ -132,6 +132,8 @@ create table if not exists payment_outbox (
     payment_id  bigint      not null,
     order_id    varchar(64) not null,
     status      varchar(30) not null,
+    -- 10장 결정 5: PAYMENT_RESULT(결제 결과, 주문 서비스에 알림), STOCK_CONFIRM·STOCK_RELEASE(재고 서비스에 보내는 예약 확정·해제)
+    type        varchar(30) not null default 'PAYMENT_RESULT',
     occurred_at datetime(6) not null,
     -- 브로커가 받았다고 답한 때. 아직 보내지 않았으면 비어 있다
     sent_at     datetime(6),
