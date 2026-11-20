@@ -1,7 +1,7 @@
-package com.example.payment.global.error.exception;
+package com.example.payment.domain.error.exception;
 
-import com.example.payment.global.error.ErrorCode;
-import com.example.payment.global.error.PaymentChallengeException;
+import com.example.payment.domain.error.ErrorCode;
+import com.example.payment.domain.error.PaymentChallengeException;
 
 public class PaymentGatewayFailedException extends PaymentChallengeException {
 

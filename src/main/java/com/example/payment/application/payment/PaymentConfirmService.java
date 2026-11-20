@@ -3,9 +3,9 @@ package com.example.payment.application.payment;
 import com.example.payment.application.payment.dto.ConfirmAttempt;
 import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
 import com.example.payment.application.payment.dto.PaymentResult;
+import com.example.payment.domain.error.exception.PaymentGatewayNoResponseException;
 import com.example.payment.domain.payment.PaymentApproval;
 import com.example.payment.domain.payment.PaymentGateway;
-import com.example.payment.global.error.exception.PaymentGatewayNoResponseException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

@@ -1,4 +1,4 @@
-package com.example.payment.global.error;
+package com.example.payment.domain.error;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

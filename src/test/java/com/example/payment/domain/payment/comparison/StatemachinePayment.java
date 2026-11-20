@@ -19,9 +19,9 @@ import static com.example.payment.domain.payment.PaymentStatus.CAPTURE_CANCELED;
 import static com.example.payment.domain.payment.PaymentStatus.EXPIRED;
 import static com.example.payment.domain.payment.PaymentStatus.READY;
 
+import com.example.payment.domain.error.exception.InvalidPaymentTransitionException;
 import com.example.payment.domain.payment.PaymentAction;
 import com.example.payment.domain.payment.PaymentStatus;
-import com.example.payment.global.error.exception.InvalidPaymentTransitionException;
 import java.util.EnumSet;
 import java.util.Objects;
 import org.springframework.messaging.support.MessageBuilder;

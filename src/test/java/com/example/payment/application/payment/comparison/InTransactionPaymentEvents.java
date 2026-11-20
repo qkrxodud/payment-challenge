@@ -1,12 +1,12 @@
 package com.example.payment.application.payment.comparison;
 
 import com.example.payment.application.payment.PaymentEvents;
+import com.example.payment.domain.error.exception.PaymentEventNotSentException;
 import com.example.payment.domain.outbox.PaymentOutboxRepository;
 import com.example.payment.domain.payment.Payment;
 import com.example.payment.domain.payment.PaymentEvent;
 import com.example.payment.domain.payment.PaymentEventSender;
 import com.example.payment.domain.payment.PaymentStatus;
-import com.example.payment.global.error.exception.PaymentEventNotSentException;
 import java.time.Clock;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;

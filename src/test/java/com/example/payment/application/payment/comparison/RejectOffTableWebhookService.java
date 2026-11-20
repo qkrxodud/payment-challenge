@@ -2,13 +2,13 @@ package com.example.payment.application.payment.comparison;
 
 import com.example.payment.application.payment.PaymentWebhookRecorder;
 import com.example.payment.application.payment.dto.ReceiveWebhookCommand;
+import com.example.payment.domain.error.exception.InvalidPaymentTransitionException;
 import com.example.payment.domain.payment.GatewayPayment;
 import com.example.payment.domain.payment.GatewayStatus;
 import com.example.payment.domain.payment.Payment;
 import com.example.payment.domain.payment.PaymentAction;
 import com.example.payment.domain.payment.PaymentGateway;
 import com.example.payment.domain.payment.PaymentRepository;
-import com.example.payment.global.error.exception.InvalidPaymentTransitionException;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

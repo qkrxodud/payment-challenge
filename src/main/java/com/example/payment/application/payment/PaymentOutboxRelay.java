@@ -1,10 +1,10 @@
 package com.example.payment.application.payment;
 
+import com.example.payment.domain.error.exception.PaymentEventNotSentException;
 import com.example.payment.domain.outbox.PaymentOutbox;
 import com.example.payment.domain.outbox.PaymentOutboxRepository;
 import com.example.payment.domain.payment.PaymentEventSender;
 import com.example.payment.global.config.OutboxProperties;
-import com.example.payment.global.error.exception.PaymentEventNotSentException;
 import java.time.Clock;
 import java.util.HashSet;
 import java.util.Set;

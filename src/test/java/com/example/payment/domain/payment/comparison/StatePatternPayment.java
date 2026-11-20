@@ -1,8 +1,8 @@
 package com.example.payment.domain.payment.comparison;
 
+import com.example.payment.domain.error.exception.InvalidPaymentTransitionException;
 import com.example.payment.domain.payment.PaymentAction;
 import com.example.payment.domain.payment.PaymentStatus;
-import com.example.payment.global.error.exception.InvalidPaymentTransitionException;
 
 /**
  * 비교 구현: State 패턴. 상태마다 객체를 두고, 그 상태에서 허용되는 행위만 재정의한다.

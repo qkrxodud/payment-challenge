@@ -3,9 +3,9 @@ package com.example.payment.application.payment.comparison;
 import com.example.payment.application.payment.PaymentConfirmService;
 import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
 import com.example.payment.application.payment.dto.PaymentResult;
+import com.example.payment.domain.error.exception.InvalidPaymentTransitionException;
 import com.example.payment.domain.payment.PaymentAction;
 import com.example.payment.domain.payment.PaymentStatus;
-import com.example.payment.global.error.exception.InvalidPaymentTransitionException;
 import lombok.RequiredArgsConstructor;
 
 /**

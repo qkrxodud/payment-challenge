@@ -2,6 +2,7 @@ package com.example.payment.global.error;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.example.payment.domain.error.ErrorCode;
 import com.example.payment.global.error.dto.ErrorResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

@@ -1,12 +1,12 @@
 package com.example.payment.application.payment;
 
+import com.example.payment.domain.error.exception.PaymentGatewayFailedException;
+import com.example.payment.domain.error.exception.PaymentGatewayNoResponseException;
 import com.example.payment.domain.payment.GatewayPayment;
 import com.example.payment.domain.payment.PaymentGateway;
 import com.example.payment.domain.payment.PaymentRepository;
 import com.example.payment.domain.webhook.PaymentWebhook;
 import com.example.payment.domain.webhook.PaymentWebhookRepository;
-import com.example.payment.global.error.exception.PaymentGatewayFailedException;
-import com.example.payment.global.error.exception.PaymentGatewayNoResponseException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;

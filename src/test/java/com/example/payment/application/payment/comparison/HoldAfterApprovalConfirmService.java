@@ -5,8 +5,8 @@ import com.example.payment.application.payment.PaymentConfirmService;
 import com.example.payment.application.payment.dto.CancelPaymentCommand;
 import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
 import com.example.payment.application.payment.dto.PaymentResult;
+import com.example.payment.domain.error.PaymentChallengeException;
 import com.example.payment.domain.payment.PaymentStatus;
-import com.example.payment.global.error.PaymentChallengeException;
 import lombok.RequiredArgsConstructor;
 
 /**

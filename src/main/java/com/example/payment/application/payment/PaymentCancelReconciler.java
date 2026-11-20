@@ -1,11 +1,11 @@
 package com.example.payment.application.payment;
 
+import com.example.payment.domain.error.exception.PaymentGatewayFailedException;
+import com.example.payment.domain.error.exception.PaymentGatewayNoResponseException;
 import com.example.payment.domain.payment.CancelStatus;
 import com.example.payment.domain.payment.PaymentGateway;
 import com.example.payment.domain.payment.PaymentRepository;
 import com.example.payment.global.config.ReconciliationProperties;
-import com.example.payment.global.error.exception.PaymentGatewayFailedException;
-import com.example.payment.global.error.exception.PaymentGatewayNoResponseException;
 import java.time.Instant;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;

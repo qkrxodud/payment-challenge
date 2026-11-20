@@ -5,9 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Named.named;
 
-import com.example.payment.global.error.exception.IdempotencyKeyReusedException;
-import com.example.payment.global.error.exception.InvalidCancelReasonException;
-import com.example.payment.global.error.exception.InvalidIdempotencyKeyException;
+import com.example.payment.domain.error.exception.IdempotencyKeyReusedException;
+import com.example.payment.domain.error.exception.InvalidCancelReasonException;
+import com.example.payment.domain.error.exception.InvalidIdempotencyKeyException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.stream.Stream;

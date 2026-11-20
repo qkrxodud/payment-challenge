@@ -1,7 +1,7 @@
 package com.example.payment.domain.payment;
 
-import com.example.payment.global.error.exception.InvalidCancelReasonException;
-import com.example.payment.global.error.exception.InvalidIdempotencyKeyException;
+import com.example.payment.domain.error.exception.InvalidCancelReasonException;
+import com.example.payment.domain.error.exception.InvalidIdempotencyKeyException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

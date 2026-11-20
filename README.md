@@ -55,7 +55,7 @@
 
 ## 코드 규칙
 
-- 계층: `presentation → application → domain ← infrastructure`, 예외와 오류 코드는 `global/error` 한 곳(`global`은 다른 계층을 참조하지 않음)
+- 계층: `presentation → application → domain ← infrastructure`, 업무 예외와 오류 코드는 `domain/error` 한 곳(domain 은 다른 계층을 참조하지 않음), `global/error`에는 HTTP 응답으로 바꾸는 전역 예외 처리기만 둔다
 - setter 없음. 엔티티는 `protected` 기본 생성자 + private `@Builder` 생성자 + 정적 팩터리, 상태는 행위 이름 메서드로만 바꾼다
 - `if (!…)` 대신 `Objects.isNull`/`nonNull`이나 이름 있는 도우미, `else` 대신 early return
 - 주석은 한국어, 예외·로그 문장은 영어

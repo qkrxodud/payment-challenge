@@ -21,7 +21,7 @@ import static com.example.payment.domain.payment.PaymentStatus.READY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.example.payment.global.error.exception.InvalidPaymentTransitionException;
+import com.example.payment.domain.error.exception.InvalidPaymentTransitionException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;

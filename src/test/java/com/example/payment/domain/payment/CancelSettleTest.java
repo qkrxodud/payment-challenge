@@ -3,7 +3,7 @@ package com.example.payment.domain.payment;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.example.payment.global.error.exception.CancelAmountExceedsBalanceException;
+import com.example.payment.domain.error.exception.CancelAmountExceedsBalanceException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;

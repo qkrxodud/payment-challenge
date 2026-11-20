@@ -1,9 +1,9 @@
 package com.example.payment.application.payment.comparison;
 
+import com.example.payment.domain.error.exception.PaymentEventNotSentException;
 import com.example.payment.domain.payment.PaymentEvent;
 import com.example.payment.domain.payment.PaymentEventSender;
 import com.example.payment.global.config.PaymentEventProperties;
-import com.example.payment.global.error.exception.PaymentEventNotSentException;
 import com.example.payment.infrastructure.kafka.dto.PaymentEventMessage;
 import java.util.concurrent.CompletionException;
 import org.springframework.context.annotation.Primary;

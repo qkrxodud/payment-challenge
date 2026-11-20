@@ -1,9 +1,9 @@
 package com.example.payment.application.payment.comparison;
 
+import com.example.payment.domain.error.exception.PaymentEventNotSentException;
 import com.example.payment.domain.payment.PaymentEvent;
 import com.example.payment.domain.payment.PaymentEventSender;
 import com.example.payment.domain.payment.PaymentStatus;
-import com.example.payment.global.error.exception.PaymentEventNotSentException;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.LocalDateTime;

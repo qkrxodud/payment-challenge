@@ -4,9 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.example.payment.global.error.exception.AmountMismatchException;
-import com.example.payment.global.error.exception.DuplicateOrderException;
-import com.example.payment.global.error.exception.InvalidAmountException;
+import com.example.payment.domain.error.exception.AmountMismatchException;
+import com.example.payment.domain.error.exception.DuplicateOrderException;
+import com.example.payment.domain.error.exception.InvalidAmountException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;

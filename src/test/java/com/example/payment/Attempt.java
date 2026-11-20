@@ -1,7 +1,7 @@
 package com.example.payment;
 
-import com.example.payment.global.error.ErrorCode;
-import com.example.payment.global.error.PaymentChallengeException;
+import com.example.payment.domain.error.ErrorCode;
+import com.example.payment.domain.error.PaymentChallengeException;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;

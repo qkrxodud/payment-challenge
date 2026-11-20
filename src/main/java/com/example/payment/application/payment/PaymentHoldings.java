@@ -1,14 +1,14 @@
 package com.example.payment.application.payment;
 
 import com.example.payment.domain.coupon.CouponRepository;
+import com.example.payment.domain.error.exception.CouponNotAvailableException;
+import com.example.payment.domain.error.exception.InsufficientPointException;
+import com.example.payment.domain.error.exception.OutOfStockException;
 import com.example.payment.domain.payment.Payment;
 import com.example.payment.domain.payment.PaymentItem;
 import com.example.payment.domain.payment.PaymentStatus;
 import com.example.payment.domain.point.PointRepository;
 import com.example.payment.domain.stock.StockRepository;
-import com.example.payment.global.error.exception.CouponNotAvailableException;
-import com.example.payment.global.error.exception.InsufficientPointException;
-import com.example.payment.global.error.exception.OutOfStockException;
 import java.time.Clock;
 import java.util.Comparator;
 import lombok.RequiredArgsConstructor;

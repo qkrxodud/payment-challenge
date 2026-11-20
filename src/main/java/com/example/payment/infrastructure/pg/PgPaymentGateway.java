@@ -1,13 +1,13 @@
 package com.example.payment.infrastructure.pg;
 
+import com.example.payment.domain.error.exception.PaymentGatewayFailedException;
+import com.example.payment.domain.error.exception.PaymentGatewayNoResponseException;
 import com.example.payment.domain.payment.CancelOutcome;
 import com.example.payment.domain.payment.GatewayCancel;
 import com.example.payment.domain.payment.GatewayPayment;
 import com.example.payment.domain.payment.GatewayStatus;
 import com.example.payment.domain.payment.PaymentApproval;
 import com.example.payment.domain.payment.PaymentGateway;
-import com.example.payment.global.error.exception.PaymentGatewayFailedException;
-import com.example.payment.global.error.exception.PaymentGatewayNoResponseException;
 import com.example.payment.infrastructure.pg.dto.PgCancel;
 import com.example.payment.infrastructure.pg.dto.PgCancelRequest;
 import com.example.payment.infrastructure.pg.dto.PgConfirmRequest;

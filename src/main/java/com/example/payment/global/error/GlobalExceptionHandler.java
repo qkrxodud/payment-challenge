@@ -1,5 +1,8 @@
 package com.example.payment.global.error;
 
+import com.example.payment.domain.error.ErrorCode;
+import com.example.payment.domain.error.ErrorType;
+import com.example.payment.domain.error.PaymentChallengeException;
 import com.example.payment.global.error.dto.ErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.NestedExceptionUtils;

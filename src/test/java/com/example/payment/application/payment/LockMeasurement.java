@@ -9,7 +9,7 @@ import com.example.payment.application.payment.dto.CancelResult;
 import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
 import com.example.payment.application.payment.dto.PaymentResult;
 import com.example.payment.application.payment.dto.PreparePaymentCommand;
-import com.example.payment.global.error.ErrorCode;
+import com.example.payment.domain.error.ErrorCode;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;

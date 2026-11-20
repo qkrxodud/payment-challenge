@@ -1,11 +1,11 @@
 package com.example.payment.domain.payment;
 
-import com.example.payment.global.error.exception.AmountMismatchException;
-import com.example.payment.global.error.exception.CancelAmountExceedsBalanceException;
-import com.example.payment.global.error.exception.DuplicateOrderException;
-import com.example.payment.global.error.exception.IdempotencyKeyReusedException;
-import com.example.payment.global.error.exception.InvalidAmountException;
-import com.example.payment.global.error.exception.InvalidPaymentTransitionException;
+import com.example.payment.domain.error.exception.AmountMismatchException;
+import com.example.payment.domain.error.exception.CancelAmountExceedsBalanceException;
+import com.example.payment.domain.error.exception.DuplicateOrderException;
+import com.example.payment.domain.error.exception.IdempotencyKeyReusedException;
+import com.example.payment.domain.error.exception.InvalidAmountException;
+import com.example.payment.domain.error.exception.InvalidPaymentTransitionException;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

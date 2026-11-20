@@ -1,7 +1,7 @@
 package com.example.payment;
 
+import com.example.payment.domain.error.exception.PaymentEventNotSentException;
 import com.example.payment.domain.payment.PaymentEvent;
-import com.example.payment.global.error.exception.PaymentEventNotSentException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;

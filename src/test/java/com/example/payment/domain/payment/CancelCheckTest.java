@@ -4,9 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Named.named;
 
-import com.example.payment.global.error.exception.CancelAmountExceedsBalanceException;
-import com.example.payment.global.error.exception.InvalidAmountException;
-import com.example.payment.global.error.exception.InvalidPaymentTransitionException;
+import com.example.payment.domain.error.exception.CancelAmountExceedsBalanceException;
+import com.example.payment.domain.error.exception.InvalidAmountException;
+import com.example.payment.domain.error.exception.InvalidPaymentTransitionException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.function.Consumer;

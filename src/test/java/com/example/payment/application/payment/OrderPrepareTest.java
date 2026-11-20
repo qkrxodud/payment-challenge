@@ -8,7 +8,7 @@ import com.example.payment.TestcontainersConfiguration;
 import com.example.payment.application.payment.dto.OrderLine;
 import com.example.payment.application.payment.dto.PaymentResult;
 import com.example.payment.application.payment.dto.PreparePaymentCommand;
-import com.example.payment.global.error.ErrorCode;
+import com.example.payment.domain.error.ErrorCode;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;

@@ -2,12 +2,12 @@ package com.example.payment.application.payment.comparison;
 
 import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
 import com.example.payment.application.payment.dto.PaymentResult;
+import com.example.payment.domain.error.exception.AmountMismatchException;
+import com.example.payment.domain.error.exception.PaymentNotFoundException;
 import com.example.payment.domain.payment.Payment;
 import com.example.payment.domain.payment.PaymentApproval;
 import com.example.payment.domain.payment.PaymentGateway;
 import com.example.payment.domain.payment.PaymentRepository;
-import com.example.payment.global.error.exception.AmountMismatchException;
-import com.example.payment.global.error.exception.PaymentNotFoundException;
 import java.math.BigDecimal;
 import java.time.Clock;
 import lombok.RequiredArgsConstructor;

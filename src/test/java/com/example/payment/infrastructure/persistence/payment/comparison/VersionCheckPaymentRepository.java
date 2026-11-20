@@ -1,7 +1,7 @@
 package com.example.payment.infrastructure.persistence.payment.comparison;
 
+import com.example.payment.domain.error.exception.InvalidPaymentTransitionException;
 import com.example.payment.domain.payment.Payment;
-import com.example.payment.global.error.exception.InvalidPaymentTransitionException;
 import com.example.payment.infrastructure.persistence.payment.PaymentRepositoryAdapter;
 import jakarta.annotation.PostConstruct;
 import java.util.Objects;

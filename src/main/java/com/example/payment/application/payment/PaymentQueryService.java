@@ -2,9 +2,9 @@ package com.example.payment.application.payment;
 
 import com.example.payment.application.payment.dto.CancelResult;
 import com.example.payment.application.payment.dto.PaymentResult;
+import com.example.payment.domain.error.exception.PaymentNotFoundException;
 import com.example.payment.domain.payment.Payment;
 import com.example.payment.domain.payment.PaymentRepository;
-import com.example.payment.global.error.exception.PaymentNotFoundException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

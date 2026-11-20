@@ -5,8 +5,8 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 
 import com.example.payment.application.payment.dto.CancelPaymentCommand;
 import com.example.payment.application.payment.dto.CancelResult;
+import com.example.payment.domain.error.exception.PaymentGatewayFailedException;
 import com.example.payment.domain.payment.CancelStatus;
-import com.example.payment.global.error.exception.PaymentGatewayFailedException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

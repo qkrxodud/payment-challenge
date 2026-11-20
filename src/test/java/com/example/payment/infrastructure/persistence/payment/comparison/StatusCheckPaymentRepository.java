@@ -1,8 +1,8 @@
 package com.example.payment.infrastructure.persistence.payment.comparison;
 
+import com.example.payment.domain.error.exception.InvalidPaymentTransitionException;
 import com.example.payment.domain.payment.Payment;
 import com.example.payment.domain.payment.PaymentStatus;
-import com.example.payment.global.error.exception.InvalidPaymentTransitionException;
 import com.example.payment.infrastructure.persistence.payment.PaymentRepositoryAdapter;
 import java.util.Optional;
 import org.springframework.context.annotation.Primary;

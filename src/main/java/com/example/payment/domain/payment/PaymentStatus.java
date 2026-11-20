@@ -9,7 +9,7 @@ import static com.example.payment.domain.payment.PaymentAction.FAIL_APPROVAL;
 import static com.example.payment.domain.payment.PaymentAction.FAIL_AUTHENTICATION;
 import static com.example.payment.domain.payment.PaymentAction.MARK_APPROVAL_UNKNOWN;
 
-import com.example.payment.global.error.exception.InvalidPaymentTransitionException;
+import com.example.payment.domain.error.exception.InvalidPaymentTransitionException;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
