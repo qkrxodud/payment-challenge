@@ -3,6 +3,7 @@ package com.example.payment.application.payment;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.payment.Attempt;
+import com.example.payment.InventoryServerConfiguration;
 import com.example.payment.MockPgConfiguration;
 import com.example.payment.TestcontainersConfiguration;
 import com.example.payment.application.payment.dto.PaymentResult;
@@ -23,7 +24,7 @@ import org.springframework.context.annotation.Import;
  * 1초 붙잡힌 동안(SlowWrites) 두 번째 주문의 승인을 보낸다.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
-@Import({TestcontainersConfiguration.class, MockPgConfiguration.class})
+@Import({TestcontainersConfiguration.class, MockPgConfiguration.class, InventoryServerConfiguration.class})
 abstract class PointContract extends OrderPaymentContract {
 
     static final BigDecimal USE_POINT = new BigDecimal("1000");

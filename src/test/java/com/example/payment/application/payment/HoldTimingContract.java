@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import com.example.payment.Attempt;
+import com.example.payment.InventoryServerConfiguration;
 import com.example.payment.MockPgConfiguration;
 import com.example.payment.TestcontainersConfiguration;
 import com.example.payment.application.payment.dto.PaymentResult;
@@ -22,7 +23,7 @@ import org.springframework.context.annotation.Import;
  * 카드사 답을 기다리는 주문이 잡은 재고는 다른 주문이 가져가지 못한다, 준비만 한 주문은 재고를 잡지 않는다.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
-@Import({TestcontainersConfiguration.class, MockPgConfiguration.class})
+@Import({TestcontainersConfiguration.class, MockPgConfiguration.class, InventoryServerConfiguration.class})
 abstract class HoldTimingContract extends OrderPaymentContract {
 
     @Test

@@ -3,6 +3,7 @@ package com.example.payment.application.payment;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.payment.Attempt;
+import com.example.payment.InventoryServerConfiguration;
 import com.example.payment.MockPgConfiguration;
 import com.example.payment.TestcontainersConfiguration;
 import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
@@ -22,7 +23,7 @@ import org.springframework.context.annotation.Import;
  * 고객이 보낸 금액을 믿는 구현과 서버가 계산하는 구현을 같은 테스트로 돌린다. 승인 때는 3장 규칙대로 결제에 남은 금액과 비교한다.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
-@Import({TestcontainersConfiguration.class, MockPgConfiguration.class})
+@Import({TestcontainersConfiguration.class, MockPgConfiguration.class, InventoryServerConfiguration.class})
 abstract class ServerPriceContract extends OrderPaymentContract {
 
     static final BigDecimal DISCOUNT = new BigDecimal("2000");

@@ -1,9 +1,9 @@
 package com.example.payment.application.payment;
 
-import com.example.payment.infrastructure.persistence.stock.comparison.ForUpdateStockRepository;
-import org.springframework.context.annotation.Import;
+import org.springframework.test.context.TestPropertySource;
 
-@Import(ForUpdateStockRepository.class)
+@TestPropertySource(properties = "test.inventory.components="
+        + "com.example.payment.infrastructure.persistence.stock.comparison.ForUpdateStockRepository")
 class ForUpdateStockMeasurement extends StockMeasurement {
 
     @Override

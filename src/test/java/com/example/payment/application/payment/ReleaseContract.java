@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import com.example.payment.Attempt;
+import com.example.payment.InventoryServerConfiguration;
 import com.example.payment.MockPgConfiguration;
 import com.example.payment.TestcontainersConfiguration;
 import com.example.payment.application.payment.dto.CancelPaymentCommand;
@@ -37,7 +38,7 @@ import org.springframework.context.annotation.Import;
                 "payment.pg.read-timeout=1s",
                 "payment.reconciliation.wait-after-request=10s"
         })
-@Import({TestcontainersConfiguration.class, MockPgConfiguration.class})
+@Import({TestcontainersConfiguration.class, MockPgConfiguration.class, InventoryServerConfiguration.class})
 abstract class ReleaseContract extends OrderPaymentContract {
 
     static final Duration LATE = Duration.ofMillis(1500);

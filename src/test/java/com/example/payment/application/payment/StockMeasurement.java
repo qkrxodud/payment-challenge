@@ -1,6 +1,8 @@
 package com.example.payment.application.payment;
 
 import com.example.payment.Attempt;
+import com.example.payment.InventoryServer;
+import com.example.payment.InventoryServerConfiguration;
 import com.example.payment.MockPgConfiguration;
 import com.example.payment.MockPgServer;
 import com.example.payment.Shop;
@@ -46,7 +48,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  */
 @Tag("stock-measurement")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
-@Import({TestcontainersConfiguration.class, MockPgConfiguration.class})
+@Import({TestcontainersConfiguration.class, MockPgConfiguration.class, InventoryServerConfiguration.class})
 abstract class StockMeasurement {
 
     private static final Path OUTPUT = Path.of("build", "measurement", "ch08-stock.txt");
@@ -67,6 +69,13 @@ abstract class StockMeasurement {
     @Autowired
     PaymentConfirmService paymentConfirmService;
 
+    // 10장부터: 재고는 재고 서비스에 있다
+    @Autowired
+    InventoryServer inventory;
+
+    @Autowired
+    PaymentOutboxRelay paymentOutboxRelay;
+
     /** 기록에 남길 구현 이름 */
     abstract String name();
 
@@ -81,7 +90,7 @@ abstract class StockMeasurement {
 
     @Test
     void measure() {
-        Shop shop = new Shop(jdbcTemplate);
+        Shop shop = new Shop(jdbcTemplate, inventory, paymentOutboxRelay);
         // 첫 묶음이 연결·클래스 적재를 치르지 않게 작은 묶음을 한 번 돌려 버린다
         burst(shop, 5, 20);
         retries();

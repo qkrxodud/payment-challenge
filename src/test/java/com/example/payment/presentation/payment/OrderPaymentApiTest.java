@@ -2,10 +2,13 @@ package com.example.payment.presentation.payment;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.example.payment.InventoryServer;
+import com.example.payment.InventoryServerConfiguration;
 import com.example.payment.MockPgConfiguration;
 import com.example.payment.MockPgServer;
 import com.example.payment.Shop;
 import com.example.payment.TestcontainersConfiguration;
+import com.example.payment.application.payment.PaymentOutboxRelay;
 import java.math.BigDecimal;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -22,7 +25,7 @@ import tools.jackson.databind.json.JsonMapper;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "payment.pg.read-timeout=500ms")
-@Import({TestcontainersConfiguration.class, MockPgConfiguration.class})
+@Import({TestcontainersConfiguration.class, MockPgConfiguration.class, InventoryServerConfiguration.class})
 @DisplayName("결제 API — 상품을 담은 주문(8장)")
 class OrderPaymentApiTest {
 
@@ -40,6 +43,13 @@ class OrderPaymentApiTest {
     @Autowired
     JdbcTemplate jdbcTemplate;
 
+    // 10장부터: 재고는 재고 서비스에 있다
+    @Autowired
+    InventoryServer inventory;
+
+    @Autowired
+    PaymentOutboxRelay paymentOutboxRelay;
+
     PaymentApi api;
 
     Shop shop;
@@ -47,7 +57,7 @@ class OrderPaymentApiTest {
     @BeforeEach
     void connect() {
         api = new PaymentApi(jsonMapper, port);
-        shop = new Shop(jdbcTemplate);
+        shop = new Shop(jdbcTemplate, inventory, paymentOutboxRelay);
     }
 
     @AfterEach

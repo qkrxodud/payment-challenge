@@ -1,32 +1,24 @@
 package com.example.payment.application.payment;
 
-import com.example.payment.application.payment.comparison.RetryOnStockChangeConfirmService;
-import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
-import com.example.payment.application.payment.dto.PaymentResult;
-import com.example.payment.infrastructure.persistence.stock.comparison.VersionCheckStockRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Import;
+import com.example.payment.infrastructure.persistence.stock.comparison.RetryOnStockChangeStockService;
 import org.springframework.test.context.TestPropertySource;
 
-@Import({VersionCheckStockRepository.class, RetryOnStockChangeConfirmService.class})
-@TestPropertySource(properties = "spring.sql.init.schema-locations=classpath:schema.sql,classpath:stock-version.sql")
+/** 10장부터 재고 서비스 안의 재고 저장소와 재고 서비스를 바꿔 끼운다 */
+@TestPropertySource(properties = {
+        "test.inventory.components="
+                + "com.example.payment.infrastructure.persistence.stock.comparison.VersionCheckStockRepository,"
+                + "com.example.payment.infrastructure.persistence.stock.comparison.RetryOnStockChangeStockService",
+        "test.inventory.properties=spring.sql.init.schema-locations=classpath:inventory-schema.sql,classpath:stock-version.sql"
+})
 class VersionRetryStockMeasurement extends StockMeasurement {
-
-    @Autowired
-    RetryOnStockChangeConfirmService service;
 
     @Override
     String name() {
-        return "변경 번호 + 다시 시도(최대 " + RetryOnStockChangeConfirmService.MAX_ATTEMPTS + "번)";
-    }
-
-    @Override
-    PaymentResult confirm(ConfirmPaymentCommand command) {
-        return service.confirm(command);
+        return "변경 번호 + 다시 시도(최대 " + RetryOnStockChangeStockService.MAX_ATTEMPTS + "번)";
     }
 
     @Override
     String retries() {
-        return " | 다시 시도 " + service.takeRetries() + "번";
+        return " | 다시 시도 " + RetryOnStockChangeStockService.takeRetries() + "번";
     }
 }

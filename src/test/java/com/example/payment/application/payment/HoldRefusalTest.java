@@ -3,6 +3,7 @@ package com.example.payment.application.payment;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.payment.Attempt;
+import com.example.payment.InventoryServerConfiguration;
 import com.example.payment.MockPgConfiguration;
 import com.example.payment.TestcontainersConfiguration;
 import com.example.payment.application.payment.dto.PaymentResult;
@@ -23,7 +24,7 @@ import org.springframework.context.annotation.Import;
  * 재고·쿠폰을 잡은 뒤에 포인트에서 모자란다.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
-@Import({TestcontainersConfiguration.class, MockPgConfiguration.class})
+@Import({TestcontainersConfiguration.class, MockPgConfiguration.class, InventoryServerConfiguration.class})
 @DisplayName("잡지 못한 주문")
 class HoldRefusalTest extends OrderPaymentContract {
 

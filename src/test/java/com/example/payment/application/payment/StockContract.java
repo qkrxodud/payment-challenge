@@ -3,6 +3,7 @@ package com.example.payment.application.payment;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.payment.Attempt;
+import com.example.payment.InventoryServerConfiguration;
 import com.example.payment.MockPgConfiguration;
 import com.example.payment.TestcontainersConfiguration;
 import com.example.payment.application.payment.dto.PaymentResult;
@@ -23,11 +24,12 @@ import org.springframework.context.annotation.Import;
 /**
  * 같은 상품에 주문이 몰릴 때 재고를 어떻게 줄이는가(8장 결정 3). 재고 줄은 상품마다 하나라 같은 상품의 모든 주문이 한 줄을 바꾼다.
  * 줄이는 방법(조건부 UPDATE, select … for update, 변경 번호 + 다시 시도, 잠그지 않음)이 구현마다 다르므로 구현마다 상속해 같은 테스트를 돌린다.
- * 겹침 고정: 재고 1개에 주문 둘. 먼저 보낸 주문이 재고를 줄인 뒤 인증을 남기다 1초 붙잡히고(SlowWrites — 재고 줄의 잠금을 쥔 채),
- * 그것을 확인한 뒤 두 번째 주문의 승인을 보낸다. 한꺼번에: 재고 10개에 주문 30건을 스레드 30개에서 한꺼번에 보낸다(겹침을 고정하지 않음).
+ * 겹침 고정: 재고 1개에 주문 둘. 먼저 보낸 주문이 재고를 줄이다 1초 붙잡히고(재고 줄의 잠금을 쥔 채),
+ * 그것을 확인한 뒤 두 번째 주문의 승인을 보낸다. 10장부터 재고 줄은 재고 서비스에 있어, 붙잡는 기록도 재고 서비스의 재고 줄이기다
+ * (8장에는 결제 서버가 같은 트랜잭션에서 재고를 줄인 뒤 남기는 인증을 붙잡았다). 줄이는 방법은 재고 서비스 안에서 바꿔 끼운다. 한꺼번에: 재고 10개에 주문 30건을 스레드 30개에서 한꺼번에 보낸다(겹침을 고정하지 않음).
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
-@Import({TestcontainersConfiguration.class, MockPgConfiguration.class})
+@Import({TestcontainersConfiguration.class, MockPgConfiguration.class, InventoryServerConfiguration.class})
 abstract class StockContract extends OrderPaymentContract {
 
     static final int STOCK = 10;
@@ -97,9 +99,9 @@ abstract class StockContract extends OrderPaymentContract {
     List<Attempt<PaymentResult>> orderTogether(PreparePaymentCommand first, PreparePaymentCommand later) {
         PaymentResult firstPrepared = prepare(first);
         PaymentResult laterPrepared = prepare(later);
-        slowWrites.holdPaymentChangeTo(PaymentStatus.AUTHENTICATED);
+        inventory.holdStockDecrease();
         CompletableFuture<Attempt<PaymentResult>> firstAnswer = Attempt.start(() -> confirm(firstPrepared));
-        slowWrites.awaitHeld();
+        inventory.awaitHeld();
         Attempt<PaymentResult> laterAnswer = Attempt.of(() -> confirm(laterPrepared));
         return List.of(firstAnswer.join(), laterAnswer);
     }

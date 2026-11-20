@@ -77,6 +77,8 @@ dependencies {
 	testImplementation project(':mock-pg')
 	// 9장부터: 테스트 안에서 주문 서비스(결제 이벤트를 받는 쪽)를 띄운다
 	testImplementation project(':order-service')
+	// 10장부터: 테스트 안에서 재고 서비스를 띄운다
+	testImplementation project(':inventory-service')
 	// 1장 비교 구현용. 2026-07 저장소 보관(archived), 더 이상 유지보수되지 않는다
 	testImplementation 'org.springframework.statemachine:spring-statemachine-core:4.0.2'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

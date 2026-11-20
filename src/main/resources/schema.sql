@@ -73,19 +73,12 @@ insert ignore into job_lock (name, locked_until) values ('payment-webhook', '197
 -- 9장 결정 3: 남긴 결제 결과를 보내는 릴레이도 한 대만 돈다
 insert ignore into job_lock (name, locked_until) values ('payment-outbox-relay', '1970-01-01 00:00:00');
 
--- 8장: 상품과 재고. 재고는 상품마다 한 줄이라 같은 상품의 주문은 모두 이 한 줄을 바꾼다
+-- 8장: 상품. 10장부터 재고는 재고 서비스(inventory-service)의 DB 에 있다
 create table if not exists product (
     id    bigint         not null auto_increment,
     name  varchar(100)   not null,
     price decimal(19, 2) not null,
     primary key (id)
-);
-
-create table if not exists stock (
-    product_id bigint not null,
-    quantity   int    not null,
-    primary key (product_id),
-    constraint fk_stock_product foreign key (product_id) references product (id)
 );
 
 -- 8장: 결제에 담긴 상품. 준비할 때의 상품가를 함께 남긴다(나중에 상품가가 바뀌어도 이 결제의 금액은 그대로다)

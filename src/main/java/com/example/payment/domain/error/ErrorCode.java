@@ -46,6 +46,10 @@ public enum ErrorCode {
     COUPON_NOT_AVAILABLE(ErrorType.CONFLICT, "This coupon cannot be used."),
     // 8장: 쓰려는 포인트가 잔액보다 많음. 카드사에 승인을 요청하지 않는다
     INSUFFICIENT_POINT(ErrorType.CONFLICT, "Not enough points are left."),
+    // 10장: 재고 서비스가 줄이기·늘리기에 업무 답(줄임, 재고 없음)이 아닌 답(5xx 등)을 줬다
+    INVENTORY_FAILED(ErrorType.UPSTREAM_FAILED, "The inventory could not process this order."),
+    // 10장: 재고 서비스의 답을 정해진 시간 안에 받지 못했다. 재고가 줄었는지 알 수 없다
+    INVENTORY_NO_RESPONSE(ErrorType.UPSTREAM_NO_RESPONSE, "The inventory did not answer in time."),
     // 9장: 결제 이벤트를 브로커에 보냈다는 답을 받지 못함. 보내는 쪽(결제 기록·릴레이)이 잡아 처리하고 응답으로 내보내지 않는다
     PAYMENT_EVENT_NOT_SENT(ErrorType.INTERNAL, "Something went wrong on the server."),
     INTERNAL_ERROR(ErrorType.INTERNAL, "Something went wrong on the server.");

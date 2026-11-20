@@ -1,6 +1,7 @@
 package com.example.payment.application.payment;
 
 import com.example.payment.Attempt;
+import com.example.payment.InventoryServer;
 import com.example.payment.MockPgServer;
 import com.example.payment.Shop;
 import com.example.payment.SlowWrites;
@@ -19,6 +20,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 /**
  * 8장 계약 테스트들이 함께 쓰는 주문 도우미. 시험마다 새 상품·회원·쿠폰을 차리고(Shop), 상품을 담아 준비하고 승인을 요청한다.
  * 상품가는 10000원이다. 준비·승인 진입점은 운영 서비스이고, 비교 구현은 prepare·confirm 을 바꿔 끼운다.
+ * 10장부터 재고는 시험 JVM 안에 띄운 재고 서비스(InventoryServer)에 있다.
  */
 abstract class OrderPaymentContract {
 
@@ -39,13 +41,20 @@ abstract class OrderPaymentContract {
     @Autowired
     PaymentQueryService paymentQueryService;
 
+    // 10장부터: 재고는 재고 서비스에 있다
+    @Autowired
+    InventoryServer inventory;
+
+    @Autowired
+    PaymentOutboxRelay paymentOutboxRelay;
+
     Shop shop;
 
     SlowWrites slowWrites;
 
     @BeforeEach
     void openShop() {
-        shop = new Shop(jdbcTemplate);
+        shop = new Shop(jdbcTemplate, inventory, paymentOutboxRelay);
         slowWrites = new SlowWrites(jdbcTemplate);
     }
 
@@ -53,6 +62,7 @@ abstract class OrderPaymentContract {
     void closeShop() {
         slowWrites.release();
         mockPg.reset();
+        inventory.reset();
     }
 
     PaymentResult prepare(PreparePaymentCommand command) {
