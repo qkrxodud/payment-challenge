@@ -50,15 +50,17 @@ public class InventoryServer {
     private final Admin admin;
     private final String groupId;
     private final List<String> topics;
+    private final int port;
 
     private InventoryServer(ConfigurableApplicationContext context, JdbcTemplate inventory, InventoryLink link, Admin admin,
-                            String groupId, List<String> topics) {
+                            String groupId, List<String> topics, int port) {
         this.context = context;
         this.inventory = inventory;
         this.link = link;
         this.admin = admin;
         this.groupId = groupId;
         this.topics = topics;
+        this.port = port;
     }
 
     // commandsTopic: 결제 서버가 재고 명령을 보내는 토픽. eventsTopic: 재고 서비스가 결제 이벤트를 읽는 비교 구현이 쓰는 토픽(없으면 비어 있다)
@@ -95,7 +97,7 @@ public class InventoryServer {
                 .run(properties.stream().map(property -> "--" + property).toArray(String[]::new));
         int port = Integer.parseInt(Objects.requireNonNull(context.getEnvironment().getProperty("local.server.port")));
         return new InventoryServer(context, new JdbcTemplate(new DriverManagerDataSource(url, USER, USER)),
-                InventoryLink.open(port), admin, groupId, topics);
+                InventoryLink.open(port), admin, groupId, topics, port);
     }
 
     // 결제 서버 계정(test)은 다른 스키마를 만들 수 없어 MySQL 관리자 계정으로 만든다
@@ -203,6 +205,11 @@ public class InventoryServer {
 
     private Optional<KafkaListenerEndpointRegistry> listeners() {
         return context.getBeanProvider(KafkaListenerEndpointRegistry.class).stream().findFirst();
+    }
+
+    // 10장 측정: 중계를 거치지 않은 재고 서비스(Tomcat)의 포트
+    public int serverPort() {
+        return port;
     }
 
     public InventoryLink link() {
