@@ -4,15 +4,17 @@ import static org.awaitility.Awaitility.await;
 
 import com.example.inventory.InventoryServiceApplication;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Predicate;
-import java.util.Optional;
 import java.util.stream.IntStream;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.AdminClientConfig;
@@ -146,6 +148,15 @@ public class InventoryServer {
                 + "join stock_reservation r on r.reservation_id = i.reservation_id "
                 + "where r.status = 'CONFIRMED' and i.product_id = ?", Integer.class, productId);
         return Objects.requireNonNullElse(confirmed, 0);
+    }
+
+    // 10장 측정: 이 예약이 해제된 때(밀리초, UTC). 해제되지 않았거나 예약 기록이 없으면 비어 있다
+    public Long releasedAtMillis(Long reservationId) {
+        return inventory.query("select updated_at from stock_reservation where reservation_id = ? and status = 'RELEASED'",
+                        (row, number) -> row.getObject("updated_at", LocalDateTime.class).toInstant(ZoneOffset.UTC).toEpochMilli(),
+                        reservationId).stream()
+                .findFirst()
+                .orElse(null);
     }
 
     // 결제 서버가 보낸 재고 명령을 재고 서비스가 다 읽어 처리할 때까지 기다린다(읽은 자리가 토픽 끝에 닿을 때까지)

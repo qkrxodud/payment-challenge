@@ -94,7 +94,7 @@ tasks.named('test') {
 	useJUnitPlatform {
 		// 계약을 지키지 못하는 비교 구현은 기본 빌드에서 빼고 knownFailingTest 로 따로 돌린다.
 		// 4장 측정은 reconciliationMeasurement, 5장 측정은 cancelMeasurement, 6장 측정은 webhookMeasurement,
-		// 7장 측정은 concurrencyMeasurement, 8장 측정은 stockMeasurement, 9장 측정은 outboxMeasurement 로 따로 돌린다
+		// 7장 측정은 concurrencyMeasurement, 8장 측정은 stockMeasurement, 9장 측정은 outboxMeasurement, 10장 측정은 sagaMeasurement 로 따로 돌린다
 		excludeTags 'known-failing', 'measurement', 'cancel-measurement', 'webhook-measurement', 'concurrency-measurement',
 				'jpa-version', 'jpa-version-measurement', 'stock-measurement', 'outbox-measurement'
 	}
@@ -253,6 +253,23 @@ tasks.register('outboxMeasurement', Test) {
 	outputs.upToDateWhen { false }
 	doFirst {
 		delete layout.buildDirectory.file('measurement/ch09-outbox.txt')
+	}
+}
+
+tasks.register('sagaMeasurement', Test) {
+	description = '10장: 재고 서비스를 늦추고 끊은 동안 방식마다 결제 응답 시간·넘겨 판 수량·돌아오지 않은 재고·원복 시간을 세고, 재고 예약 응답 시간을 남긴다'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'saga-measurement'
+	}
+	// 측정은 릴레이를 운영처럼 0.5초마다 돌린다(시험 설정에서 켠다). 보정·알림 처리는 끈다
+	systemProperty 'payment.reconciliation.enabled', 'false'
+	systemProperty 'payment.webhook.enabled', 'false'
+	outputs.upToDateWhen { false }
+	doFirst {
+		delete layout.buildDirectory.file('measurement/ch10-saga.txt')
 	}
 }
 
