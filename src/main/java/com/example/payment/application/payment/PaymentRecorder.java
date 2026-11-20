@@ -70,7 +70,7 @@ public class PaymentRecorder {
         payment.approve();
     }
 
-    // 10장 결정 1: 재고 서비스가 재고를 잡지 못했다(모자람, 답을 받지 못함). 카드사에 승인을 요청하지 않았으니 승인 없이 실패로 닫고,
+    // 10장 결정 1: 재고 서비스가 재고를 잡지 않았다(모자람, 이미 해제된 예약). 카드사에 승인을 요청하지 않았으니 승인 없이 실패로 닫고,
     // 인증 때 잡은 쿠폰·포인트를 돌려주고, 주문 서비스에 알린다. 그 사이 다른 길로 결과가 남은 결제는 건드리지 않는다
     @Transactional
     public void recordStockRefused(String orderId) {
@@ -80,6 +80,19 @@ public class PaymentRecorder {
             payment.failApproval();
         }
         paymentHoldings.releaseUnreservedIfClosed(payment, before);
+        paymentEvents.publishIfChanged(payment, before);
+    }
+
+    // 10장 결정 4: 재고 서비스의 답을 받지 못했다. 카드사에 승인을 요청하지 않았으니 승인 없이 실패로 닫고, 잡았을지 모르는 재고 예약을 해제하고
+    // 쿠폰·포인트를 돌려준다(8장 결정 4와 같은 길). 그 사이 다른 길로 결과가 남은 결제는 건드리지 않는다
+    @Transactional
+    public void recordStockNoResponse(String orderId) {
+        Payment payment = find(orderId);
+        PaymentStatus before = payment.getStatus();
+        if (payment.isAwaitingApprovalResult()) {
+            payment.failApproval();
+        }
+        paymentHoldings.settle(payment, before);
         paymentEvents.publishIfChanged(payment, before);
     }
 

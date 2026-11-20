@@ -45,6 +45,7 @@ import org.testcontainers.mysql.MySQLContainer;
  * 결제의 수량을 더해 처음 재고와 비교한다.
  * 재고 서비스 시간 제한은 0.5초, 늦은 재고 서비스·카드사는 1.5초 뒤에 답한다. PG 읽기 시간 제한은 1초, 보정 대기 시간은 10초다.
  * 겹침·실패 시점: 재고 서비스의 답·요청은 중계(InventoryLink)로 붙잡고, 재고 서비스가 멈춘 것은 중계를 끊고 재고 명령 읽기를 멈춰 만든다.
+ * 재고 서비스가 예약을 처리하는 중인 것은 재고 줄이기를 트리거로 1초 붙잡아 만든다(결정 4 커밋에서 더함 — 그동안 다른 요청은 재고 서비스에 닿는다).
  * 같은 명령이 두 번 가는 것은 보낸 결과를 보내지 않은 것으로 되돌려 다시 보내 만든다(9장 적어도 한 번).
  */
 @SpringBootTest(
@@ -215,6 +216,17 @@ abstract class SagaContract extends OrderPaymentContract {
         orderAndConfirm(order(productId, QUANTITY));
 
         inventory.link().restore();
+
+        assertThat(shop.stockOf(productId) + approvedQuantityOf(productId)).isEqualTo(STOCK);
+    }
+
+    @Test
+    @DisplayName("재고 서비스가 예약을 처리하는 동안 시간 제한이 지나도 그 주문이 잡은 재고는 처음으로 돌아온다")
+    void slowReservationReturnsStock() {
+        inventory.holdStockDecrease();
+        orderAndConfirm(order(productId, QUANTITY));
+
+        inventory.releaseHold();
 
         assertThat(shop.stockOf(productId) + approvedQuantityOf(productId)).isEqualTo(STOCK);
     }

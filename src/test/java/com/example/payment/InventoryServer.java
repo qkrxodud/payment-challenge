@@ -215,6 +215,16 @@ public class InventoryServer {
         });
     }
 
+    // 붙잡은 재고 줄이기를 풀고, 잠들어 있던 기록이 끝날 때까지 기다린다
+    public void releaseHold() {
+        inventory.execute("drop trigger if exists hold_stock_decrease");
+        await().atMost(Duration.ofSeconds(5)).pollInterval(Duration.ofMillis(10)).until(() -> {
+            Integer sleeping = inventory.queryForObject(
+                    "select count(*) from information_schema.processlist where state = 'User sleep'", Integer.class);
+            return Objects.requireNonNullElse(sleeping, 0) == 0;
+        });
+    }
+
     // 시험 하나가 끝나면 붙잡기·끊기·늦추기를 모두 되돌린다
     public void reset() {
         inventory.execute("drop trigger if exists hold_stock_decrease");
