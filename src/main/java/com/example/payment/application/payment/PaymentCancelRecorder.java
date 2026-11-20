@@ -60,7 +60,7 @@ public class PaymentCancelRecorder {
         Payment payment = find(orderId);
         PaymentStatus before = payment.getStatus();
         PaymentCancel cancel = closeWith(payment, idempotencyKey, outcome);
-        paymentHoldings.releaseIfClosed(payment, before);
+        paymentHoldings.settle(payment, before);
         paymentEvents.publishIfChanged(payment, before);
         return CancelResults.of(payment, cancel);
     }
@@ -78,7 +78,7 @@ public class PaymentCancelRecorder {
         Payment payment = find(orderId);
         PaymentStatus before = payment.getStatus();
         payment.settleCancels(gatewayCancels, requestedBefore);
-        paymentHoldings.releaseIfClosed(payment, before);
+        paymentHoldings.settle(payment, before);
         paymentEvents.publishIfChanged(payment, before);
     }
 

@@ -44,7 +44,7 @@ public class PaymentConfirmService {
     private void reserveStock(ConfirmAttempt attempt) {
         boolean reserved;
         try {
-            reserved = paymentHoldings.reserveStock(attempt.orderId(), attempt.items());
+            reserved = paymentHoldings.reserveStock(attempt.paymentId(), attempt.orderId(), attempt.items());
         } catch (InventoryNoResponseException noResponse) {
             paymentRecorder.recordStockRefused(attempt.orderId());
             throw noResponse;

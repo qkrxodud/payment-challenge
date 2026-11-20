@@ -14,6 +14,10 @@ public enum ErrorCode {
     INVALID_REQUEST(ErrorType.INVALID_INPUT, "This request is not supported."),
     // 재고가 모자라 줄이지 않았다
     OUT_OF_STOCK(ErrorType.CONFLICT, "A product is out of stock."),
+    // 10장 결정 3: 이 예약 번호는 이미 해제됐다(해제가 예약보다 먼저 도착함). 재고를 잡지 않는다
+    RESERVATION_RELEASED(ErrorType.CONFLICT, "This reservation was already released."),
+    // 10장: 이 번호의 예약이 없다
+    RESERVATION_NOT_FOUND(ErrorType.NOT_FOUND, "No reservation was found."),
     INTERNAL_ERROR(ErrorType.INTERNAL, "Something went wrong on the server.");
 
     private final ErrorType type;

@@ -4,3 +4,24 @@ create table if not exists stock (
     quantity   int    not null,
     primary key (product_id)
 );
+
+-- 10장 결정 3: 결제 하나가 잡은 재고(예약) 한 줄. 예약 번호는 결제 번호다(결제 하나에 예약 하나).
+-- RESERVED(잡음) → CONFIRMED(결제 승인으로 확정) / RELEASED(돌려줌). 확정된 예약도 결제가 전액 취소되면 RELEASED 가 된다.
+-- 해제가 예약보다 먼저 오면 담긴 상품 없이 RELEASED 줄을 먼저 남긴다 — 그 뒤 늦게 온 예약은 이 줄에 막혀 받지 않는다
+create table if not exists stock_reservation (
+    reservation_id bigint      not null,
+    status         varchar(20) not null,
+    created_at     datetime(6) not null,
+    updated_at     datetime(6) not null,
+    primary key (reservation_id)
+);
+
+-- 10장 결정 3: 예약이 잡은 상품과 수량. 돌려줄 때 이 수량만큼 돌려준다
+create table if not exists stock_reservation_item (
+    id             bigint not null auto_increment,
+    reservation_id bigint not null,
+    product_id     bigint not null,
+    quantity       int    not null,
+    primary key (id),
+    key idx_stock_reservation_item_reservation_id (reservation_id)
+);

@@ -43,12 +43,13 @@ public class PaymentRecorder {
         }
         payment.authenticate(command.paymentKey(), clock.instant());
         paymentHoldings.hold(payment);
-        return ConfirmAttempt.send(payment.getOrderId(), payment.getAmount(), payment.getItems());
+        return ConfirmAttempt.send(payment.getId(), payment.getOrderId(), payment.getAmount(), payment.getItems());
     }
 
     // 6장부터: 승인 답을 기다리는 사이 웹훅이 먼저 결과를 남겼으면 건드리지 않고 지금 결과로 답한다.
     // 8장 결정 4부터 이 기록이 승인 실패로 닫았으면 같은 트랜잭션에서 잡아 둔 재고·포인트·쿠폰을 돌려준다.
-    // 9장부터 이 기록이 승인·승인 실패로 닫았으면 주문 서비스에 알린다
+    // 9장부터 이 기록이 승인·승인 실패로 닫았으면 주문 서비스에 알린다.
+    // 10장 결정 3부터 승인으로 닫았으면 재고 예약을 확정하고, 승인 실패로 닫았으면 해제한다
     @Transactional
     public PaymentResult recordApproval(String orderId, PaymentApproval approval) {
         Payment payment = find(orderId);
@@ -56,7 +57,7 @@ public class PaymentRecorder {
         if (payment.isAwaitingApprovalResult()) {
             settleWith(payment, approval);
         }
-        paymentHoldings.releaseIfClosed(payment, before);
+        paymentHoldings.settle(payment, before);
         paymentEvents.publishIfChanged(payment, before);
         return PaymentResult.from(payment);
     }
@@ -103,7 +104,7 @@ public class PaymentRecorder {
         if (payment.isAwaitingApprovalResult()) {
             payment.reconcile(gatewayPayment, clock.instant());
         }
-        paymentHoldings.releaseIfClosed(payment, before);
+        paymentHoldings.settle(payment, before);
         paymentEvents.publishIfChanged(payment, before);
     }
 

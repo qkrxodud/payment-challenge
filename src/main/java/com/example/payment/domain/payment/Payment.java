@@ -363,6 +363,11 @@ public class Payment {
         return before.keepsHoldings() && status.dropsHoldings();
     }
 
+    // 10장 결정 3: 이 상태(before)에서 지금 상태로 오며 승인이 정해졌는가(승인 결과를 기다리던 결제가 승인됨) — 잡아 둔 재고를 확정할 때다
+    public boolean confirmsHoldingsFrom(PaymentStatus before) {
+        return before.isAwaitingApprovalResult() && status.holdsApproval();
+    }
+
     // 9장: 이 상태(before)에서 지금 상태로 오며 결제 결과가 새로 정해졌는가. 상태가 바뀌었고 바뀐 상태가 결과일 때만 맞다 —
     // 이미 지난 상태를 다시 보거나(웹훅·보정이 같은 결과를 다시 봄) 부분 취소처럼 상태가 그대로면 아니다
     public boolean announcesFrom(PaymentStatus before) {

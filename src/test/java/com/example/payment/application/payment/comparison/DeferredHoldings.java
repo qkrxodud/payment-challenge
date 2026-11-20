@@ -32,7 +32,7 @@ public class DeferredHoldings extends PaymentHoldings {
     // 10장 결정 1부터 재고는 인증 뒤 재고 서비스에 따로 잡는다. 이 비교는 정한 때에 쿠폰·포인트와 함께 재고도 잡는다(모자라면 받지 않음)
     public void holdNow(Payment payment) {
         super.hold(payment);
-        if (super.reserveStock(payment.getOrderId(), payment.getItems())) {
+        if (super.reserveStock(payment.getId(), payment.getOrderId(), payment.getItems())) {
             return;
         }
         throw new OutOfStockException(payment.getOrderId());
@@ -40,7 +40,7 @@ public class DeferredHoldings extends PaymentHoldings {
 
     // 10장 결정 1부터: 승인을 요청하기 전에 잡지 않는다(정한 때에 holdNow 로 잡는다)
     @Override
-    public boolean reserveStock(String orderId, List<PaymentItem> items) {
+    public boolean reserveStock(Long paymentId, String orderId, List<PaymentItem> items) {
         return true;
     }
 

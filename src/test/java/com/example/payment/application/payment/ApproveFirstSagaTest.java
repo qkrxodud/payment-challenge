@@ -5,6 +5,7 @@ import static org.awaitility.Awaitility.await;
 import com.example.payment.application.payment.comparison.ApproveFirstConfirmService;
 import com.example.payment.application.payment.comparison.ApproveFirstHoldings;
 import com.example.payment.application.payment.comparison.ApproveFirstReplyListener;
+import com.example.payment.application.payment.comparison.QuantityStockReservations;
 import com.example.payment.application.payment.comparison.StockReplies;
 import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
 import com.example.payment.application.payment.dto.PaymentResult;
@@ -23,9 +24,12 @@ import org.springframework.test.context.TestPropertySource;
  * 답이 오기 전에 취소·재고 읽기가 끼어드는 경우는 이 시험에서 고정하지 않는다.
  */
 @Tag("known-failing")
-@Import({ApproveFirstHoldings.class, ApproveFirstConfirmService.class, ApproveFirstReplyListener.class})
+@Import({ApproveFirstHoldings.class, ApproveFirstConfirmService.class, ApproveFirstReplyListener.class,
+        QuantityStockReservations.class})
 @TestPropertySource(properties = "test.inventory.components="
-        + "com.example.payment.application.payment.comparison.ApproveFirstStockListener")
+        + "com.example.payment.application.payment.comparison.ApproveFirstStockListener,"
+        + "com.example.payment.application.payment.comparison.QuantityStockRecorder,"
+        + "com.example.inventorycomparison.QuantityStockController")
 @DisplayName("결제와 나눈 재고를 함께 끝내기 — 비교(결정 1): 승인 먼저, Kafka 로 재고 차감, 모자라면 카드사 취소로 보상")
 class ApproveFirstSagaTest extends SagaContract {
 
@@ -39,7 +43,8 @@ class ApproveFirstSagaTest extends SagaContract {
 
     @Override
     Class<?>[] otherServerComponents() {
-        return new Class<?>[]{ApproveFirstHoldings.class, ApproveFirstConfirmService.class, ApproveFirstReplyListener.class};
+        return new Class<?>[]{ApproveFirstHoldings.class, ApproveFirstConfirmService.class, ApproveFirstReplyListener.class,
+            QuantityStockReservations.class};
     }
 
     @Override

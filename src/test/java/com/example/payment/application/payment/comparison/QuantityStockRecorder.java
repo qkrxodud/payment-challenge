@@ -1,4 +1,4 @@
-package com.example.inventory.application.stock;
+package com.example.payment.application.payment.comparison;
 
 import com.example.inventory.domain.error.exception.OutOfStockException;
 import com.example.inventory.domain.stock.StockLine;
@@ -6,20 +6,18 @@ import com.example.inventory.domain.stock.StockRepository;
 import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 10장: 재고를 바꾸는 짧은 트랜잭션. StockService 와 다른 빈으로 둔 이유: 같은 클래스 안에서 부르면 @Transactional 이 적용되지 않는다.
- * 상품 번호 순으로 바꾼다 — 여러 상품을 담은 결제끼리 서로의 줄을 기다리며 멈추지 않게 한다(8장과 같은 순서).
+ * 비교 구현(10장 결정 3, 수량만)의 재고 서비스 쪽: 예약 기록 없이 재고 수량만 바로 줄이고 늘린다(결정 1까지의 재고 서비스).
+ * 결제 하나에 담긴 상품을 한 트랜잭션에서 상품 번호 순으로 줄이고, 하나라도 모자라면 아무것도 줄이지 않는다.
+ * 재고 서비스에 끼우는 시험 구성품이다(시험 설정 test.inventory.components).
  */
-@Component
 @RequiredArgsConstructor
-public class StockRecorder {
+public class QuantityStockRecorder {
 
     private final StockRepository stockRepository;
 
-    // 하나라도 모자라면 재고 없음으로 알려 트랜잭션째 되돌린다(앞서 줄인 상품도 남지 않는다)
     @Transactional
     public void decrease(List<StockLine> lines) {
         sorted(lines).forEach(this::decrease);

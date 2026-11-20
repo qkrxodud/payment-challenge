@@ -39,7 +39,7 @@ public class PaymentWebhookRecorder {
     private void follow(Payment payment, GatewayPayment gatewayPayment) {
         PaymentStatus before = payment.getStatus();
         payment.follow(gatewayPayment, clock.instant());
-        paymentHoldings.releaseIfClosed(payment, before);
+        paymentHoldings.settle(payment, before);
         paymentEvents.publishIfChanged(payment, before);
     }
 

@@ -5,7 +5,7 @@ import com.example.payment.domain.error.exception.InventoryNoResponseException;
 import com.example.payment.domain.payment.PaymentItem;
 import com.example.payment.domain.stock.StockReservations;
 import com.example.payment.global.config.InventoryProperties;
-import com.example.payment.infrastructure.inventory.dto.StockChangeRequest;
+import com.example.payment.infrastructure.inventory.dto.ReserveRequest;
 import java.net.http.HttpClient;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -18,9 +18,9 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 /**
- * 10장: 재고 서비스 HTTP 호출. 결제 하나에 담긴 상품을 한 요청으로 보낸다.
- * 잡기: 200 은 잡음, 409 는 재고 없음, 그 밖의 답은 재고 서비스 오류. 답을 받지 못하면(시간 초과·연결 실패) 응답 없음으로 알린다.
- * 돌려주기: 실패해도 결제 기록을 막지 않게 로그만 남긴다(출발 구조 그대로).
+ * 10장: 재고 서비스 HTTP 호출. 예약 번호는 결제 번호다(결정 3).
+ * 예약: 200 은 잡음, 409 는 잡지 않음(재고 없음, 이미 해제된 예약), 그 밖의 답은 재고 서비스 오류. 답을 받지 못하면(시간 초과·연결 실패) 응답 없음.
+ * 확정·해제: 상태를 바꾼 그 자리에서 보내고, 실패해도 결제 기록을 막지 않게 로그만 남긴다.
  */
 @Slf4j
 @Component
@@ -42,11 +42,11 @@ public class InventoryClient implements StockReservations {
     }
 
     @Override
-    public boolean reserve(String orderId, List<PaymentItem> items) {
+    public boolean reserve(Long reservationId, String orderId, List<PaymentItem> items) {
         try {
             return inventoryRestClient.post()
-                    .uri("/stocks/decrease")
-                    .body(StockChangeRequest.of(items))
+                    .uri("/reservations")
+                    .body(ReserveRequest.of(reservationId, items))
                     .exchange((request, response) -> isReserved(orderId, response.getStatusCode().value()));
         } catch (ResourceAccessException noResponse) {
             throw new InventoryNoResponseException(orderId);
@@ -64,15 +64,23 @@ public class InventoryClient implements StockReservations {
     }
 
     @Override
-    public void release(String orderId, List<PaymentItem> items) {
+    public void confirm(Long reservationId, String orderId) {
+        send("/reservations/{reservationId}/confirm", reservationId, orderId);
+    }
+
+    @Override
+    public void release(Long reservationId, String orderId, List<PaymentItem> items) {
+        send("/reservations/{reservationId}/release", reservationId, orderId);
+    }
+
+    private void send(String uri, Long reservationId, String orderId) {
         try {
             inventoryRestClient.post()
-                    .uri("/stocks/increase")
-                    .body(StockChangeRequest.of(items))
+                    .uri(uri, reservationId)
                     .retrieve()
                     .toBodilessEntity();
-        } catch (RestClientException notReleased) {
-            log.warn("Could not return stock of order {}: {}.", orderId, notReleased.getClass().getSimpleName());
+        } catch (RestClientException notSent) {
+            log.warn("Could not send {} for order {}: {}.", uri, orderId, notSent.getClass().getSimpleName());
         }
     }
 }

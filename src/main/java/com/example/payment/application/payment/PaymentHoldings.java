@@ -22,6 +22,7 @@ import org.springframework.stereotype.Component;
  * 10장 결정 1: 재고는 재고 서비스에 있어 인증 트랜잭션에 넣지 않는다. 인증(쿠폰·포인트)을 남긴 뒤, 카드사에 승인을 요청하기 전에
  * 재고 서비스에 동기 HTTP 로 잡는다(reserveStock) — 8장 규칙(승인해 놓고 재고가 없는 결제를 만들지 않음)과 지금 API 를 그대로 지킨다.
  * 비용: 재고 서비스가 멈추거나 느리면 결제도 받지 못하거나 그만큼 느려진다.
+ * 10장 결정 3: 재고 서비스는 결제 번호로 예약을 남긴다. 결제가 승인되면 확정하고, 승인 없이 끝나거나 전액 취소되면 해제한다(settle).
  */
 @Component
 @RequiredArgsConstructor
@@ -55,12 +56,25 @@ public class PaymentHoldings {
         throw new InsufficientPointException(payment.getOrderId());
     }
 
-    // 10장 결정 1: 담긴 상품의 재고를 재고 서비스에 잡는다. 상품이 없는 결제(금액만 받은 결제)는 잡을 것이 없다
-    public boolean reserveStock(String orderId, List<PaymentItem> items) {
+    // 10장 결정 1: 담긴 상품의 재고를 재고 서비스에 잡는다(결정 3부터 결제 번호를 예약 번호로). 상품이 없는 결제(금액만 받은 결제)는 잡을 것이 없다
+    public boolean reserveStock(Long paymentId, String orderId, List<PaymentItem> items) {
         if (items.isEmpty()) {
             return true;
         }
-        return stockReservations.reserve(orderId, items);
+        return stockReservations.reserve(paymentId, orderId, items);
+    }
+
+    // 10장 결정 3: 결제를 바꾸는 기록이 상태를 바꾼 바로 뒤에 부른다. 승인으로 닫았으면 재고 예약을 확정하고,
+    // 승인 없이 끝냈거나 승인을 모두 취소했으면 잡아 둔 것을 돌려준다(재고 예약은 해제)
+    public void settle(Payment payment, PaymentStatus before) {
+        confirmIfApproved(payment, before);
+        releaseIfClosed(payment, before);
+    }
+
+    private void confirmIfApproved(Payment payment, PaymentStatus before) {
+        if (payment.confirmsHoldingsFrom(before) && payment.hasItems()) {
+            stockReservations.confirm(payment.getId(), payment.getOrderId());
+        }
     }
 
     // 이 기록이 결제를 before 에서 지금 상태로 바꾸며 승인 없이 끝냈거나 승인을 모두 취소했으면 잡아 둔 것을 돌려준다
@@ -79,7 +93,7 @@ public class PaymentHoldings {
 
     public void release(Payment payment) {
         if (payment.hasItems()) {
-            stockReservations.release(payment.getOrderId(), payment.getItems());
+            stockReservations.release(payment.getId(), payment.getOrderId(), payment.getItems());
         }
         releaseCouponAndPoint(payment);
     }
