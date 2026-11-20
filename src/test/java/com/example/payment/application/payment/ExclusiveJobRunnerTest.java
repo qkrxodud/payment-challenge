@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 
 import com.example.payment.MockPgConfiguration;
 import com.example.payment.TestcontainersConfiguration;
-import com.example.payment.domain.job.JobLockRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;

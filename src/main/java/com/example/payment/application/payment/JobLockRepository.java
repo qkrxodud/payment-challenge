@@ -1,4 +1,4 @@
-package com.example.payment.domain.job;
+package com.example.payment.application.payment;
 
 import java.time.Instant;
 

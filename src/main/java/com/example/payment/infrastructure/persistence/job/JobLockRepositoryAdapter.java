@@ -1,6 +1,6 @@
 package com.example.payment.infrastructure.persistence.job;
 
-import com.example.payment.domain.job.JobLockRepository;
+import com.example.payment.application.payment.JobLockRepository;
 import java.sql.Timestamp;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;

@@ -1,6 +1,5 @@
 package com.example.payment.application.payment;
 
-import com.example.payment.domain.job.JobLockRepository;
 import com.example.payment.global.config.JobLockProperties;
 import java.time.Clock;
 import java.time.Instant;
