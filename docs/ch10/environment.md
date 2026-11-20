@@ -15,6 +15,7 @@
   예약 번호 = 결제 번호), 예약을 조회할 수 있다(`GET /reservations/{id}`). 확정·해제는 재고 명령 토픽(`stock-reservation-commands`, 파티션 2개,
   키 = 결제 번호)으로 받는다. 예약은 `stock_reservation`(잡음 RESERVED → 확정 CONFIRMED / 해제 RELEASED)과 `stock_reservation_item`.
   웹 진입점이 있어 전역 예외 처리기를 둔다. 상품(가격)은 결제 서버에 남는다.
+  코드 규칙 검사(check-conventions)의 domain/error 예외 생성자 4건과 전역 예외 처리기의 RequestRejectedException 1건은 결제 서버와 같은 규칙 예외로 둔다(사용자 결정 2026-11-21).
 - 재고 서비스의 DB 는 결제 서버와 **같은 MySQL 컨테이너의 다른 스키마**(`inventory_service`)를 **다른 계정**으로 쓴다(9장 주문 서비스와 같은 방식).
   스키마와 계정은 시험이 MySQL 관리자 계정으로 만든다(`InventoryServer`).
 - 결제 서버의 `payment_outbox`에 `type` 칸을 더했다: `PAYMENT_RESULT`(9장 결제 결과), `STOCK_CONFIRM`·`STOCK_RELEASE`(재고 명령). 결제 서버의 `stock` 표는 걷어 냈다.
