@@ -369,6 +369,11 @@ public class Payment {
         return status != before && status.isOutcome();
     }
 
+    // 10장: 상품을 담은 결제인가(금액만 받아 준비한 결제에는 담긴 상품이 없다)
+    public boolean hasItems() {
+        return !items.isEmpty();
+    }
+
     public boolean usesCoupon() {
         return Objects.nonNull(couponId);
     }

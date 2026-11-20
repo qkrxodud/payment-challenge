@@ -64,7 +64,8 @@ public class InventoryServer {
                                         List<Class<?>> components, List<String> extraProperties) {
         createSchema(mysql);
         Admin admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KafkaBroker.bootstrapServers()));
-        List<String> topics = new ArrayList<>(List.of(commandsTopic));
+        // 10장 결정 1 비교(승인 먼저)는 재고 서비스가 답을 이 토픽 뒤에 "-replies" 를 붙인 토픽으로 돌려준다
+        List<String> topics = new ArrayList<>(List.of(commandsTopic, commandsTopic + "-replies"));
         if (Objects.nonNull(eventsTopic)) {
             topics.add(eventsTopic);
         }
@@ -125,7 +126,7 @@ public class InventoryServer {
 
     // 재고 서비스가 결제 이벤트를 읽는 비교 구현의 결제 이벤트 토픽. 그 비교가 아니면 비어 있다
     public Optional<String> eventsTopic() {
-        return topics.stream().skip(1).findFirst();
+        return topics.stream().skip(2).findFirst();
     }
 
     public void stock(Long productId, int quantity) {
@@ -147,14 +148,19 @@ public class InventoryServer {
 
     // 결제 서버가 보낸 재고 명령을 재고 서비스가 다 읽어 처리할 때까지 기다린다(읽은 자리가 토픽 끝에 닿을 때까지)
     public void awaitCaughtUp() {
-        await().atMost(Duration.ofSeconds(15)).pollInterval(Duration.ofMillis(50)).until(this::isCaughtUp);
+        List<String> read = topics.stream().filter(Predicate.not(InventoryServer::isReplies)).toList();
+        await().atMost(Duration.ofSeconds(15)).pollInterval(Duration.ofMillis(50)).until(() -> isCaughtUp(groupId, read));
     }
 
-    private boolean isCaughtUp() throws ExecutionException, InterruptedException {
-        Map<TopicPartition, OffsetAndMetadata> committed = admin.listConsumerGroupOffsets(groupId)
+    private static boolean isReplies(String topic) {
+        return topic.endsWith("-replies");
+    }
+
+    private boolean isCaughtUp(String group, List<String> read) throws ExecutionException, InterruptedException {
+        Map<TopicPartition, OffsetAndMetadata> committed = admin.listConsumerGroupOffsets(group)
                 .partitionsToOffsetAndMetadata().get();
         Map<TopicPartition, OffsetSpec> latest = new HashMap<>();
-        topics.forEach(topic -> IntStream.range(0, PARTITIONS)
+        read.forEach(topic -> IntStream.range(0, PARTITIONS)
                 .forEach(partition -> latest.put(new TopicPartition(topic, partition), OffsetSpec.latest())));
         ListOffsetsResult ends = admin.listOffsets(latest);
         for (TopicPartition partition : latest.keySet()) {

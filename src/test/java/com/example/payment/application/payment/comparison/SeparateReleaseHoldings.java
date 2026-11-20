@@ -5,7 +5,7 @@ import com.example.payment.domain.coupon.CouponRepository;
 import com.example.payment.domain.payment.Payment;
 import com.example.payment.domain.payment.PaymentStatus;
 import com.example.payment.domain.point.PointRepository;
-import com.example.payment.domain.stock.StockRepository;
+import com.example.payment.domain.stock.StockReservations;
 import java.time.Clock;
 import org.springframework.context.annotation.Primary;
 
@@ -16,9 +16,9 @@ import org.springframework.context.annotation.Primary;
 @Primary
 public class SeparateReleaseHoldings extends PaymentHoldings {
 
-    public SeparateReleaseHoldings(StockRepository stockRepository, CouponRepository couponRepository,
+    public SeparateReleaseHoldings(StockReservations stockReservations, CouponRepository couponRepository,
                                    PointRepository pointRepository, Clock clock) {
-        super(stockRepository, couponRepository, pointRepository, clock);
+        super(stockReservations, couponRepository, pointRepository, clock);
     }
 
     @Override

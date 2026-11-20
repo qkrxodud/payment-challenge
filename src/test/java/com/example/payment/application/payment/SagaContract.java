@@ -41,6 +41,8 @@ import org.testcontainers.mysql.MySQLContainer;
  * 재고 서비스의 답이 늦어 결제가 그만둔 요청이 나중에 도착해도, 같은 해제·확정이 두 번 와도 재고는 한 번만 바뀐다. 서버 두 대에 주문이 몰려도
  * 처음 재고를 넘겨 팔지 않고, 끝난 뒤 남은 재고와 승인이 남은 결제의 수량을 더하면 처음 재고다.
  * 재고는 결제 서버가 남긴 결과를 모두 보내고(9장 릴레이) 재고 서비스가 받은 것을 다 처리한 뒤에 읽는다(Shop) — "결국"의 끝이다.
+ * 재고 서비스의 답이 늦거나 요청이 늦게 도착한 주문은 승인되지 않을 수도(운영) 승인될 수도(승인 먼저 비교) 있어, 남은 재고에 승인이 남은
+ * 결제의 수량을 더해 처음 재고와 비교한다.
  * 재고 서비스 시간 제한은 0.5초, 늦은 재고 서비스·카드사는 1.5초 뒤에 답한다. PG 읽기 시간 제한은 1초, 보정 대기 시간은 10초다.
  * 겹침·실패 시점: 재고 서비스의 답·요청은 중계(InventoryLink)로 붙잡고, 재고 서비스가 멈춘 것은 중계를 끊고 재고 명령 읽기를 멈춰 만든다.
  * 같은 명령이 두 번 가는 것은 보낸 결과를 보내지 않은 것으로 되돌려 다시 보내 만든다(9장 적어도 한 번).
@@ -214,7 +216,7 @@ abstract class SagaContract extends OrderPaymentContract {
 
         inventory.link().restore();
 
-        assertThat(shop.stockOf(productId)).isEqualTo(STOCK);
+        assertThat(shop.stockOf(productId) + approvedQuantityOf(productId)).isEqualTo(STOCK);
     }
 
     @Test
@@ -224,7 +226,7 @@ abstract class SagaContract extends OrderPaymentContract {
 
         orderAndConfirm(order(productId, QUANTITY));
 
-        assertThat(shop.stockOf(productId)).isEqualTo(STOCK);
+        assertThat(shop.stockOf(productId) + approvedQuantityOf(productId)).isEqualTo(STOCK);
     }
 
     @Test
@@ -237,7 +239,7 @@ abstract class SagaContract extends OrderPaymentContract {
         inventory.link().releaseRequests();
         inventory.link().awaitDelivered();
 
-        assertThat(shop.stockOf(productId)).isEqualTo(STOCK);
+        assertThat(shop.stockOf(productId) + approvedQuantityOf(productId)).isEqualTo(STOCK);
     }
 
     @Test
@@ -354,23 +356,32 @@ abstract class SagaContract extends OrderPaymentContract {
         ConfigurableApplicationContext other = OtherPaymentServer.start(mysqlContainer, mockPg, List.of(
                 "payment.inventory.base-url=" + inventory.url(),
                 "payment.inventory.commands-topic=" + inventory.commandsTopic(),
-                "payment.inventory.read-timeout=500ms"));
+                "payment.inventory.read-timeout=500ms"), otherServerComponents());
         try {
-            PaymentConfirmService otherConfirm = other.getBean(PaymentConfirmService.class);
-            return confirmAtOnce(prepared, otherConfirm);
+            return confirmAtOnce(prepared, other);
         } finally {
             other.close();
         }
     }
 
-    private List<Attempt<PaymentResult>> confirmAtOnce(List<PaymentResult> prepared, PaymentConfirmService otherConfirm) {
+    // 비교 구현은 다른 서버에도 같은 구현을 끼운다
+    Class<?>[] otherServerComponents() {
+        return new Class<?>[0];
+    }
+
+    // 다른 서버에 승인을 요청한다. 비교 구현은 그 구현의 진입점으로 바꾼다
+    PaymentResult confirmOnOther(ConfigurableApplicationContext other, ConfirmPaymentCommand command) {
+        return other.getBean(PaymentConfirmService.class).confirm(command);
+    }
+
+    private List<Attempt<PaymentResult>> confirmAtOnce(List<PaymentResult> prepared, ConfigurableApplicationContext other) {
         CountDownLatch start = new CountDownLatch(1);
         ExecutorService executor = Executors.newFixedThreadPool(prepared.size());
         try {
             List<CompletableFuture<Attempt<PaymentResult>>> answers = IntStream.range(0, prepared.size())
                     .mapToObj(index -> Attempt.start(() -> {
                         awaitStart(start);
-                        return confirmOn(index, prepared.get(index), otherConfirm);
+                        return confirmOn(index, prepared.get(index), other);
                     }, executor))
                     .toList();
             start.countDown();
@@ -380,12 +391,12 @@ abstract class SagaContract extends OrderPaymentContract {
         }
     }
 
-    private PaymentResult confirmOn(int index, PaymentResult payment, PaymentConfirmService otherConfirm) {
+    private PaymentResult confirmOn(int index, PaymentResult payment, ConfigurableApplicationContext other) {
         ConfirmPaymentCommand command = new ConfirmPaymentCommand(payment.orderId(), keyOf(payment.orderId()), payment.amount());
         if (index % 2 == 0) {
             return confirm(command);
         }
-        return otherConfirm.confirm(command);
+        return confirmOnOther(other, command);
     }
 
     // 승인된 결제 가운데 앞의 몇 건을 전액 취소한다
@@ -393,7 +404,7 @@ abstract class SagaContract extends OrderPaymentContract {
         answers.stream()
                 .filter(Attempt::isAnswered)
                 .map(Attempt::result)
-                .filter(result -> result.status() == PaymentStatus.APPROVED)
+                .filter(result -> paymentQueryService.find(result.orderId()).status() == PaymentStatus.APPROVED)
                 .limit(BURST_CANCELS)
                 .forEach(result -> paymentCancelService.cancel(cancelOf(result.orderId())));
     }

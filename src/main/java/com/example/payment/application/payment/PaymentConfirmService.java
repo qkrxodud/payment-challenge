@@ -3,6 +3,8 @@ package com.example.payment.application.payment;
 import com.example.payment.application.payment.dto.ConfirmAttempt;
 import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
 import com.example.payment.application.payment.dto.PaymentResult;
+import com.example.payment.domain.error.exception.InventoryNoResponseException;
+import com.example.payment.domain.error.exception.OutOfStockException;
 import com.example.payment.domain.error.exception.PaymentGatewayNoResponseException;
 import com.example.payment.domain.payment.PaymentApproval;
 import com.example.payment.domain.payment.PaymentGateway;
@@ -17,6 +19,7 @@ import org.springframework.stereotype.Service;
  * 같은 결제 키의 요청이 다시 오면 PG 를 다시 부르지 않고 기록해 둔 결과로 답한다.
  * PG 답을 정해진 시간 안에 받지 못하면 결과 모름으로 기록하고 응답 없음을 그대로 알린다(4장).
  * 7장부터 카드사 답을 기다리는 결제에 같은 결제 키로 다시 온 요청도 PG 를 부르지 않고 지금 상태(인증)로 답한다(결정 2).
+ * 10장 결정 1부터 인증을 남긴 뒤, 카드사에 승인을 요청하기 전에 재고 서비스에 재고를 잡는다(동기 HTTP, 짧은 시간 제한).
  */
 @Service
 @RequiredArgsConstructor
@@ -24,14 +27,33 @@ public class PaymentConfirmService {
 
     private final PaymentRecorder paymentRecorder;
     private final PaymentGateway paymentGateway;
+    private final PaymentHoldings paymentHoldings;
 
     public PaymentResult confirm(ConfirmPaymentCommand command) {
         ConfirmAttempt attempt = paymentRecorder.authenticate(command);
         if (attempt.isRepeated()) {
             return attempt.repeated();
         }
+        reserveStock(attempt);
         PaymentApproval approval = requestApproval(command.paymentKey(), attempt);
         return paymentRecorder.recordApproval(command.orderId(), approval);
+    }
+
+    // 10장 결정 1: 카드사에 승인을 요청하기 전에 재고 서비스에 재고를 잡는다. 모자라면 결제를 승인 없이 닫고 재고 없음(409)으로 답한다.
+    // 답을 받지 못해도 승인을 요청하지 않고 닫는다(재고 서비스가 실제로 잡았는지는 모른다)
+    private void reserveStock(ConfirmAttempt attempt) {
+        boolean reserved;
+        try {
+            reserved = paymentHoldings.reserveStock(attempt.orderId(), attempt.items());
+        } catch (InventoryNoResponseException noResponse) {
+            paymentRecorder.recordStockRefused(attempt.orderId());
+            throw noResponse;
+        }
+        if (reserved) {
+            return;
+        }
+        paymentRecorder.recordStockRefused(attempt.orderId());
+        throw new OutOfStockException(attempt.orderId());
     }
 
     // 답을 받지 못했어도 카드사에는 승인이 남았을 수 있다. 인증 상태로 두지 않고 결과 모름으로 남긴다

@@ -28,7 +28,8 @@ import org.springframework.context.annotation.Import;
  * 그것을 확인한 뒤 두 번째 주문의 승인을 보낸다. 10장부터 재고 줄은 재고 서비스에 있어, 붙잡는 기록도 재고 서비스의 재고 줄이기다
  * (8장에는 결제 서버가 같은 트랜잭션에서 재고를 줄인 뒤 남기는 인증을 붙잡았다). 줄이는 방법은 재고 서비스 안에서 바꿔 끼운다. 한꺼번에: 재고 10개에 주문 30건을 스레드 30개에서 한꺼번에 보낸다(겹침을 고정하지 않음).
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+// 10장부터: 붙잡힌 재고 줄이기(1초)를 기다리는 동안 결제 서버가 재고 서비스 시간 제한(운영 1초)에 걸려 그만두지 않게 늘린다
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = "payment.inventory.read-timeout=5s")
 @Import({TestcontainersConfiguration.class, MockPgConfiguration.class, InventoryServerConfiguration.class})
 abstract class StockContract extends OrderPaymentContract {
 

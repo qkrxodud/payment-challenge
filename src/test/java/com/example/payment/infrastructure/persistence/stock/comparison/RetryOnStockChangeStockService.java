@@ -2,6 +2,8 @@ package com.example.payment.infrastructure.persistence.stock.comparison;
 
 import com.example.inventory.application.stock.StockRecorder;
 import com.example.inventory.application.stock.StockService;
+import com.example.inventory.domain.stock.StockLine;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.context.annotation.Primary;
 
@@ -23,11 +25,11 @@ public class RetryOnStockChangeStockService extends StockService {
     }
 
     @Override
-    public void decrease(Long productId, int quantity) {
+    public void decrease(List<StockLine> lines) {
         StockChangedException lastChange = null;
         for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
             try {
-                super.decrease(productId, quantity);
+                super.decrease(lines);
                 return;
             } catch (StockChangedException changed) {
                 RETRIES.incrementAndGet();

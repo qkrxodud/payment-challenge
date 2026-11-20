@@ -2,10 +2,12 @@ package com.example.payment.infrastructure.inventory;
 
 import com.example.payment.domain.error.exception.InventoryFailedException;
 import com.example.payment.domain.error.exception.InventoryNoResponseException;
-import com.example.payment.domain.stock.StockRepository;
+import com.example.payment.domain.payment.PaymentItem;
+import com.example.payment.domain.stock.StockReservations;
 import com.example.payment.global.config.InventoryProperties;
 import com.example.payment.infrastructure.inventory.dto.StockChangeRequest;
 import java.net.http.HttpClient;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.HttpStatus;
@@ -16,19 +18,18 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 /**
- * 10장 출발 구조: 재고 저장소(8장 StockRepository)를 재고 서비스 HTTP 호출로 바꿨다. 결제 서버의 다른 코드는 그대로다 —
- * 8장처럼 인증 트랜잭션 안에서 줄이고, 결제가 승인 없이 끝나거나 전액 취소되면 상태를 바꾼 그 트랜잭션 안에서 늘린다.
- * 줄이기: 200 은 줄임, 409 는 재고 없음. 답을 받지 못하면(시간 초과·연결 실패) 응답 없음으로 알린다 — 인증 트랜잭션이 되돌려진다.
- * 늘리기: 실패해도 결제 기록을 막지 않게 로그만 남긴다.
+ * 10장: 재고 서비스 HTTP 호출. 결제 하나에 담긴 상품을 한 요청으로 보낸다.
+ * 잡기: 200 은 잡음, 409 는 재고 없음, 그 밖의 답은 재고 서비스 오류. 답을 받지 못하면(시간 초과·연결 실패) 응답 없음으로 알린다.
+ * 돌려주기: 실패해도 결제 기록을 막지 않게 로그만 남긴다(출발 구조 그대로).
  */
 @Slf4j
 @Component
 @EnableConfigurationProperties(InventoryProperties.class)
-public class InventoryStockClient implements StockRepository {
+public class InventoryClient implements StockReservations {
 
     private final RestClient inventoryRestClient;
 
-    public InventoryStockClient(InventoryProperties inventoryProperties) {
+    public InventoryClient(InventoryProperties inventoryProperties) {
         HttpClient httpClient = HttpClient.newBuilder()
                 .connectTimeout(inventoryProperties.getConnectTimeout())
                 .build();
@@ -41,37 +42,37 @@ public class InventoryStockClient implements StockRepository {
     }
 
     @Override
-    public boolean decrease(Long productId, int quantity) {
+    public boolean reserve(String orderId, List<PaymentItem> items) {
         try {
             return inventoryRestClient.post()
-                    .uri("/stocks/{productId}/decrease", productId)
-                    .body(new StockChangeRequest(quantity))
-                    .exchange((request, response) -> isDecreased(productId, response.getStatusCode().value()));
+                    .uri("/stocks/decrease")
+                    .body(StockChangeRequest.of(items))
+                    .exchange((request, response) -> isReserved(orderId, response.getStatusCode().value()));
         } catch (ResourceAccessException noResponse) {
-            throw new InventoryNoResponseException("product-" + productId);
+            throw new InventoryNoResponseException(orderId);
         }
     }
 
-    private static boolean isDecreased(Long productId, int status) {
+    private static boolean isReserved(String orderId, int status) {
         if (HttpStatus.valueOf(status).is2xxSuccessful()) {
             return true;
         }
         if (status == HttpStatus.CONFLICT.value()) {
             return false;
         }
-        throw new InventoryFailedException("product-" + productId, status);
+        throw new InventoryFailedException(orderId, status);
     }
 
     @Override
-    public void increase(Long productId, int quantity) {
+    public void release(String orderId, List<PaymentItem> items) {
         try {
             inventoryRestClient.post()
-                    .uri("/stocks/{productId}/increase", productId)
-                    .body(new StockChangeRequest(quantity))
+                    .uri("/stocks/increase")
+                    .body(StockChangeRequest.of(items))
                     .retrieve()
                     .toBodilessEntity();
-        } catch (RestClientException notIncreased) {
-            log.warn("Could not return stock of product {}: {}.", productId, notIncreased.getClass().getSimpleName());
+        } catch (RestClientException notReleased) {
+            log.warn("Could not return stock of order {}: {}.", orderId, notReleased.getClass().getSimpleName());
         }
     }
 }
