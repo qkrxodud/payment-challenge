@@ -96,7 +96,7 @@ tasks.named('test') {
 		// 4장 측정은 reconciliationMeasurement, 5장 측정은 cancelMeasurement, 6장 측정은 webhookMeasurement,
 		// 7장 측정은 concurrencyMeasurement, 8장 측정은 stockMeasurement, 9장 측정은 outboxMeasurement, 10장 측정은 sagaMeasurement 로 따로 돌린다
 		excludeTags 'known-failing', 'measurement', 'cancel-measurement', 'webhook-measurement', 'concurrency-measurement',
-				'jpa-version', 'jpa-version-measurement', 'stock-measurement', 'outbox-measurement'
+				'jpa-version', 'jpa-version-measurement', 'stock-measurement', 'outbox-measurement', 'saga-measurement'
 	}
 	// 4장부터: 테스트는 보정을 직접 부른다. 주기 보정이 테스트 도중 끼어들지 않게 끈다
 	systemProperty 'payment.reconciliation.enabled', 'false'
