@@ -24,11 +24,13 @@ import org.apache.kafka.clients.admin.OffsetSpec;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.http.MediaType;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
 import org.springframework.kafka.listener.MessageListenerContainer;
+import org.springframework.web.client.RestClient;
 import org.testcontainers.mysql.MySQLContainer;
 
 /**
@@ -37,6 +39,8 @@ import org.testcontainers.mysql.MySQLContainer;
  * 재고 명령 토픽은 띄울 때마다 새 이름으로 만든다 — 같은 브로커를 쓰는 다른 시험 컨텍스트의 결제 서버가 보낸 명령(결제 번호가 겹친다)을
  * 이 재고 서비스가 받지 않게 한다. 소비자 그룹도 띄울 때마다 새로 정한다.
  * 시험이 재고 서비스에 비교 구현을 끼울 때는 components(빈으로 더할 클래스)와 properties 를 넘긴다.
+ * 11장: 재고 명령 소비자 계약을 위해 예약을 HTTP 로 직접 잡고(reserve), 예약 상태를 읽고, 예약 하나의 기록만 일시적으로 실패하게 하고,
+ * 실패 모음을 다시 넣는 운영자 명령을 돌린다.
  */
 public class InventoryServer {
 
@@ -51,9 +55,11 @@ public class InventoryServer {
     private final String groupId;
     private final List<String> topics;
     private final int port;
+    private final List<Class<?>> components;
+    private final List<String> properties;
 
     private InventoryServer(ConfigurableApplicationContext context, JdbcTemplate inventory, InventoryLink link, Admin admin,
-                            String groupId, List<String> topics, int port) {
+                            String groupId, List<String> topics, int port, List<Class<?>> components, List<String> properties) {
         this.context = context;
         this.inventory = inventory;
         this.link = link;
@@ -61,6 +67,8 @@ public class InventoryServer {
         this.groupId = groupId;
         this.topics = topics;
         this.port = port;
+        this.components = components;
+        this.properties = properties;
     }
 
     // commandsTopic: 결제 서버가 재고 명령을 보내는 토픽. eventsTopic: 재고 서비스가 결제 이벤트를 읽는 비교 구현이 쓰는 토픽(없으면 비어 있다)
@@ -92,12 +100,16 @@ public class InventoryServer {
         }
         properties.addAll(KafkaBroker.clientProperties());
         properties.addAll(extraProperties);
-        ConfigurableApplicationContext context = new SpringApplicationBuilder(InventoryServiceApplication.class)
-                .sources(components.toArray(Class<?>[]::new))
-                .run(properties.stream().map(property -> "--" + property).toArray(String[]::new));
+        ConfigurableApplicationContext context = run(components, properties);
         int port = Integer.parseInt(Objects.requireNonNull(context.getEnvironment().getProperty("local.server.port")));
         return new InventoryServer(context, new JdbcTemplate(new DriverManagerDataSource(url, USER, USER)),
-                InventoryLink.open(port), admin, groupId, topics, port);
+                InventoryLink.open(port), admin, groupId, topics, port, List.copyOf(components), List.copyOf(properties));
+    }
+
+    private static ConfigurableApplicationContext run(List<Class<?>> components, List<String> properties) {
+        return new SpringApplicationBuilder(InventoryServiceApplication.class)
+                .sources(components.toArray(Class<?>[]::new))
+                .run(properties.stream().map(property -> "--" + property).toArray(String[]::new));
     }
 
     // 결제 서버 계정(test)은 다른 스키마를 만들 수 없어 MySQL 관리자 계정으로 만든다
@@ -159,6 +171,55 @@ public class InventoryServer {
                         reservationId).stream()
                 .findFirst()
                 .orElse(null);
+    }
+
+    // 11장: 결제 서버가 보낸 것처럼 이 번호로 예약을 잡는다(HTTP, 중계를 거치지 않음)
+    public void reserve(Long reservationId, Long productId, int quantity) {
+        RestClient.create("http://localhost:" + port).post()
+                .uri("/reservations")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("reservationId", reservationId, "items", List.of(Map.of("productId", productId, "quantity", quantity))))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    // 11장: 예약의 지금 상태(RESERVED, CONFIRMED, RELEASED). 예약이 없으면 비어 있다
+    public String reservationStatusOf(Long reservationId) {
+        return inventory.queryForList("select status from stock_reservation where reservation_id = ?", String.class, reservationId)
+                .stream()
+                .findFirst()
+                .orElse(null);
+    }
+
+    // 11장: 이 예약을 이 상태로 바꾸는 기록이 실패하게 한다(받는 쪽 DB 가 이 예약의 이 변경만 일시적으로 쓰지 못함)
+    public void failReservationChange(Long reservationId, String status) {
+        inventory.execute("create trigger fail_reservation_update before update on stock_reservation for each row\n"
+                + "begin\n"
+                + "    if new.reservation_id = " + reservationId + " and new.status = '" + status + "' then\n"
+                + "        signal sqlstate '45000' set message_text = 'reservation write failed for test';\n"
+                + "    end if;\n"
+                + "end");
+    }
+
+    public void restoreReservationChange() {
+        inventory.execute("drop trigger if exists fail_reservation_update");
+    }
+
+    // 11장: 운영자가 실패 모음(<토픽>.DLT)의 메시지를 원래 토픽으로 다시 넣는 명령을 돌린다 — 같은 설정(같은 소비자 그룹 이름)으로 재고 서비스를
+    // 다시 넣기 모드(inventory.dead-letter.replay=true, 웹·리스너는 띄우지 않음)로 한 번 띄우고, 명령이 끝나면 닫는다
+    public void replayDeadLetters() {
+        List<String> replay = new ArrayList<>(properties);
+        replay.add("inventory.dead-letter.replay=true");
+        replay.add("spring.main.web-application-type=none");
+        replay.add("spring.kafka.listener.auto-startup=false");
+        ConfigurableApplicationContext command = run(components, replay);
+        if (command.isActive()) {
+            command.close();
+        }
+    }
+
+    public String groupId() {
+        return groupId;
     }
 
     // 결제 서버가 보낸 재고 명령을 재고 서비스가 다 읽어 처리할 때까지 기다린다(읽은 자리가 토픽 끝에 닿을 때까지)
@@ -248,6 +309,7 @@ public class InventoryServer {
     // 시험 하나가 끝나면 붙잡기·끊기·늦추기를 모두 되돌린다
     public void reset() {
         inventory.execute("drop trigger if exists hold_stock_decrease");
+        inventory.execute("drop trigger if exists fail_reservation_update");
         link.restore();
         link.awaitDelivered();
         listeners().ifPresent(registry -> registry.getListenerContainers().stream()

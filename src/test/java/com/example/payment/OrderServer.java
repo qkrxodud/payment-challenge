@@ -4,10 +4,16 @@ import static org.awaitility.Awaitility.await;
 
 import com.example.order.OrderServiceApplication;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -19,6 +25,9 @@ import org.testcontainers.mysql.MySQLContainer;
  * 그 계정으로만 쓴다 — 결제 서버와 주문 서비스가 서로의 표를 읽지 못한다. 컨테이너를 하나 더 띄우지 않는다(8장 관찰 1).
  * 시험 컨텍스트마다 주문 서비스가 따로 뜨므로 소비자 그룹은 띄울 때마다 새로 정한다 — 같은 브로커의 같은 토픽을 읽어도
  * 다른 컨텍스트의 주문 서비스와 파티션을 나눠 갖지 않고, 토픽의 처음부터 모두 읽는다.
+ * 11장: 결제 이벤트 토픽도 띄울 때마다 새 이름으로 만든다. 이벤트 고유 번호(결제 서버의 payment_outbox 번호)는 컨텍스트(MySQL 컨테이너)마다
+ * 1부터 다시 매겨져, 같은 토픽을 쓰면 다른 컨텍스트의 이벤트가 같은 번호로 섞여 들어온다(10장 재고 명령 토픽과 같은 이유).
+ * 시험이 주문 서비스에 비교 구현을 끼울 때는 components(빈으로 더할 클래스)와 properties 를 넘긴다(10장 InventoryServer 와 같은 방식).
  */
 public class OrderServer {
 
@@ -27,25 +36,79 @@ public class OrderServer {
 
     private final ConfigurableApplicationContext context;
     private final JdbcTemplate orders;
+    private final String topic;
+    private final String groupId;
+    private final List<Class<?>> components;
+    private final List<String> properties;
 
-    private OrderServer(ConfigurableApplicationContext context, JdbcTemplate orders) {
+    private OrderServer(ConfigurableApplicationContext context, JdbcTemplate orders, String topic, String groupId,
+                        List<Class<?>> components, List<String> properties) {
         this.context = context;
         this.orders = orders;
+        this.topic = topic;
+        this.groupId = groupId;
+        this.components = components;
+        this.properties = properties;
     }
 
-    public static OrderServer start(MySQLContainer mysql) {
+    // 11장: topic 은 결제 서버가 결제 이벤트를 보내는 토픽(이 컨텍스트만의 이름). components·extraProperties 는 비교 구현을 끼울 때 넘긴다
+    public static OrderServer start(MySQLContainer mysql, String topic, List<Class<?>> components, List<String> extraProperties) {
         createSchema(mysql);
+        createTopic(topic);
         String url = mysql.getJdbcUrl().replace("/" + mysql.getDatabaseName(), "/" + SCHEMA);
+        String groupId = "order-service-" + UUID.randomUUID();
         List<String> properties = new ArrayList<>(List.of(
                 "spring.config.name=order-service",
                 "spring.datasource.url=" + url,
                 "spring.datasource.username=" + USER,
                 "spring.datasource.password=" + USER,
-                "spring.kafka.consumer.group-id=order-service-" + UUID.randomUUID()));
+                "spring.kafka.consumer.group-id=" + groupId,
+                "order.payment-events.topic=" + topic));
         properties.addAll(KafkaBroker.clientProperties());
-        ConfigurableApplicationContext context = new SpringApplicationBuilder(OrderServiceApplication.class)
+        properties.addAll(extraProperties);
+        ConfigurableApplicationContext context = run(components, properties);
+        return new OrderServer(context, new JdbcTemplate(new DriverManagerDataSource(url, USER, USER)), topic, groupId,
+                List.copyOf(components), List.copyOf(properties));
+    }
+
+    private static ConfigurableApplicationContext run(List<Class<?>> components, List<String> properties) {
+        return new SpringApplicationBuilder(OrderServiceApplication.class)
+                .sources(components.toArray(Class<?>[]::new))
                 .run(properties.stream().map(property -> "--" + property).toArray(String[]::new));
-        return new OrderServer(context, new JdbcTemplate(new DriverManagerDataSource(url, USER, USER)));
+    }
+
+    public static String newTopic() {
+        return KafkaBroker.TOPIC + "-" + UUID.randomUUID();
+    }
+
+    private static void createTopic(String topic) {
+        try (Admin admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KafkaBroker.bootstrapServers()))) {
+            admin.createTopics(List.of(new NewTopic(topic, KafkaBroker.PARTITIONS, (short) 1))).all().get();
+        } catch (ExecutionException | InterruptedException failed) {
+            throw new IllegalStateException("Could not create the payment event topic.", failed);
+        }
+    }
+
+    // 11장: 결제 서버가 결제 이벤트를 보내는 토픽(주문 서비스가 읽는 토픽)
+    public String topic() {
+        return topic;
+    }
+
+    // 11장: 주문 서비스가 결제 이벤트 토픽을 다 읽어 처리할 때까지 기다린다(소비자 그룹이 커밋한 자리가 토픽 끝에 닿을 때까지)
+    public void awaitCaughtUp(Duration atMost) {
+        TopicLag.awaitCaughtUp(groupId, List.of(topic), atMost);
+    }
+
+    // 11장: 운영자가 실패 모음(<토픽>.DLT)의 메시지를 원래 토픽으로 다시 넣는 명령을 돌린다 — 같은 설정(같은 소비자 그룹 이름)으로 주문 서비스를
+    // 다시 넣기 모드(order.dead-letter.replay=true, 리스너는 띄우지 않음)로 한 번 띄우고, 명령이 끝나면 닫는다
+    public void replayDeadLetters() {
+        List<String> replay = new ArrayList<>(properties);
+        replay.add("order.dead-letter.replay=true");
+        replay.add("spring.kafka.listener.auto-startup=false");
+        ConfigurableApplicationContext command = run(components, replay);
+        if (command.isActive()) {
+            command.close();
+        }
     }
 
     // 결제 서버 계정(test)은 다른 스키마를 만들 수 없어 MySQL 관리자 계정으로 만든다(Testcontainers 는 관리자 비밀번호를 시험 계정과 같게 둔다)
@@ -119,6 +182,42 @@ public class OrderServer {
         public Duration delay() {
             return delay;
         }
+    }
+
+    // 11장: 주문을 마지막으로 바꾼 때. 주문이 아직 없으면 비어 있다
+    public Instant updatedAtOf(String orderId) {
+        return orders.query("select updated_at from orders where order_id = ?",
+                (row, number) -> row.getTimestamp("updated_at").toInstant(), orderId).stream()
+                .findFirst()
+                .orElse(null);
+    }
+
+    // 11장: 이 주문에 대해 받은 결제 결과의 수(같은 이벤트가 다시 와 남은 줄도 센다)
+    public int receivedCount(String orderId) {
+        Integer count = orders.queryForObject("select count(*) from received_payment_event where order_id = ?", Integer.class,
+                orderId);
+        return Objects.requireNonNullElse(count, 0);
+    }
+
+    // 11장: 이 주문을 이 결제 결과로 남기거나 바꾸는 기록이 실패하게 한다(받는 쪽 DB 가 이 주문의 이 변경만 일시적으로 쓰지 못함)
+    public void failOrderWrites(String orderId, String paymentStatus) {
+        orders.execute("create trigger fail_order_insert before insert on orders for each row\n"
+                + "begin\n"
+                + "    if new.order_id = '" + orderId + "' and new.payment_status = '" + paymentStatus + "' then\n"
+                + "        signal sqlstate '45000' set message_text = 'order write failed for test';\n"
+                + "    end if;\n"
+                + "end");
+        orders.execute("create trigger fail_order_update before update on orders for each row\n"
+                + "begin\n"
+                + "    if new.order_id = '" + orderId + "' and new.payment_status = '" + paymentStatus + "' then\n"
+                + "        signal sqlstate '45000' set message_text = 'order write failed for test';\n"
+                + "    end if;\n"
+                + "end");
+    }
+
+    public void restoreOrderWrites() {
+        orders.execute("drop trigger if exists fail_order_insert");
+        orders.execute("drop trigger if exists fail_order_update");
     }
 
     public void awaitReceived(String orderId, String status, Duration atMost) {
