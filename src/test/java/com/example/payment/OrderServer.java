@@ -263,6 +263,15 @@ public class OrderServer {
         orders.execute("drop trigger if exists hold_received_event");
     }
 
+    // 11장 결정 4 비교(orders 실패 표): 받는 쪽 orders 를 시험이 직접 읽고 고친다
+    public List<Map<String, Object>> rows(String sql) {
+        return orders.queryForList(sql);
+    }
+
+    public void execute(String sql) {
+        orders.execute(sql);
+    }
+
     public void stop() {
         context.close();
     }

@@ -35,7 +35,10 @@ public class NoFilterOrderPaymentService extends OrderPaymentService {
     @Transactional
     public void apply(PaymentEventCommand command) {
         Instant now = clock.instant();
-        PaymentOutcome outcome = PaymentOutcome.valueOf(command.paymentStatus());
+        // 11장 결정 3(영구 오류는 다시 시도하지 않음)은 운영과 같게 둔다
+        PaymentOutcome outcome = PaymentOutcome.from(command.paymentStatus(), command.eventId());
+        command.eventNumber();
+        command.requireComplete();
         if (received.claim(ReceivedPaymentEvent.of(command.eventId(), command.orderId(), command.paymentStatus(), command.occurredAt(),
                 command.partition(), command.offset(), now))) {
             orders.findByOrderIdForUpdate(command.orderId())

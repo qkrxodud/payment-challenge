@@ -24,8 +24,8 @@ import org.apache.kafka.clients.admin.OffsetSpec;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.http.MediaType;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
@@ -315,6 +315,15 @@ public class InventoryServer {
         listeners().ifPresent(registry -> registry.getListenerContainers().stream()
                 .filter(Predicate.not(MessageListenerContainer::isRunning))
                 .forEach(MessageListenerContainer::start));
+    }
+
+    // 11장 결정 4 비교(inventory 실패 표): 받는 쪽 inventory 를 시험이 직접 읽고 고친다
+    public List<Map<String, Object>> rows(String sql) {
+        return inventory.queryForList(sql);
+    }
+
+    public void execute(String sql) {
+        inventory.execute(sql);
     }
 
     public void stop() {

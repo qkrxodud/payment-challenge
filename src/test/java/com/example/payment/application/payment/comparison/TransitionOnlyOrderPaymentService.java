@@ -43,7 +43,10 @@ public class TransitionOnlyOrderPaymentService extends OrderPaymentService {
     @Transactional
     public void apply(PaymentEventCommand command) {
         Instant now = clock.instant();
-        PaymentOutcome outcome = PaymentOutcome.valueOf(command.paymentStatus());
+        // 11장 결정 3(영구 오류는 다시 시도하지 않음)은 운영과 같게 둔다
+        PaymentOutcome outcome = PaymentOutcome.from(command.paymentStatus(), command.eventId());
+        command.eventNumber();
+        command.requireComplete();
         NoDedupOrderPaymentService.record(jdbcTemplate, command, now);
         orders.findByOrderIdForUpdate(command.orderId())
                 .ifPresentOrElse(order -> followIfAllowed(order, outcome, command.eventNumber(), now),
