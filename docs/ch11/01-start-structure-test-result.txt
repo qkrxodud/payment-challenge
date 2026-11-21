@@ -1,0 +1,31 @@
+# 태그 ch11-start 의 코드(운영 코드는 10장 그대로)에서 ./gradlew clean test — 전체 tests=737 failures=18 errors=0 time=1076.124s
+# 11장 계약(PaymentEventConsumerContract 12개, StockCommandConsumerContract 12개)만 뽑았다. 앞 장 시험 713개는 모두 통과했다(2026-11-21, 빌드 18분 9초).
+# 실패 18개는 모두 11장 계약이다 — 주문 서비스 12개 중 11개, 재고 서비스 12개 중 7개.
+# 출발 구조 시험 도구의 잘못 하나(결정 1 커밋에서 고침): 다른 결제 서버(OtherPaymentServer)가 컨텍스트마다 다른 결제 이벤트 토픽을 몰라 기본 토픽으로 보냈다.
+# 이 실행의 기본 시험(9장 릴레이 운영 8개는 통과)에는 드러나지 않았고, knownFailingTest 의 9장 릴레이 비교에서 드러났다.
+## 결제 결과 받기(주문 서비스) — 운영 구현
+FAIL 모르는 결제 상태가 실린 결과는 실패 모음에 남는다 (30.3s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 실패 모음에서 다시 넣은 결과는 아직 반영되지 않았으면 반영된다 (30.2s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 주문 서비스의 저장소가 잠시 쓰기를 거부한 동안 온 결과도 저장소가 돌아오면 반영된다 (36.1s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract was not fulfilled within 30 seconds.
+FAIL 취소 뒤에 그보다 먼저 만든 승인이 늦게 와도 주문은 취소 상태로 남는다 (0.18s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: "CANCELED" but was: "PAID"
+FAIL 처리할 수 없는 결과가 있어도 같은 자리의 뒤 결과는 첫 다시 시도 간격 안에 반영된다 (4.63s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual: 4.600917125S to be less than: 2S 
+FAIL 읽을 수 없는 결과는 실패 모음에 남는다 (30.2s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 다시 시도를 다 쓴 결과는 실패 모음에 그 원인과 함께 남는다 (30.1s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 같은 주문의 결과는 앞 결과를 다시 시도하는 동안에도 보낸 순서대로 받는다 (36.2s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract was not fulfilled within 30 seconds.
+PASS 결제 서버 시계가 서로 달라 새 결과의 만든 시각이 앞선 결과보다 이르게 찍혀도 새 결과가 반영된다 (0.165s)
+FAIL 같은 결제 결과를 다시 읽어도 주문은 다시 바뀌지 않는다 (0.173s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 2026-11-21T04:54:55.521497Z but was: 2026-11-21T04:54:55.571885Z
+FAIL 실패 모음에서 다시 넣은 결과는 그사이 더 새 결과가 반영됐으면 무시된다 (30.2s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 결제 서버가 같은 결제 결과를 다시 보내도 주문 서비스는 받은 결과를 한 번만 남긴다 (0.322s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 1 but was: 2
+## 재고 명령 받기(재고 서비스) — 운영 구현
+FAIL 모르는 재고 명령은 실패 모음에 남는다 (30.2s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.StockCommandConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 실패 모음에서 다시 넣은 명령은 아직 반영되지 않았으면 반영된다 (30.3s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.StockCommandConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+PASS 같은 해제를 다시 읽어도 재고는 한 번만 돌아온다 (0.217s)
+FAIL 모르는 재고 명령은 예약을 바꾸지 않는다 (0.195s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: "RESERVED" but was: "RELEASED"
+FAIL 읽을 수 없는 재고 명령은 실패 모음에 남는다 (30.1s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.StockCommandConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 실패 모음에서 다시 넣은 명령은 그사이 더 새 명령이 반영됐으면 무시된다 (30.2s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.StockCommandConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 다시 시도를 다 쓴 명령은 실패 모음에 그 원인과 함께 남는다 (30.3s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.StockCommandConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 재고 서비스의 저장소가 잠시 쓰기를 거부한 동안 온 명령도 저장소가 돌아오면 반영된다 (36.2s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.application.payment.StockCommandConsumerContract was not fulfilled within 30 seconds.
+PASS 같은 예약의 확정을 다시 시도하는 동안 해제가 와도 예약은 해제로 끝나고 재고는 돌아온다 (6.24s)
+PASS 처리할 수 없는 명령이 있어도 같은 자리의 뒤 명령은 첫 다시 시도 간격 안에 반영된다 (0.159s)
+PASS 해제 뒤에 그보다 먼저 만든 확정이 늦게 와도 예약은 해제 상태로 남는다 (0.185s)
+PASS 같은 확정을 다시 읽어도 예약이 잡은 재고는 한 번만 줄어 있다 (0.204s)
