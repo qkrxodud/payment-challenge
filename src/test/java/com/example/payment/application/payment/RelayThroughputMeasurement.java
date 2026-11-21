@@ -76,7 +76,8 @@ class RelayThroughputMeasurement {
     @BeforeEach
     void startOtherServer() {
         if (Objects.isNull(otherServer)) {
-            otherServer = OtherPaymentServer.start(mysql, mockPg, List.of(), SkipLockedOutboxRelay.class);
+            // 11장: 결제 이벤트 토픽은 컨텍스트마다 이름이 달라(OrderServer) 다른 서버에도 같은 토픽을 넘긴다
+            otherServer = OtherPaymentServer.start(mysql, mockPg, List.of("payment.events.topic=" + orderServer.topic()), SkipLockedOutboxRelay.class);
         }
     }
 

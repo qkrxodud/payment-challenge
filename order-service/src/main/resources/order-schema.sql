@@ -10,7 +10,9 @@ create table if not exists orders (
     unique key uk_orders_order_id (order_id)
 );
 
--- 9장: 받은 결제 이벤트 한 건마다 한 줄. 같은 이벤트가 다시 와도 한 줄 더 남는다(중복을 셀 수 있게, 가리는 일은 11장)
+-- 9장: 받은 결제 이벤트 한 건마다 한 줄.
+-- 11장 결정 1: 고유 번호(event_id, 결제 서버 payment_outbox 번호)는 두 번 오를 수 없다 — 같은 이벤트가 다시 오면 남지 않고 주문도 바꾸지 않는다.
+-- 9장에 만든 표에는 같은 번호 줄이 이미 있을 수 있어, 그 줄을 지운 뒤에 고유 키를 더해야 한다(시험은 새 스키마로 만든다)
 create table if not exists received_payment_event (
     id             bigint      not null auto_increment,
     event_id       varchar(64) not null,
@@ -21,5 +23,6 @@ create table if not exists received_payment_event (
     offset_no      bigint      not null,
     received_at    datetime(6) not null,
     primary key (id),
+    unique key uk_received_payment_event_event_id (event_id),
     key idx_received_payment_event_order_id (order_id, id)
 );

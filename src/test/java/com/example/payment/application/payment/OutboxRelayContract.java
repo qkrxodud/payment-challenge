@@ -103,7 +103,8 @@ abstract class OutboxRelayContract {
     @BeforeEach
     void startOtherServer() {
         if (Objects.isNull(otherServer)) {
-            otherServer = OtherPaymentServer.start(mysql, mockPg, List.of(), serverComponents());
+            // 11장: 결제 이벤트 토픽은 컨텍스트마다 이름이 달라(OrderServer) 다른 서버에도 같은 토픽을 넘긴다
+            otherServer = OtherPaymentServer.start(mysql, mockPg, List.of("payment.events.topic=" + orderServer.topic()), serverComponents());
         }
         KafkaBroker.link().restore();
         SendFaults.clear();
@@ -204,8 +205,8 @@ abstract class OutboxRelayContract {
         String orderId = relayDiedOnceThenRanAgain();
 
         await().pollDelay(Duration.ofSeconds(1)).atMost(ARRIVAL)
-                .until(() -> orderServer.receivedEventIds(orderId).size() >= 2);
-        assertThat(orderServer.receivedEventIds(orderId)).hasSize(2).containsOnly(orderServer.receivedEventIds(orderId).get(0));
+                .until(() -> orderServer.sentEventIds(orderId).size() >= 2);
+        assertThat(orderServer.sentEventIds(orderId)).hasSize(2).containsOnly(orderServer.sentEventIds(orderId).get(0));
     }
 
     // 승인된 결제의 결과를 릴레이가 처리하던 중 죽고(그 주기가 실패로 끝남), 되살아나 한 주기를 더 돈다
@@ -246,8 +247,9 @@ abstract class OutboxRelayContract {
     }
 
     // 이 주문에 대해 주문 서비스가 받은 이벤트의 고유 번호(남긴 결과의 번호)를 받은 순서대로
+    // 11장: 결제 서버가 토픽에 실은 순서대로(주문 서비스는 11장 결정 1부터 같은 번호를 한 번만 남겨, 보낸 것은 토픽에서 본다)
     List<Long> eventNumbersOf(String orderId) {
-        return orderServer.receivedEventIds(orderId).stream().map(Long::valueOf).toList();
+        return orderServer.sentEventIds(orderId).stream().map(Long::valueOf).toList();
     }
 
     String approvedOrder() {

@@ -25,3 +25,16 @@ create table if not exists stock_reservation_item (
     primary key (id),
     key idx_stock_reservation_item_reservation_id (reservation_id)
 );
+
+-- 11장 결정 1: 처리한 재고 명령 한 건마다 한 줄. 명령 번호(command_id, 결제 서버 payment_outbox 번호)는 두 번 오를 수 없다 —
+-- 예약을 바꾼 그 트랜잭션에서 남겨, 같은 번호가 다시 오면 아무것도 바꾸지 않는다
+create table if not exists processed_stock_command (
+    id             bigint      not null auto_increment,
+    command_id     varchar(64) not null,
+    reservation_id bigint      not null,
+    -- CONFIRM(확정), RELEASE(해제)
+    command        varchar(20) not null,
+    processed_at   datetime(6) not null,
+    primary key (id),
+    unique key uk_processed_stock_command_command_id (command_id)
+);

@@ -23,7 +23,7 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 
 /**
  * 11장: 실패 모음 토픽(<토픽>.DLT)에 지금까지 남은 메시지를 처음부터 끝까지 읽는다(소비자 그룹 없이 — 받는 쪽의 읽은 자리를 건드리지 않는다).
- * 토픽이 아직 없으면(실패 모음을 두지 않은 구현) 비어 있다.
+ * 토픽이 아직 없으면(실패 모음을 두지 않은 구현) 비어 있다. 다른 토픽(결제 이벤트 토픽 등)에 실린 것을 그대로 읽을 때도 쓴다(records).
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class DeadLetterTopic {
@@ -33,7 +33,14 @@ public class DeadLetterTopic {
     }
 
     public static List<DeadLetter> read(String deadLetterTopic) {
-        List<TopicPartition> partitions = partitionsOf(deadLetterTopic);
+        return records(deadLetterTopic).stream()
+                .map(DeadLetterTopic::toLetter)
+                .toList();
+    }
+
+    // 11장: 이 토픽에 지금까지 실린 메시지를 처음부터 끝까지(파티션마다 실린 순서). 토픽이 없으면 비어 있다
+    public static List<ConsumerRecord<String, String>> records(String topic) {
+        List<TopicPartition> partitions = partitionsOf(topic);
         if (partitions.isEmpty()) {
             return List.of();
         }
@@ -45,11 +52,11 @@ public class DeadLetterTopic {
             consumer.assign(partitions);
             consumer.seekToBeginning(partitions);
             Map<TopicPartition, Long> ends = consumer.endOffsets(partitions);
-            List<DeadLetter> letters = new ArrayList<>();
+            List<ConsumerRecord<String, String>> records = new ArrayList<>();
             while (isBehind(consumer, ends)) {
-                consumer.poll(Duration.ofMillis(200)).forEach(record -> letters.add(toLetter(record)));
+                consumer.poll(Duration.ofMillis(200)).forEach(records::add);
             }
-            return letters;
+            return records;
         }
     }
 

@@ -94,6 +94,21 @@ public class OrderServer {
         return topic;
     }
 
+    // 11장: 결제 서버가 이 주문에 대해 토픽에 실은 이벤트의 고유 번호를 실린 순서대로(주문 서비스가 받아 남긴 것이 아니라 토픽 자체 — 11장 결정 1부터
+    // 주문 서비스는 같은 번호를 한 번만 남겨, 결제 서버가 같은 이벤트를 다시 보냈는지는 토픽에서 본다)
+    public List<String> sentEventIds(String orderId) {
+        String quoted = "\"orderId\":\"" + orderId + "\"";
+        return DeadLetterTopic.records(topic).stream()
+                .filter(record -> Objects.nonNull(record.value()) && record.value().contains(quoted))
+                .map(record -> eventIdOf(record.value()))
+                .toList();
+    }
+
+    private static String eventIdOf(String body) {
+        int start = body.indexOf("\"eventId\":\"") + "\"eventId\":\"".length();
+        return body.substring(start, body.indexOf('"', start));
+    }
+
     // 11장: 주문 서비스가 결제 이벤트 토픽을 다 읽어 처리할 때까지 기다린다(소비자 그룹이 커밋한 자리가 토픽 끝에 닿을 때까지)
     public void awaitCaughtUp(Duration atMost) {
         TopicLag.awaitCaughtUp(groupId, List.of(topic), atMost);
