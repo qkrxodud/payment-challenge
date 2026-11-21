@@ -207,6 +207,14 @@ public class OrderServer {
                 .orElse(null);
     }
 
+    // 11장 측정: 이 주문의 결제 결과를 처음 받아 남긴 때. 받지 않았으면 비어 있다
+    public Instant receivedAtOf(String orderId) {
+        return orders.query("select received_at from received_payment_event where order_id = ? order by id limit 1",
+                (row, number) -> row.getTimestamp("received_at").toInstant(), orderId).stream()
+                .findFirst()
+                .orElse(null);
+    }
+
     // 11장: 이 주문에 대해 받은 결제 결과의 수(같은 이벤트가 다시 와 남은 줄도 센다)
     public int receivedCount(String orderId) {
         Integer count = orders.queryForObject("select count(*) from received_payment_event where order_id = ?", Integer.class,

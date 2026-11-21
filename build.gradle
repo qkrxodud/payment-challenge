@@ -94,9 +94,11 @@ tasks.named('test') {
 	useJUnitPlatform {
 		// 계약을 지키지 못하는 비교 구현은 기본 빌드에서 빼고 knownFailingTest 로 따로 돌린다.
 		// 4장 측정은 reconciliationMeasurement, 5장 측정은 cancelMeasurement, 6장 측정은 webhookMeasurement,
-		// 7장 측정은 concurrencyMeasurement, 8장 측정은 stockMeasurement, 9장 측정은 outboxMeasurement, 10장 측정은 sagaMeasurement 로 따로 돌린다
+		// 7장 측정은 concurrencyMeasurement, 8장 측정은 stockMeasurement, 9장 측정은 outboxMeasurement, 10장 측정은 sagaMeasurement,
+		// 11장 측정은 consumerMeasurement 로 따로 돌린다
 		excludeTags 'known-failing', 'measurement', 'cancel-measurement', 'webhook-measurement', 'concurrency-measurement',
-				'jpa-version', 'jpa-version-measurement', 'stock-measurement', 'outbox-measurement', 'saga-measurement'
+				'jpa-version', 'jpa-version-measurement', 'stock-measurement', 'outbox-measurement', 'saga-measurement',
+				'consumer-measurement'
 	}
 	// 4장부터: 테스트는 보정을 직접 부른다. 주기 보정이 테스트 도중 끼어들지 않게 끈다
 	systemProperty 'payment.reconciliation.enabled', 'false'
@@ -270,6 +272,23 @@ tasks.register('sagaMeasurement', Test) {
 	outputs.upToDateWhen { false }
 	doFirst {
 		delete layout.buildDirectory.file('measurement/ch10-saga.txt')
+	}
+}
+
+tasks.register('consumerMeasurement', Test) {
+	description = '11장: 주문 서비스(결제 결과 소비자)의 저장소를 10초·30초 막는 동안 방식마다 잃은 결과·실패 모음·반영 지연을 세고, 실패한 결과 하나가 같은 파티션을 막는 시간을 남긴다'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'consumer-measurement'
+	}
+	systemProperty 'payment.reconciliation.enabled', 'false'
+	systemProperty 'payment.webhook.enabled', 'false'
+	systemProperty 'payment.outbox.enabled', 'false'
+	outputs.upToDateWhen { false }
+	doFirst {
+		delete layout.buildDirectory.file('measurement/ch11-consumer.txt')
 	}
 }
 
