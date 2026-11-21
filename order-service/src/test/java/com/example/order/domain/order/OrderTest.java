@@ -3,6 +3,7 @@ package com.example.order.domain.order;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.example.order.domain.error.exception.UnknownPaymentStatusException;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -35,8 +36,8 @@ class OrderTest {
         @Test
         @DisplayName("모르는 결제 상태는 결제 결과로 받지 않는다")
         void unknownPaymentStatusIsRefused() {
-            assertThatThrownBy(() -> PaymentOutcome.valueOf("AUTHENTICATED"))
-                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> PaymentOutcome.from("AUTHENTICATED", "1"))
+                    .isInstanceOf(UnknownPaymentStatusException.class);
         }
     }
 

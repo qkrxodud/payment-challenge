@@ -16,6 +16,10 @@ public enum ErrorCode {
     OUT_OF_STOCK(ErrorType.CONFLICT, "A product is out of stock."),
     // 10장 결정 3: 이 예약 번호는 이미 해제됐다(해제가 예약보다 먼저 도착함). 재고를 잡지 않는다
     RESERVATION_RELEASED(ErrorType.CONFLICT, "This reservation was already released."),
+    // 11장 결정 3: 확정도 해제도 아닌 재고 명령(Kafka 로만 받는다 — HTTP 응답으로 나가지 않는다)
+    UNKNOWN_STOCK_COMMAND(ErrorType.INVALID_INPUT, "This stock command is not known."),
+    // 11장 결정 3: 명령 번호·예약 번호가 없거나 명령 번호가 숫자가 아닌 재고 명령
+    INVALID_STOCK_COMMAND(ErrorType.INVALID_INPUT, "This stock command could not be read."),
     // 10장: 이 번호의 예약이 없다
     RESERVATION_NOT_FOUND(ErrorType.NOT_FOUND, "No reservation was found."),
     INTERNAL_ERROR(ErrorType.INTERNAL, "Something went wrong on the server.");

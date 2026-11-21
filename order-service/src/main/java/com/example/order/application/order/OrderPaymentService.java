@@ -31,10 +31,13 @@ public class OrderPaymentService {
     @Transactional
     public void apply(PaymentEventCommand command) {
         Instant now = clock.instant();
-        PaymentOutcome outcome = PaymentOutcome.valueOf(command.paymentStatus());
+        // 11장 결정 3: 영구 오류(모르는 상태, 빠진 값)는 기록을 남기기 전에 알린다 — 다시 시도하지 않는다
+        PaymentOutcome outcome = PaymentOutcome.from(command.paymentStatus(), command.eventId());
+        long eventNumber = command.eventNumber();
+        command.requireComplete();
         if (receivedPaymentEventRepository.claim(ReceivedPaymentEvent.of(command.eventId(), command.orderId(),
                 command.paymentStatus(), command.occurredAt(), command.partition(), command.offset(), now))) {
-            follow(command.orderId(), outcome, command.eventNumber(), now);
+            follow(command.orderId(), outcome, eventNumber, now);
         }
     }
 

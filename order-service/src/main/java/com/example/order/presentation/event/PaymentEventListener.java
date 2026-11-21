@@ -11,7 +11,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * 9장: 결제 이벤트 토픽을 읽는다. 파티션마다 따로 읽는다(order.listener 의 concurrency — 파티션 수만큼).
- * 처리에 실패하면 Spring Kafka 기본 처리(바로 다시 시도, 10번째에 로그를 남기고 넘어감)를 그대로 둔다 — 재시도·실패 모음은 11장.
+ * 11장 결정 3: 처리에 실패하면 같은 자리에서 간격을 늘려 다시 시도하고, 읽을 수 없는 본문·모르는 상태 같은 영구 오류는 다시 시도하지 않는다
+ * (KafkaConsumerConfig). 9·10장은 Spring Kafka 기본 처리(바로 다시 시도, 10번째에 로그를 남기고 넘어감)였다.
  */
 @Component
 @RequiredArgsConstructor
