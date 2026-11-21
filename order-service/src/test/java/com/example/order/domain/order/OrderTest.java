@@ -29,7 +29,7 @@ class OrderTest {
                 "CAPTURE_CANCELED, CANCELED"
         })
         void outcomeDecidesOrderStatus(PaymentOutcome outcome, OrderStatus expected) {
-            assertThat(Order.paidWith("order-1", outcome, NOW).getStatus()).isEqualTo(expected);
+            assertThat(Order.paidWith("order-1", outcome, 1L, NOW).getStatus()).isEqualTo(expected);
         }
 
         @Test
@@ -47,29 +47,53 @@ class OrderTest {
         @Test
         @DisplayName("결제 완료 주문에 취소가 오면 주문은 취소 상태가 된다")
         void canceledAfterPaid() {
-            Order order = Order.paidWith("order-1", PaymentOutcome.APPROVED, NOW);
+            Order order = Order.paidWith("order-1", PaymentOutcome.APPROVED, 1L, NOW);
 
-            order.follow(PaymentOutcome.APPROVAL_CANCELED, NOW.plusSeconds(1));
+            order.follow(PaymentOutcome.APPROVAL_CANCELED, 2L, NOW.plusSeconds(1));
 
             assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELED);
         }
 
         @Test
-        @DisplayName("취소된 주문에 늦게 온 승인이 오면 주문은 다시 결제 완료가 된다 — 옛 결과인지 가리지 않는다")
-        void lateApprovalWinsOverCancel() {
-            Order order = Order.paidWith("order-1", PaymentOutcome.APPROVAL_CANCELED, NOW);
+        @DisplayName("마지막으로 반영한 결과보다 먼저 만든 결과는 옛 결과로 본다")
+        void earlierResultIsOld() {
+            Order order = Order.paidWith("order-1", PaymentOutcome.APPROVAL_CANCELED, 2L, NOW);
 
-            order.follow(PaymentOutcome.APPROVED, NOW.plusSeconds(1));
+            assertThat(order.isAfterLastApplied(1L)).isFalse();
+        }
 
-            assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
+        @Test
+        @DisplayName("마지막으로 반영한 결과 그 자체도 새 결과로 보지 않는다")
+        void sameResultIsNotNewer() {
+            Order order = Order.paidWith("order-1", PaymentOutcome.APPROVED, 2L, NOW);
+
+            assertThat(order.isAfterLastApplied(2L)).isFalse();
+        }
+
+        @Test
+        @DisplayName("마지막으로 반영한 결과보다 뒤에 만든 결과는 새 결과다")
+        void laterResultIsNewer() {
+            Order order = Order.paidWith("order-1", PaymentOutcome.APPROVED, 2L, NOW);
+
+            assertThat(order.isAfterLastApplied(3L)).isTrue();
+        }
+
+        @Test
+        @DisplayName("결과를 따르면 그 결과를 마지막으로 반영한 결과로 기억한다")
+        void followRemembersEvent() {
+            Order order = Order.paidWith("order-1", PaymentOutcome.APPROVED, 2L, NOW);
+
+            order.follow(PaymentOutcome.APPROVAL_CANCELED, 5L, NOW.plusSeconds(1));
+
+            assertThat(order.isAfterLastApplied(5L)).isFalse();
         }
 
         @Test
         @DisplayName("주문은 마지막으로 받은 결제 결과를 기억한다")
         void remembersLastPaymentOutcome() {
-            Order order = Order.paidWith("order-1", PaymentOutcome.APPROVED, NOW);
+            Order order = Order.paidWith("order-1", PaymentOutcome.APPROVED, 1L, NOW);
 
-            order.follow(PaymentOutcome.APPROVAL_CANCELED, NOW.plusSeconds(1));
+            order.follow(PaymentOutcome.APPROVAL_CANCELED, 2L, NOW.plusSeconds(1));
 
             assertThat(order.getPaymentStatus()).isEqualTo(PaymentOutcome.APPROVAL_CANCELED);
         }

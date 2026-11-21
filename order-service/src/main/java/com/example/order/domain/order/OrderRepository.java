@@ -6,5 +6,6 @@ public interface OrderRepository {
 
     Order save(Order order);
 
-    Optional<Order> findByOrderId(String orderId);
+    // 11장 결정 2: 주문 줄을 잠그고 읽는다
+    Optional<Order> findByOrderIdForUpdate(String orderId);
 }

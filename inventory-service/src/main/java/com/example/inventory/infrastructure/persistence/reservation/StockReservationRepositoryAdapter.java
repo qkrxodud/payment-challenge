@@ -28,8 +28,9 @@ public class StockReservationRepositoryAdapter implements StockReservationReposi
     @Override
     public boolean claim(StockReservation reservation) {
         LocalDateTime now = utc(reservation.getUpdatedAt());
-        int inserted = jdbcTemplate.update("insert ignore into stock_reservation (reservation_id, status, created_at, updated_at) "
-                + "values (?, ?, ?, ?)", reservation.getReservationId(), reservation.getStatus().name(), now, now);
+        int inserted = jdbcTemplate.update("insert ignore into stock_reservation "
+                        + "(reservation_id, status, last_command_id, created_at, updated_at) values (?, ?, ?, ?, ?)",
+                reservation.getReservationId(), reservation.getStatus().name(), reservation.getLastCommandId(), now, now);
         if (inserted == 0) {
             return false;
         }
@@ -41,25 +42,26 @@ public class StockReservationRepositoryAdapter implements StockReservationReposi
 
     @Override
     public Optional<StockReservation> findForUpdate(Long reservationId) {
-        return find("select reservation_id, status, updated_at from stock_reservation where reservation_id = ? for update",
-                reservationId);
+        return find("select reservation_id, status, last_command_id, updated_at from stock_reservation "
+                + "where reservation_id = ? for update", reservationId);
     }
 
     @Override
     public Optional<StockReservation> findById(Long reservationId) {
-        return find("select reservation_id, status, updated_at from stock_reservation where reservation_id = ?", reservationId);
+        return find("select reservation_id, status, last_command_id, updated_at from stock_reservation where reservation_id = ?",
+                reservationId);
     }
 
     // 예약 줄을 다 읽은 뒤에 담긴 상품을 읽는다. 줄을 읽는 도중(행 매퍼 안)에 상품을 읽으면 트랜잭션 밖의 조회는 연결을 하나 더 쥐어,
     // 조회가 몰리면 연결 풀이 바닥나 서로 기다린다(10장 결정 4 조회 비교의 몰림 시험에서 실행으로 봄)
     private Optional<StockReservation> find(String sql, Long reservationId) {
         List<StockReservation> found = jdbcTemplate.query(sql, (row, number) -> StockReservation.of(reservationId, List.of(),
-                ReservationStatus.valueOf(row.getString("status")),
+                ReservationStatus.valueOf(row.getString("status")), row.getObject("last_command_id", Long.class),
                 row.getObject("updated_at", LocalDateTime.class).toInstant(ZoneOffset.UTC)), reservationId);
         return found.stream()
                 .findFirst()
                 .map(reservation -> StockReservation.of(reservationId, itemsOf(reservationId), reservation.getStatus(),
-                        reservation.getUpdatedAt()));
+                        reservation.getLastCommandId(), reservation.getUpdatedAt()));
     }
 
     private List<StockLine> itemsOf(Long reservationId) {
@@ -69,8 +71,9 @@ public class StockReservationRepositoryAdapter implements StockReservationReposi
 
     @Override
     public void updateStatus(StockReservation reservation) {
-        jdbcTemplate.update("update stock_reservation set status = ?, updated_at = ? where reservation_id = ?",
-                reservation.getStatus().name(), utc(reservation.getUpdatedAt()), reservation.getReservationId());
+        jdbcTemplate.update("update stock_reservation set status = ?, last_command_id = ?, updated_at = ? where reservation_id = ?",
+                reservation.getStatus().name(), reservation.getLastCommandId(), utc(reservation.getUpdatedAt()),
+                reservation.getReservationId());
     }
 
     private static LocalDateTime utc(Instant instant) {

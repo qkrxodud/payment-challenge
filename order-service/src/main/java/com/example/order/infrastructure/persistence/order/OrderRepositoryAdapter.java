@@ -18,7 +18,7 @@ public class OrderRepositoryAdapter implements OrderRepository {
     }
 
     @Override
-    public Optional<Order> findByOrderId(String orderId) {
-        return springDataOrderRepository.findByOrderId(orderId);
+    public Optional<Order> findByOrderIdForUpdate(String orderId) {
+        return springDataOrderRepository.findForUpdateByOrderId(orderId);
     }
 }

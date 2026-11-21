@@ -47,25 +47,28 @@ public class ReservationRecorder {
         throw new OutOfStockException(line.getProductId());
     }
 
-    // 잡아 둔 예약을 확정한다. 이미 확정·해제됐거나 없는 예약이면 아무것도 바꾸지 않는다
+    // 잡아 둔 예약을 확정한다. 이미 확정·해제됐거나 없는 예약이면 아무것도 바꾸지 않는다.
+    // 11장 결정 2: 이 예약에 마지막으로 반영한 명령보다 먼저 만든 명령(commandId 가 더 작음)이면 아무것도 바꾸지 않는다
     @Transactional
-    public void confirm(Long reservationId) {
+    public void confirm(Long reservationId, long commandId) {
         Instant now = clock.instant();
         stockReservationRepository.findForUpdate(reservationId)
-                .filter(reservation -> reservation.confirm(now))
+                .filter(reservation -> reservation.isAfterLastCommand(commandId))
+                .filter(reservation -> reservation.confirm(commandId, now))
                 .ifPresent(stockReservationRepository::updateStatus);
     }
 
     // 예약을 해제하고 잡은 재고를 돌려준다. 예약이 아직 없으면 해제된 줄을 먼저 남긴다(늦게 온 예약을 막는다).
-    // 이미 해제된 예약이면 아무것도 바꾸지 않는다
+    // 이미 해제된 예약이거나, 마지막으로 반영한 명령보다 먼저 만든 명령이면(11장 결정 2) 아무것도 바꾸지 않는다
     @Transactional
-    public void release(Long reservationId) {
+    public void release(Long reservationId, long commandId) {
         Instant now = clock.instant();
-        if (stockReservationRepository.claim(StockReservation.releasedBeforeReserved(reservationId, now))) {
+        if (stockReservationRepository.claim(StockReservation.releasedBeforeReserved(reservationId, commandId, now))) {
             return;
         }
         stockReservationRepository.findForUpdate(reservationId)
-                .filter(reservation -> reservation.release(now))
+                .filter(reservation -> reservation.isAfterLastCommand(commandId))
+                .filter(reservation -> reservation.release(commandId, now))
                 .ifPresent(this::returnStock);
     }
 

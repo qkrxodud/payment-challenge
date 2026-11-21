@@ -39,9 +39,16 @@ public class NoDedupOrderPaymentService extends OrderPaymentService {
         Instant now = clock.instant();
         PaymentOutcome outcome = PaymentOutcome.valueOf(command.paymentStatus());
         record(jdbcTemplate, command, now);
-        orders.findByOrderId(command.orderId())
-                .ifPresentOrElse(order -> order.follow(outcome, now),
-                        () -> orders.save(Order.paidWith(command.orderId(), outcome, now)));
+        orders.findByOrderIdForUpdate(command.orderId())
+                .ifPresentOrElse(order -> followIfNewer(order, outcome, command.eventNumber(), now),
+                        () -> orders.save(Order.paidWith(command.orderId(), outcome, command.eventNumber(), now)));
+    }
+
+    // 결정 2(번호로 옛 결과 거르기)는 그대로 둔다
+    private static void followIfNewer(Order order, PaymentOutcome outcome, long eventId, Instant now) {
+        if (order.isAfterLastApplied(eventId)) {
+            order.follow(outcome, eventId, now);
+        }
     }
 
     // 받은 이벤트를 가리지 않고 한 줄 남긴다

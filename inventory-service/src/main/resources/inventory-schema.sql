@@ -11,6 +11,9 @@ create table if not exists stock (
 create table if not exists stock_reservation (
     reservation_id bigint      not null,
     status         varchar(20) not null,
+    -- 11장 결정 2: 마지막으로 반영한 재고 명령의 번호(결제 서버 payment_outbox 번호). 이보다 번호가 크지 않은 명령은 반영하지 않는다.
+    -- HTTP 로 잡은 예약은 아직 비어 있다
+    last_command_id bigint     null,
     created_at     datetime(6) not null,
     updated_at     datetime(6) not null,
     primary key (reservation_id)

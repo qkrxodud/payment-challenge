@@ -22,7 +22,7 @@ class StockReservationTest {
     void reservedIsConfirmed() {
         StockReservation reservation = reserved();
 
-        reservation.confirm(NOW);
+        reservation.confirm(1L, NOW);
 
         assertThat(reservation.getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
     }
@@ -31,18 +31,18 @@ class StockReservationTest {
     @DisplayName("이미 확정된 예약에 다시 온 확정은 아무것도 바꾸지 않는다")
     void repeatedConfirmChangesNothing() {
         StockReservation reservation = reserved();
-        reservation.confirm(NOW);
+        reservation.confirm(2L, NOW);
 
-        assertThat(reservation.confirm(NOW.plusSeconds(1))).isFalse();
+        assertThat(reservation.confirm(3L, NOW.plusSeconds(1))).isFalse();
     }
 
     @Test
     @DisplayName("해제된 예약에 늦게 온 확정은 예약을 되살리지 않는다")
     void confirmAfterReleaseKeepsReleased() {
         StockReservation reservation = reserved();
-        reservation.release(NOW);
+        reservation.release(6L, NOW);
 
-        reservation.confirm(NOW.plusSeconds(1));
+        reservation.confirm(4L, NOW.plusSeconds(1));
 
         assertThat(reservation.getStatus()).isEqualTo(ReservationStatus.RELEASED);
     }
@@ -50,32 +50,56 @@ class StockReservationTest {
     @Test
     @DisplayName("잡아 둔 예약을 해제하면 잡은 재고를 돌려줄 때다")
     void releasingReservedReturnsStock() {
-        assertThat(reserved().release(NOW)).isTrue();
+        assertThat(reserved().release(7L, NOW)).isTrue();
     }
 
     @Test
     @DisplayName("확정된 예약도 결제가 취소되면 해제되고 잡은 재고를 돌려줄 때다")
     void releasingConfirmedReturnsStock() {
         StockReservation reservation = reserved();
-        reservation.confirm(NOW);
+        reservation.confirm(5L, NOW);
 
-        assertThat(reservation.release(NOW.plusSeconds(1))).isTrue();
+        assertThat(reservation.release(8L, NOW.plusSeconds(1))).isTrue();
     }
 
     @Test
     @DisplayName("이미 해제된 예약에 다시 온 해제는 재고를 다시 돌려주지 않는다")
     void repeatedReleaseReturnsNothing() {
         StockReservation reservation = reserved();
-        reservation.release(NOW);
+        reservation.release(9L, NOW);
 
-        assertThat(reservation.release(NOW.plusSeconds(1))).isFalse();
+        assertThat(reservation.release(10L, NOW.plusSeconds(1))).isFalse();
     }
 
     @Test
     @DisplayName("예약보다 먼저 온 해제가 남긴 줄은 잡은 재고 없이 해제된 상태다")
     void releaseBeforeReservationHoldsNothing() {
-        StockReservation released = StockReservation.releasedBeforeReserved(1L, NOW);
+        StockReservation released = StockReservation.releasedBeforeReserved(1L, 1L, NOW);
 
         assertThat(List.of(released.isReleased(), released.getItems().isEmpty())).containsExactly(true, true);
+    }
+
+    @Test
+    @DisplayName("아직 명령을 받지 않은 예약에는 어느 명령이든 새 명령이다")
+    void anyCommandIsNewForFreshReservation() {
+        assertThat(reserved().isAfterLastCommand(1L)).isTrue();
+    }
+
+    @Test
+    @DisplayName("마지막으로 반영한 명령보다 먼저 만든 명령은 옛 명령이다")
+    void earlierCommandIsOld() {
+        StockReservation reservation = reserved();
+        reservation.release(20L, NOW);
+
+        assertThat(reservation.isAfterLastCommand(10L)).isFalse();
+    }
+
+    @Test
+    @DisplayName("마지막으로 반영한 명령보다 뒤에 만든 명령은 새 명령이다")
+    void laterCommandIsNew() {
+        StockReservation reservation = reserved();
+        reservation.confirm(10L, NOW);
+
+        assertThat(reservation.isAfterLastCommand(20L)).isTrue();
     }
 }

@@ -45,14 +45,15 @@ public class TransitionOnlyOrderPaymentService extends OrderPaymentService {
         Instant now = clock.instant();
         PaymentOutcome outcome = PaymentOutcome.valueOf(command.paymentStatus());
         NoDedupOrderPaymentService.record(jdbcTemplate, command, now);
-        orders.findByOrderId(command.orderId())
-                .ifPresentOrElse(order -> followIfAllowed(order, outcome, now),
-                        () -> orders.save(Order.paidWith(command.orderId(), outcome, now)));
+        orders.findByOrderIdForUpdate(command.orderId())
+                .ifPresentOrElse(order -> followIfAllowed(order, outcome, command.eventNumber(), now),
+                        () -> orders.save(Order.paidWith(command.orderId(), outcome, command.eventNumber(), now)));
     }
 
-    private static void followIfAllowed(Order order, PaymentOutcome outcome, Instant now) {
-        if (NEXT.getOrDefault(order.getPaymentStatus(), Set.of()).contains(outcome)) {
-            order.follow(outcome, now);
+    // 결정 2(번호로 옛 결과 거르기)는 그대로 두고, 그 위에 갈 수 있는 방향인지 본다
+    private static void followIfAllowed(Order order, PaymentOutcome outcome, long eventId, Instant now) {
+        if (order.isAfterLastApplied(eventId) && NEXT.getOrDefault(order.getPaymentStatus(), Set.of()).contains(outcome)) {
+            order.follow(outcome, eventId, now);
         }
     }
 }

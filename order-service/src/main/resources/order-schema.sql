@@ -5,6 +5,8 @@ create table if not exists orders (
     -- PAID(결제 완료), PAYMENT_FAILED(결제 실패), CANCELED(결제 취소)
     status         varchar(30) not null,
     payment_status varchar(30) not null,
+    -- 11장 결정 2: 마지막으로 반영한 결제 이벤트의 고유 번호(결제 서버 payment_outbox 번호). 이보다 번호가 크지 않은 이벤트는 반영하지 않는다
+    last_event_id  bigint      not null default 0,
     updated_at     datetime(6) not null,
     primary key (id),
     unique key uk_orders_order_id (order_id)
