@@ -15,9 +15,12 @@ import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
 import com.example.payment.application.payment.dto.PreparePaymentCommand;
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.Optional;
@@ -161,7 +164,7 @@ abstract class OperationalSignalsContract {
     void oldestUnsentAgeIsShown() {
         String orderId = approved();
         jdbcTemplate.update("update payment_outbox set occurred_at = ? where order_id = ?",
-                java.sql.Timestamp.from(Instant.now().minus(1, ChronoUnit.DAYS)), orderId);
+                utc(Instant.now().minus(1, ChronoUnit.DAYS)), orderId);
 
         assertThat(paymentMeter("payment.outbox.oldest-unsent-age")).hasValueSatisfying(age ->
                 assertThat(age).isBetween(86_400.0, 86_460.0));
@@ -208,7 +211,7 @@ abstract class OperationalSignalsContract {
     void unsentResultIsKept() {
         String orderId = approved();
         jdbcTemplate.update("update payment_outbox set occurred_at = ? where order_id = ?",
-                java.sql.Timestamp.from(Instant.now().minus(30, ChronoUnit.DAYS)), orderId);
+                utc(Instant.now().minus(30, ChronoUnit.DAYS)), orderId);
 
         cleanUpPayments(Instant.now());
 
@@ -258,8 +261,8 @@ abstract class OperationalSignalsContract {
         long reservationId = reserved();
         sendCommand(reservationId, "CONFIRM");
         await().atMost(ARRIVAL).until(() -> "CONFIRMED".equals(inventory.reservationStatusOf(reservationId)));
-        inventory.execute("update processed_stock_command set processed_at = date_sub(now(6), interval 15 day) "
-                + "where reservation_id = " + reservationId);
+        inventory.execute("update processed_stock_command set processed_at = '" + utc(Instant.now().minus(15, ChronoUnit.DAYS))
+                + "' where reservation_id = " + reservationId);
 
         cleanUpInventory(Instant.now());
 
@@ -274,8 +277,14 @@ abstract class OperationalSignalsContract {
         return orderId;
     }
 
+    // 보낸 때는 릴레이가 JDBC 로 이 서버 시간대 시각을 남긴다(PaymentOutboxRepositoryAdapter.markSent 와 같게)
     void markSent(String orderId, Instant sentAt) {
-        jdbcTemplate.update("update payment_outbox set sent_at = ? where order_id = ?", java.sql.Timestamp.from(sentAt), orderId);
+        jdbcTemplate.update("update payment_outbox set sent_at = ? where order_id = ?", Timestamp.from(sentAt), orderId);
+    }
+
+    // 결제 결과를 남긴 때(occurred_at)와 재고 서비스가 명령을 처리한 때는 UTC 시각으로 남는다(JPA, 재고 서비스 JDBC)
+    static LocalDateTime utc(Instant instant) {
+        return LocalDateTime.ofInstant(instant, ZoneOffset.UTC);
     }
 
     int outboxCountOf(String orderId) {
@@ -295,9 +304,10 @@ abstract class OperationalSignalsContract {
         return orderId;
     }
 
+    // 주문 서비스는 받은 때를 JDBC 로 그 서버 시간대 시각으로 남긴다(시험 JVM 과 같은 시간대)
     void ageReceived(String orderId, int days) {
-        orderServer.execute("update received_payment_event set received_at = date_sub(now(6), interval " + days + " day) "
-                + "where order_id = '" + orderId + "'");
+        orderServer.execute("update received_payment_event set received_at = '"
+                + Timestamp.from(Instant.now().minus(days, ChronoUnit.DAYS)) + "' where order_id = '" + orderId + "'");
     }
 
     // 주문 서비스가 쓰지 못해 다시 시도를 다 쓰고 실패 모음에 남은 승인 결과의 주문

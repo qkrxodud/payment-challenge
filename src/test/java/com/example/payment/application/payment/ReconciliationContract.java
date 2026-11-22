@@ -72,6 +72,8 @@ abstract class ReconciliationContract {
         jdbcTemplate.update("delete from payment_cancel");
         // 8장부터 결제에 담긴 상품도 결제를 가리킨다
         jdbcTemplate.update("delete from payment_item");
+        // 12장부터 상태 이력도 결제를 가리킨다
+        jdbcTemplate.update("delete from payment_status_history");
         jdbcTemplate.update("delete from payment");
     }
 

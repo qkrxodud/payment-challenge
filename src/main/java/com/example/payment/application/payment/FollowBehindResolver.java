@@ -3,6 +3,7 @@ package com.example.payment.application.payment;
 import com.example.payment.domain.error.exception.PaymentGatewayFailedException;
 import com.example.payment.domain.error.exception.PaymentGatewayNoResponseException;
 import com.example.payment.domain.payment.PaymentGateway;
+import com.example.payment.domain.payment.StatusTrigger;
 import com.example.payment.domain.reconciliation.Mismatch;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +34,8 @@ public class FollowBehindResolver implements MismatchResolver {
 
     private Mismatch follow(Mismatch mismatch) {
         try {
-            paymentWebhookRecorder.follow(mismatch.getOrderId(), paymentGateway.findPayment(mismatch.getOrderId()));
+            paymentWebhookRecorder.follow(mismatch.getOrderId(), paymentGateway.findPayment(mismatch.getOrderId()),
+                    StatusTrigger.DAILY_RECONCILIATION);
             return mismatch.followed();
         } catch (PaymentGatewayNoResponseException | PaymentGatewayFailedException unanswered) {
             log.warn("Could not look up a payment behind the gateway ({}). It is left for review.",

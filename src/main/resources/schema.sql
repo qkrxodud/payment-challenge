@@ -167,3 +167,19 @@ create table if not exists reconciliation_result (
     unique key uk_reconciliation_result (business_date, payment_key, mismatch_type),
     key idx_reconciliation_result_resolution (resolution)
 );
+
+-- 12장 결정 3: 결제 상태가 바뀐 이력. 상태를 바꾼 그 트랜잭션에서 전이 한 번마다 한 줄 남긴다 — 상태가 커밋되면 이 줄도 남고, 되돌려지면 남지 않는다.
+-- 이전 상태·다음 상태·행위(허용 전이 표의 칸), 계기(changed_by: 승인 요청, 보정, 알림, 취소, 대사), 바뀐 때(서버 시각)
+create table if not exists payment_status_history (
+    id          bigint      not null auto_increment,
+    payment_id  bigint      not null,
+    from_status varchar(30) not null,
+    to_status   varchar(30) not null,
+    action      varchar(30) not null,
+    -- CONFIRM, APPROVAL_RECONCILIATION, WEBHOOK, CANCEL, CANCEL_RECONCILIATION, DAILY_RECONCILIATION
+    changed_by  varchar(30) not null,
+    changed_at  datetime(6) not null,
+    primary key (id),
+    key idx_payment_status_history_payment_id (payment_id, id),
+    constraint fk_payment_status_history_payment foreign key (payment_id) references payment (id)
+);

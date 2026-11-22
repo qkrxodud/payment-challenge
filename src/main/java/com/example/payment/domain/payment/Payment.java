@@ -17,6 +17,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -81,6 +82,11 @@ public class Payment {
     @OneToMany(mappedBy = "payment", cascade = CascadeType.ALL)
     @OrderBy("productId asc")
     private List<PaymentItem> items = new ArrayList<>();
+
+    // 12장 결정 3: 이 결제를 읽은 뒤 바뀐 상태 전이(바뀐 순서대로). 저장하지 않는다 — 상태를 바꾼 기록이 같은 트랜잭션에서 꺼내 이력으로 남긴다
+    @Getter(AccessLevel.NONE)
+    @Transient
+    private final List<StatusTransition> transitions = new ArrayList<>();
 
     @Builder(access = AccessLevel.PRIVATE)
     private Payment(String orderId, BigDecimal amount, PaymentStatus status, String memberId, Long couponId,
@@ -457,7 +463,16 @@ public class Payment {
         return Objects.isNull(amount) || amount.signum() <= 0;
     }
 
+    // 12장 결정 3: 바뀐 상태 전이를 꺼낸다. 꺼낸 전이는 다시 나오지 않는다
+    public List<StatusTransition> drainTransitions() {
+        List<StatusTransition> drained = List.copyOf(transitions);
+        transitions.clear();
+        return drained;
+    }
+
     private void changeStatus(PaymentAction action) {
+        PaymentStatus before = status;
         this.status = status.next(action);
+        transitions.add(StatusTransition.of(before, action, status));
     }
 }

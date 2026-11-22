@@ -9,6 +9,7 @@ import com.example.payment.domain.payment.Payment;
 import com.example.payment.domain.payment.PaymentApproval;
 import com.example.payment.domain.payment.PaymentRepository;
 import com.example.payment.domain.payment.PaymentStatus;
+import com.example.payment.domain.payment.StatusTrigger;
 import java.time.Clock;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
  * PaymentConfirmService 와 다른 빈으로 둔 이유: 같은 클래스 안에서 부르면 @Transactional 이 적용되지 않는다.
  * 7장부터 결제 줄을 잠그고 읽는다(결정 1). 같은 결제의 승인·알림 반영·보정 기록이 겹치면 나중 기록은 앞 기록이 끝날 때까지 기다렸다가
  * 앞 기록이 남긴 결제를 보고 판단한다. 카드사 호출은 이미 트랜잭션 밖이라(2장) 잠금은 기록하는 동안만 쥔다.
+ * 12장 결정 3부터 결제 상태를 바꾼 기록마다 같은 트랜잭션에서 상태 이력을 남긴다(계기: 승인 요청, 결과 모름 보정).
  */
 @Component
 @RequiredArgsConstructor
@@ -27,6 +29,7 @@ public class PaymentRecorder {
     private final PaymentRepository paymentRepository;
     private final PaymentHoldings paymentHoldings;
     private final PaymentEvents paymentEvents;
+    private final PaymentHistories paymentHistories;
     private final Clock clock;
 
     // 금액이 다르면 상태를 바꾸지 않고 거부한다. 같은 요청이 다시 왔으면 아무것도 바꾸지 않고 지금 결과를 돌려준다.
@@ -43,6 +46,7 @@ public class PaymentRecorder {
         }
         payment.authenticate(command.paymentKey(), clock.instant());
         paymentHoldings.hold(payment);
+        paymentHistories.record(payment, StatusTrigger.CONFIRM);
         return ConfirmAttempt.send(payment.getId(), payment.getOrderId(), payment.getAmount(), payment.getItems());
     }
 
@@ -59,6 +63,7 @@ public class PaymentRecorder {
         }
         paymentHoldings.settle(payment, before);
         paymentEvents.publishIfChanged(payment, before);
+        paymentHistories.record(payment, StatusTrigger.CONFIRM);
         return PaymentResult.from(payment);
     }
 
@@ -81,6 +86,7 @@ public class PaymentRecorder {
         }
         paymentHoldings.releaseUnreservedIfClosed(payment, before);
         paymentEvents.publishIfChanged(payment, before);
+        paymentHistories.record(payment, StatusTrigger.CONFIRM);
     }
 
     // 10장 결정 4: 재고 서비스의 답을 받지 못했다. 카드사에 승인을 요청하지 않았으니 승인 없이 실패로 닫고, 잡았을지 모르는 재고 예약을 해제하고
@@ -94,6 +100,7 @@ public class PaymentRecorder {
         }
         paymentHoldings.settle(payment, before);
         paymentEvents.publishIfChanged(payment, before);
+        paymentHistories.record(payment, StatusTrigger.CONFIRM);
     }
 
     // 카드사 답을 받지 못했다. 승인됐는지 모른다는 것을 남겨 두고 나중에 카드사에 확인한다.
@@ -104,6 +111,7 @@ public class PaymentRecorder {
         if (payment.isAwaitingApprovalResult()) {
             payment.markApprovalUnknown();
         }
+        paymentHistories.record(payment, StatusTrigger.CONFIRM);
     }
 
     // 카드사에 확인한 결과를 남긴다. 그 사이 다른 길로 결과가 남은 결제는 건드리지 않는다.
@@ -119,6 +127,7 @@ public class PaymentRecorder {
         }
         paymentHoldings.settle(payment, before);
         paymentEvents.publishIfChanged(payment, before);
+        paymentHistories.record(payment, StatusTrigger.APPROVAL_RECONCILIATION);
     }
 
     private Payment find(String orderId) {

@@ -10,6 +10,8 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -45,7 +47,7 @@ public class ReconciliationRepositoryAdapter implements ReconciliationRepository
     @Override
     public List<OurPayment> findAuthenticatedBetween(Instant from, Instant to) {
         return jdbcTemplate.query(OUR_PAYMENT + "where p.authenticated_at >= ? and p.authenticated_at < ? and p.payment_key is not null",
-                (row, number) -> ourPaymentOf(row), Timestamp.from(from), Timestamp.from(to));
+                (row, number) -> ourPaymentOf(row), utc(from), utc(to));
     }
 
     @Override
@@ -79,6 +81,11 @@ public class ReconciliationRepositoryAdapter implements ReconciliationRepository
                 nameOf(mismatch.getOurStatus()), mismatch.getOurAmount(), mismatch.getOurBalance(),
                 nameOf(mismatch.getGatewayStatus()), mismatch.getGatewayAmount(), mismatch.getGatewayBalance(),
                 mismatch.getResolution().name(), Timestamp.from(foundAt)};
+    }
+
+    // 인증한 때는 JPA(Hibernate)가 UTC 시각으로 남긴다. 같은 시각으로 견주려고 UTC 로 바꿔 넘긴다
+    private static LocalDateTime utc(Instant instant) {
+        return LocalDateTime.ofInstant(instant, ZoneOffset.UTC);
     }
 
     private static String nameOf(Enum<?> value) {

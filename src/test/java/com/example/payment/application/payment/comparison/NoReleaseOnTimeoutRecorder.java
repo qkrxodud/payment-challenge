@@ -1,6 +1,7 @@
 package com.example.payment.application.payment.comparison;
 
 import com.example.payment.application.payment.PaymentEvents;
+import com.example.payment.application.payment.PaymentHistories;
 import com.example.payment.application.payment.PaymentHoldings;
 import com.example.payment.application.payment.PaymentRecorder;
 import com.example.payment.domain.payment.PaymentRepository;
@@ -15,8 +16,8 @@ import org.springframework.context.annotation.Primary;
 public class NoReleaseOnTimeoutRecorder extends PaymentRecorder {
 
     public NoReleaseOnTimeoutRecorder(PaymentRepository paymentRepository, PaymentHoldings paymentHoldings,
-                                      PaymentEvents paymentEvents, Clock clock) {
-        super(paymentRepository, paymentHoldings, paymentEvents, clock);
+                                      PaymentEvents paymentEvents, PaymentHistories paymentHistories, Clock clock) {
+        super(paymentRepository, paymentHoldings, paymentEvents, paymentHistories, clock);
     }
 
     @Override

@@ -11,6 +11,7 @@ import com.example.payment.domain.payment.Payment;
 import com.example.payment.domain.payment.PaymentCancel;
 import com.example.payment.domain.payment.PaymentRepository;
 import com.example.payment.domain.payment.PaymentStatus;
+import com.example.payment.domain.payment.StatusTrigger;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -32,6 +33,7 @@ public class PaymentCancelRecorder {
     private final PaymentRepository paymentRepository;
     private final PaymentHoldings paymentHoldings;
     private final PaymentEvents paymentEvents;
+    private final PaymentHistories paymentHistories;
     private final Clock clock;
 
     // 같은 Idempotency-Key 로 이미 받은 취소가 결과를 남겼으면 그 결과를 돌려준다.
@@ -62,6 +64,7 @@ public class PaymentCancelRecorder {
         PaymentCancel cancel = closeWith(payment, idempotencyKey, outcome);
         paymentHoldings.settle(payment, before);
         paymentEvents.publishIfChanged(payment, before);
+        paymentHistories.record(payment, StatusTrigger.CANCEL);
         return CancelResults.of(payment, cancel);
     }
 
@@ -80,6 +83,7 @@ public class PaymentCancelRecorder {
         payment.settleCancels(gatewayCancels, requestedBefore);
         paymentHoldings.settle(payment, before);
         paymentEvents.publishIfChanged(payment, before);
+        paymentHistories.record(payment, StatusTrigger.CANCEL_RECONCILIATION);
     }
 
     private static PaymentCancel closeWith(Payment payment, String idempotencyKey, CancelOutcome outcome) {

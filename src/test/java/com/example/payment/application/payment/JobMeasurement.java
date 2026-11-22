@@ -107,6 +107,8 @@ class JobMeasurement {
         // 8장부터 결제에 담긴 상품도 결제를 가리킨다
         jdbcTemplate.update("delete from payment_item");
         jdbcTemplate.update("delete from payment_webhook");
+        // 12장부터 상태 이력도 결제를 가리킨다
+        jdbcTemplate.update("delete from payment_status_history");
         jdbcTemplate.update("delete from payment");
         List<String> orderIds = unknownPayments();
         mockPg.answerFollowUpsAfter(Duration.ofMillis(100));
