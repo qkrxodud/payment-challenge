@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 11장 결정 4: 운영자가 실패 모음을 원래 토픽으로 다시 넣는 명령. 주문 서비스를 다시 넣기 모드로 한 번 띄우면 다시 넣고 끝난다 —
- * java -jar order-service.jar --order.dead-letter.replay=true --spring.kafka.listener.auto-startup=false
+ * java -jar order-service.jar --spring.config.name=order-service --order.dead-letter.replay=true --spring.kafka.listener.auto-startup=false
  * (리스너를 띄우지 않아 이 프로세스는 결제 이벤트를 읽지 않는다. 다시 넣은 이벤트는 떠 있는 주문 서비스가 읽는다)
  */
 @Slf4j
