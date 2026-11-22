@@ -107,6 +107,11 @@ public class MockPgServer {
         context.getBean(WebhookSender.class).statusChanged(scenarios().recordApproval(paymentKey, orderId, amount));
     }
 
+    // 12장 측정: 카드사가 남긴 결제를 모두 잊는다
+    public void forgetPayments() {
+        scenarios().forgetPayments();
+    }
+
     // 12장: 거래 조회를 받은 횟수(쪽마다 한 번)
     public int transactionListCount() {
         return scenarios().transactionListCount();

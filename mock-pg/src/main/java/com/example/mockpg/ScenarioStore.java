@@ -227,6 +227,11 @@ public class ScenarioStore {
         return Optional.ofNullable(cancels.get(orderId)).map(AtomicInteger::get).orElse(0);
     }
 
+    // 12장 측정: 남긴 결제를 모두 잊는다(대사 측정이 결제 수마다 새로 시작한다)
+    public void forgetPayments() {
+        payments.clear();
+    }
+
     // 12장: 처리한 때가 [from, to] 안인 승인·취소 거래. 처리한 때 순(같으면 거래 키 순)이다
     public List<TransactionRecord> transactionsBetween(Instant from, Instant to) {
         return payments.values().stream()

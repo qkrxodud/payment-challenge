@@ -99,10 +99,10 @@ tasks.named('test') {
 		// 계약을 지키지 못하는 비교 구현은 기본 빌드에서 빼고 knownFailingTest 로 따로 돌린다.
 		// 4장 측정은 reconciliationMeasurement, 5장 측정은 cancelMeasurement, 6장 측정은 webhookMeasurement,
 		// 7장 측정은 concurrencyMeasurement, 8장 측정은 stockMeasurement, 9장 측정은 outboxMeasurement, 10장 측정은 sagaMeasurement,
-		// 11장 측정은 consumerMeasurement 로 따로 돌린다
+		// 11장 측정은 consumerMeasurement, 12장 측정은 operationsMeasurement 로 따로 돌린다
 		excludeTags 'known-failing', 'measurement', 'cancel-measurement', 'webhook-measurement', 'concurrency-measurement',
 				'jpa-version', 'jpa-version-measurement', 'stock-measurement', 'outbox-measurement', 'saga-measurement',
-				'consumer-measurement'
+				'consumer-measurement', 'operations-measurement'
 	}
 	// 4장부터: 테스트는 보정을 직접 부른다. 주기 보정이 테스트 도중 끼어들지 않게 끈다
 	systemProperty 'payment.reconciliation.enabled', 'false'
@@ -293,6 +293,23 @@ tasks.register('consumerMeasurement', Test) {
 	outputs.upToDateWhen { false }
 	doFirst {
 		delete layout.buildDirectory.file('measurement/ch11-consumer.txt')
+	}
+}
+
+tasks.register('operationsMeasurement', Test) {
+	description = '12장: 카드사 장애 동안 방식마다 승인 응답 시간·쓰는 중인 DB 연결·결과 모름 수를 세고, 하루치 대사가 결제 수마다 걸리는 시간을 남긴다'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'operations-measurement'
+	}
+	systemProperty 'payment.reconciliation.enabled', 'false'
+	systemProperty 'payment.webhook.enabled', 'false'
+	systemProperty 'payment.outbox.enabled', 'false'
+	outputs.upToDateWhen { false }
+	doFirst {
+		delete layout.buildDirectory.file('measurement/ch12-operations.txt')
 	}
 }
 
