@@ -11,5 +11,7 @@ public enum ErrorType {
     UNPROCESSABLE,
     UPSTREAM_FAILED,
     UPSTREAM_NO_RESPONSE,
+    // 12장: 바깥 시스템이 장애라 요청을 보내지 않음
+    UPSTREAM_UNAVAILABLE,
     INTERNAL
 }

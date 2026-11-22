@@ -20,7 +20,7 @@ public class LastCancelOnlyPaymentGateway implements PaymentGateway {
     private final PgPaymentGateway delegate;
 
     public LastCancelOnlyPaymentGateway(RestClient pgRestClient) {
-        this.delegate = new PgPaymentGateway(pgRestClient);
+        this.delegate = new PgPaymentGateway(pgRestClient, DisabledCircuit.create());
     }
 
     @Override

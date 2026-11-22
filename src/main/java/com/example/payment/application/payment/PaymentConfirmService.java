@@ -6,6 +6,7 @@ import com.example.payment.application.payment.dto.PaymentResult;
 import com.example.payment.domain.error.exception.InventoryNoResponseException;
 import com.example.payment.domain.error.exception.OutOfStockException;
 import com.example.payment.domain.error.exception.PaymentGatewayNoResponseException;
+import com.example.payment.domain.error.exception.PaymentGatewayUnavailableException;
 import com.example.payment.domain.payment.PaymentApproval;
 import com.example.payment.domain.payment.PaymentGateway;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Service;
  * 7장부터 카드사 답을 기다리는 결제에 같은 결제 키로 다시 온 요청도 PG 를 부르지 않고 지금 상태(인증)로 답한다(결정 2).
  * 10장 결정 1부터 인증을 남긴 뒤, 카드사에 승인을 요청하기 전에 재고 서비스에 재고를 잡는다(동기 HTTP, 짧은 시간 제한).
  * 결정 4부터 재고 서비스의 답을 받지 못하면 승인을 요청하지 않고 결제를 닫은 뒤 예약 해제를 보낸다.
+ * 12장 결정 4부터 카드사 장애로 차단기가 열려 승인을 요청하지 않았으면 결제를 승인 없이 닫는다(결과 모름이 아니다 — 카드사에 보내지 않았다).
  */
 @Service
 @RequiredArgsConstructor
@@ -66,6 +68,9 @@ public class PaymentConfirmService {
         } catch (PaymentGatewayNoResponseException noResponse) {
             paymentRecorder.recordApprovalUnknown(attempt.orderId());
             throw noResponse;
+        } catch (PaymentGatewayUnavailableException unavailable) {
+            paymentRecorder.recordApprovalNotRequested(attempt.orderId());
+            throw unavailable;
         }
     }
 }

@@ -36,6 +36,9 @@ public enum ErrorCode {
     // PG 의 답을 정해진 시간 안에 받지 못했다. 승인됐는지 알 수 없다
     PAYMENT_GATEWAY_NO_RESPONSE(ErrorType.UPSTREAM_NO_RESPONSE,
             "The card company did not answer in time. Check the payment status before trying again."),
+    // 12장 결정 4: 카드사 장애로 차단기가 열려 승인을 요청하지 않았다. 결제는 승인 없이 끝난다(다시 결제해야 한다)
+    PAYMENT_GATEWAY_UNAVAILABLE(ErrorType.UPSTREAM_UNAVAILABLE,
+            "The card company is unavailable right now. The payment was not approved; please try again later."),
     // 8장: 준비 요청에 담긴 상품이 없음
     PRODUCT_NOT_FOUND(ErrorType.NOT_FOUND, "A product in this order was not found."),
     // 8장: 담은 상품의 수량이 없거나 0 이하

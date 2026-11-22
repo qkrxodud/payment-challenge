@@ -3,6 +3,7 @@ package com.example.payment.global.error;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.payment.domain.error.ErrorCode;
+import com.example.payment.domain.error.exception.PaymentGatewayUnavailableException;
 import com.example.payment.global.error.dto.ErrorResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,5 +22,13 @@ class GlobalExceptionHandlerTest {
 
         assertThat(answer.getStatusCode().value()).isEqualTo(500);
         assertThat(answer.getBody()).isEqualTo(ErrorResponse.of(ErrorCode.INTERNAL_ERROR));
+    }
+
+    @Test
+    @DisplayName("카드사 장애로 승인을 요청하지 않은 결제는 서비스를 잠시 쓸 수 없다고 답한다")
+    void unavailableGatewayIsAnsweredAsServiceUnavailable() {
+        ResponseEntity<ErrorResponse> answer = handler.handlePaymentChallenge(new PaymentGatewayUnavailableException("order-1"));
+
+        assertThat(answer.getStatusCode().value()).isEqualTo(503);
     }
 }

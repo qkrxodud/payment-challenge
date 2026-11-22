@@ -2,6 +2,7 @@ package com.example.payment.infrastructure.pg;
 
 import com.example.payment.domain.error.exception.PaymentGatewayFailedException;
 import com.example.payment.domain.error.exception.PaymentGatewayNoResponseException;
+import com.example.payment.domain.error.exception.PaymentGatewayUnavailableException;
 import com.example.payment.domain.payment.CancelOutcome;
 import com.example.payment.domain.payment.GatewayCancel;
 import com.example.payment.domain.payment.GatewayPayment;
@@ -13,6 +14,8 @@ import com.example.payment.infrastructure.pg.dto.PgCancelRequest;
 import com.example.payment.infrastructure.pg.dto.PgConfirmRequest;
 import com.example.payment.infrastructure.pg.dto.PgErrorResponse;
 import com.example.payment.infrastructure.pg.dto.PgPaymentResponse;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
@@ -27,6 +30,9 @@ import org.springframework.web.client.RestClient;
  * 4장부터 주문번호로 결제를 조회한다. 결제가 없다는 404(NOT_FOUND_PAYMENT)는 카드사에 기록이 없다는 답으로 읽는다.
  * 5장부터 취소를 보내고(2xx 취소, 4xx 거절), 조회 응답의 취소 이력(cancels)을 읽는다. 취소에는 멱등키 헤더를 붙인다.
  * 6장부터 조회 응답의 상태와 취소 이력을 함께 읽는다(웹훅 처리, 4장 보정도 같이 쓴다).
+ * 12장 결정 4부터 승인은 차단기(pgApprovalCircuitBreaker)를 거친다. 열려 있으면 카드사에 보내지 않고 PaymentGatewayUnavailableException 을 던진다.
+ * 취소·조회는 차단기를 거치지 않는다 — 취소는 답을 받지 못해도 결과 모름으로 남겨 5장 보정이 맞추고, 조회는 보정·알림 처리·대사가 주기마다 다시 하며
+ * 고객 요청 스레드를 쓰지 않는다. 승인 차단기가 그 실패를 세면 조회 실패로 승인까지 막힌다.
  */
 @Component
 @RequiredArgsConstructor
@@ -38,9 +44,18 @@ public class PgPaymentGateway implements PaymentGateway {
     private static final String IDEMPOTENT_REQUEST_PROCESSING = "IDEMPOTENT_REQUEST_PROCESSING";
 
     private final RestClient pgRestClient;
+    private final CircuitBreaker pgApprovalCircuitBreaker;
 
     @Override
     public PaymentApproval approve(String paymentKey, String orderId, BigDecimal amount) {
+        try {
+            return pgApprovalCircuitBreaker.executeSupplier(() -> requestApproval(paymentKey, orderId, amount));
+        } catch (CallNotPermittedException open) {
+            throw new PaymentGatewayUnavailableException(orderId);
+        }
+    }
+
+    private PaymentApproval requestApproval(String paymentKey, String orderId, BigDecimal amount) {
         try {
             return pgRestClient.post()
                     .uri("/v1/payments/confirm")

@@ -62,6 +62,7 @@ public class GlobalExceptionHandler {
             case UNPROCESSABLE -> HttpStatus.UNPROCESSABLE_CONTENT;
             case UPSTREAM_FAILED -> HttpStatus.BAD_GATEWAY;
             case UPSTREAM_NO_RESPONSE -> HttpStatus.GATEWAY_TIMEOUT;
+            case UPSTREAM_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
             case INTERNAL -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
     }

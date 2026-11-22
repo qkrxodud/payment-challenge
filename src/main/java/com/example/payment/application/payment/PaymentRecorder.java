@@ -103,6 +103,13 @@ public class PaymentRecorder {
         paymentHistories.record(payment, StatusTrigger.CONFIRM);
     }
 
+    // 12장 결정 4: 카드사 장애로 차단기가 열려 승인을 요청하지 않았다. 카드사에 보내지 않았으니 승인 없이 실패로 닫고, 잡아 둔 재고·쿠폰·포인트를
+    // 돌려준다(10장 결정 4 재고 답 없음과 같은 길). 그 사이 다른 길로 결과가 남은 결제는 건드리지 않는다
+    @Transactional
+    public void recordApprovalNotRequested(String orderId) {
+        recordStockNoResponse(orderId);
+    }
+
     // 카드사 답을 받지 못했다. 승인됐는지 모른다는 것을 남겨 두고 나중에 카드사에 확인한다.
     // 6장부터: 그 사이 웹훅이 먼저 결과를 남겼으면 결과 모름으로 되돌리지 않는다
     @Transactional

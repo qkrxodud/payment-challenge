@@ -34,6 +34,7 @@ import org.springframework.context.annotation.Import;
         webEnvironment = SpringBootTest.WebEnvironment.NONE,
         properties = {
                 "payment.pg.read-timeout=1s",
+                "payment.pg.circuit-breaker.enabled=true",
                 "payment.pg.circuit-breaker.failure-rate-threshold=50",
                 "payment.pg.circuit-breaker.sliding-window-size=4",
                 "payment.pg.circuit-breaker.minimum-number-of-calls=4",

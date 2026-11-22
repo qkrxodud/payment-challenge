@@ -22,7 +22,7 @@ public class NoIdempotencyKeyPaymentGateway implements PaymentGateway {
     private final RestClient pgRestClient;
 
     public NoIdempotencyKeyPaymentGateway(RestClient pgRestClient) {
-        this.delegate = new PgPaymentGateway(pgRestClient);
+        this.delegate = new PgPaymentGateway(pgRestClient, DisabledCircuit.create());
         this.pgRestClient = pgRestClient;
     }
 
