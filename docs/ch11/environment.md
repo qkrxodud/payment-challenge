@@ -29,7 +29,8 @@
 
 - 다시 시도(결정 3, `order.retry.*`·`inventory.retry.*`): 첫 간격 1초, 2배씩, 최대 간격 8초, 4번 → 1·2·4·8초(기다림 합 15초).
   - 근거(실행): 이 머신에서 MySQL 8.4 컨테이너를 `docker restart` 해 다시 쿼리를 받기까지 2.62·2.69·2.62·2.62·3.04초(5번, `docker exec … mysql -e 'select 1'` 이
-    성공할 때까지 0.1초마다 봄 — 시험 밖에서 잰 값). 15초는 그 약 5배다. 5배 여유와 운영 DB 전환 시간은 재지 않았다(가정).
+    성공할 때까지 0.1초마다 봄 — 시험 밖에서 잰 값). 15초는 그 약 5배다.
+  - 가정: 5배라는 여유. 잰 것은 이 머신의 컨테이너 재시작 시간뿐이고, 15초를 고른 것은 그 위에 얹은 가정이다. 운영 DB 전환 시간 기준은 따로 없다(사용자 답, 2026-11-22).
   - 한 번 기다림의 최대(8초)는 `max.poll.interval.ms` 기본값(5분)보다 훨씬 짧다. Spring Kafka 문서: 기본 처리기는 기다리는 동안 소비자 스레드를 멈추고, 기다림이
     `max.poll.interval.ms` 보다 길면 `ContainerPausingBackOffHandler` 를 쓰라고 한다
     (https://docs.spring.io/spring-kafka/reference/kafka/annotation-error-handling.html#backoff-handlers).
@@ -39,7 +40,15 @@
 - 다시 넣기 명령: `java -jar order-service.jar --order.dead-letter.replay=true --spring.kafka.listener.auto-startup=false`
   (재고 서비스는 `--inventory.dead-letter.replay=true --spring.main.web-application-type=none --spring.kafka.listener.auto-startup=false`).
   명령을 시작한 때 실패 모음 토픽 끝까지를 원래 토픽의 같은 파티션에 같은 키·본문으로 싣고 한 건마다 그룹에 커밋한다. 시험(`OrderServer.replayDeadLetters`,
-  `InventoryServer.replayDeadLetters`)은 이 모드로 같은 설정의 서비스를 한 번 띄우고 닫는다. 명령이 끝난 뒤 JVM 이 스스로 끝나는지는 확인하지 않았다.
+  `InventoryServer.replayDeadLetters`)은 이 모드로 같은 설정의 서비스를 한 번 띄우고 닫는다.
+  - 프로세스가 스스로 끝나는지 확인(후속 작업, 2026-11-22): bootJar 를 따로 띄운 MySQL 8.4·Kafka 4.2.0 컨테이너(시험과 무관)에 붙여 실제 JVM 으로 돌렸다.
+    실패 모음에 메시지 1건씩 둔 뒤 주문 서비스 — 3.3초에 뜨고 "Replayed 1 …" 로그 뒤 **스스로 끝남(종료 코드 0, 6초)**, 재고 서비스 — "Replayed 1 …" 뒤 **스스로 끝남(코드 0, 3초)**.
+    원래 토픽 0번 파티션에 1건씩 실린 것을 오프셋으로 봤다. 주문 서비스를 한 번 더 돌리자 "Replayed 0 …" 뒤 끝남(코드 0, 3초) — 다시 넣기 그룹이 넘긴 자리를 기억한다.
+    코드는 고치지 않았다(끝나게 하는 코드가 따로 필요 없었다).
+  - 이 확인에서 본 것: 두 서비스의 설정 파일 이름은 `order-service.properties`·`inventory-service.properties` 라 `--spring.config.name=order-service`
+    (재고는 `inventory-service`)를 함께 줘야 한다. 주지 않으면 설정 파일을 읽지 않아 DB 계정이 비어 뜨지 못했다(종료 코드 1). 위 명령과 `DeadLetterReplayCommand` 주석에는
+    이 인자가 빠져 있다 — 9장부터 두 서비스를 따로 띄울 때 늘 필요한 인자이고, 주석은 고치지 않았다.
+    확인에 쓴 실패 모음 토픽은 서비스보다 먼저 콘솔 프로듀서가 파티션 1개로 만들었고, 서비스가 뜨며 NewTopic(파티션 2)으로 파티션을 늘렸다.
 - 11장 계약은 다시 시도를 2·4·4·4초(합 14초)로 줄이고, 받는 쪽 저장소 장애를 6초 낸다.
   - 처음에는 1초씩 3번·장애 1.5초로 두었는데 출발 구조에서도 장애 계약이 통과했다. Spring Kafka 기본 처리(`FixedBackOff(0L, 9)`)의 10번이 이 환경에서 바로 끝나지 않고
     다시 읽을 때마다 약 0.5초씩, 모두 약 4.6초 걸렸기 때문이다(로그의 시도 간격, 출발 구조 실행). 0.5초는 소비자 `fetch.max.wait.ms` 기본값(500ms)과 같다 —
@@ -101,6 +110,20 @@
   토픽·파티션을 직접 정한다(`<토픽>.DLT`, 같은 번호 파티션). 원인 머리(`kafka_dlt-exception-*`)가 실리는 것은 계약 실행으로 봤다.
   기본 처리기의 예외 분류가 원인 사슬(ListenerExecutionFailedException 안의 JacksonException 등)을 따라가는지는 문서에서 찾지 못했다 — 계약(모르는 상태·읽을 수 없는 본문이
   첫 간격 안에 실패 모음으로 감)이 통과한 실행으로만 안다.
+
+## 코드 규칙 예외(사용자 결정 2026-11-22)
+
+`check-conventions.py` 의 11장 새 위반 5건은 앞 장에서 승인한 예외와 같은 예외로 둔다:
+- 주문 서비스 domain/error 예외 생성자 3건(OrderServiceException, UnknownPaymentStatusException, InvalidPaymentEventException)
+- 주문 서비스 — 웹 진입점이 없는 모듈의 전역 예외 처리기(필수 처리기) 없음 1건
+- 재고 서비스 domain/error 예외 생성자 2건(UnknownStockCommandException, InvalidStockCommandException)
+결제 서버 21건(domain/error 예외 생성자 20 + RequestRejectedException 1)은 10장과 같다.
+
+## 11장 규칙이 앞 장 비교에 낳은 결과(사용자 결정 2026-11-22 — 비교 코드는 그대로 둠)
+
+9장 결제 이벤트 비교 '커밋 뒤에 보냄'·'그 자리에서 바로 보냄'은 이벤트 고유 번호를 UUID 로 보낸다. 11장 주문 서비스는 숫자가 아닌 번호를 영구 오류로 보아
+(결정 3) 주문을 바꾸지 않으므로 두 비교의 실패가 4 → 7, 5 → 7 로 늘었다(docs/ch11/03). 9장 비교 코드는 바꾸지 않았다.
+재고 서비스의 결정 1·2 는 이 장 계약 12개에서 10장 상태 전이만으로도 결과가 같았다 — 코드는 그대로 둔다.
 
 ## 부하 테스트
 
