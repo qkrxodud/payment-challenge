@@ -5,6 +5,6 @@ import org.springframework.context.annotation.Configuration;
 
 /** 9장: 결제 이벤트 설정과 릴레이 설정을 읽는다 */
 @Configuration
-@EnableConfigurationProperties({PaymentEventProperties.class, OutboxProperties.class})
+@EnableConfigurationProperties({PaymentEventProperties.class, OutboxProperties.class, OutboxCleanupProperties.class})
 public class PaymentEventConfig {
 }

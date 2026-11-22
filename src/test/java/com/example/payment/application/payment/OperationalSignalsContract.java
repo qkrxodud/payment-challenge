@@ -14,8 +14,8 @@ import com.example.payment.TestcontainersConfiguration;
 import com.example.payment.application.payment.dto.ConfirmPaymentCommand;
 import com.example.payment.application.payment.dto.PreparePaymentCommand;
 import java.math.BigDecimal;
-import java.time.Duration;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -163,6 +163,9 @@ abstract class OperationalSignalsContract {
     @DisplayName("보내지 않은 결제 결과 가운데 가장 오래 기다린 결과의 나이가 운영 지표에 초로 보인다")
     void oldestUnsentAgeIsShown() {
         String orderId = approved();
+        // 앞 시험이 남긴 보내지 않은 결과는 보낸 것으로 둔다(릴레이는 꺼 두었다) — 이 결과가 가장 오래 기다린 결과가 된다
+        jdbcTemplate.update("update payment_outbox set sent_at = ? where sent_at is null and order_id <> ?", Timestamp.from(Instant.now()),
+                orderId);
         jdbcTemplate.update("update payment_outbox set occurred_at = ? where order_id = ?",
                 utc(Instant.now().minus(1, ChronoUnit.DAYS)), orderId);
 

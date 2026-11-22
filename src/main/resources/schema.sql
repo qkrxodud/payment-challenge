@@ -74,6 +74,8 @@ insert ignore into job_lock (name, locked_until) values ('payment-webhook', '197
 insert ignore into job_lock (name, locked_until) values ('payment-outbox-relay', '1970-01-01 00:00:00');
 -- 12장 결정 1: 하루치 대사도 한 대만 돈다(같은 날의 카드사 거래 내역을 서버마다 읽지 않는다)
 insert ignore into job_lock (name, locked_until) values ('payment-daily-reconciliation', '1970-01-01 00:00:00');
+-- 12장 결정 5: 보낸 결제 결과 정리도 한 대만 돈다
+insert ignore into job_lock (name, locked_until) values ('payment-outbox-cleanup', '1970-01-01 00:00:00');
 
 -- 8장: 상품. 10장부터 재고는 재고 서비스(inventory-service)의 DB 에 있다
 create table if not exists product (

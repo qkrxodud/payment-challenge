@@ -2,6 +2,7 @@ package com.example.inventory.infrastructure.persistence.command;
 
 import com.example.inventory.domain.command.ProcessedStockCommand;
 import com.example.inventory.domain.command.ProcessedStockCommandRepository;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import lombok.RequiredArgsConstructor;
@@ -23,5 +24,12 @@ public class ProcessedStockCommandRepositoryAdapter implements ProcessedStockCom
         return jdbcTemplate.update("insert ignore into processed_stock_command (command_id, reservation_id, command, processed_at) "
                         + "values (?, ?, ?, ?)", command.getCommandId(), command.getReservationId(), command.getCommand(),
                 LocalDateTime.ofInstant(command.getProcessedAt(), ZoneOffset.UTC)) == 1;
+    }
+
+    // 12장 결정 5: 처리한 때는 남길 때와 같이 UTC 시각으로 견준다
+    @Override
+    public int deleteProcessedBefore(Instant cutoff, int limit) {
+        return jdbcTemplate.update("delete from processed_stock_command where processed_at < ? order by id limit ?",
+                LocalDateTime.ofInstant(cutoff, ZoneOffset.UTC), limit);
     }
 }

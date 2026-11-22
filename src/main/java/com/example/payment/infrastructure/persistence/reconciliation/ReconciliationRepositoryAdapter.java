@@ -76,6 +76,12 @@ public class ReconciliationRepositoryAdapter implements ReconciliationRepository
                 mismatches.stream().map(mismatch -> rowOf(day, mismatch, foundAt)).toList());
     }
 
+    @Override
+    public long countNeedingReview() {
+        Long open = jdbcTemplate.queryForObject("select count(*) from reconciliation_result where resolution = 'NEEDS_REVIEW'", Long.class);
+        return Objects.requireNonNullElse(open, 0L);
+    }
+
     private static Object[] rowOf(LocalDate day, Mismatch mismatch, Instant foundAt) {
         return new Object[]{Date.valueOf(day), mismatch.getPaymentKey(), mismatch.getOrderId(), mismatch.getType().name(),
                 nameOf(mismatch.getOurStatus()), mismatch.getOurAmount(), mismatch.getOurBalance(),

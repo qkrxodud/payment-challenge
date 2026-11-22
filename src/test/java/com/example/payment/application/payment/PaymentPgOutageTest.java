@@ -1,6 +1,7 @@
 package com.example.payment.application.payment;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,9 +17,11 @@ class PaymentPgOutageTest extends PgOutageContract {
         pgApprovalCircuitBreaker.reset();
     }
 
-    // 운영 지표는 결정 5에서 더한다
+    @Autowired
+    MeterRegistry meterRegistry;
+
     @Override
     Optional<Double> circuitStateMeter() {
-        return Optional.empty();
+        return PaymentOperationalSignalsTest.gaugeIn(meterRegistry, "payment.pg.circuit.state");
     }
 }

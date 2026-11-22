@@ -1,44 +1,64 @@
 package com.example.payment.application.payment;
 
+import com.example.inventory.application.cleanup.ProcessedCommandCleanup;
+import com.example.order.application.cleanup.ReceivedEventCleanup;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @DisplayName("운영 지표와 정리 — 운영 구현")
 class PaymentOperationalSignalsTest extends OperationalSignalsContract {
 
-    // 12장 출발 구조: 결제 서버·주문 서비스·재고 서비스 모두 운영 지표가 없다
+    @Autowired
+    MeterRegistry meterRegistry;
+
+    @Autowired
+    OutboxCleanup outboxCleanup;
+
+    @Autowired
+    DailyReconciler dailyReconciler;
+
     @Override
     Optional<Double> paymentMeter(String name) {
-        return Optional.empty();
+        return gaugeIn(meterRegistry, name);
     }
 
     @Override
     Optional<Double> orderMeter(String name) {
-        return Optional.empty();
+        return gaugeIn(orderServer.bean(MeterRegistry.class), name);
     }
 
     @Override
     Optional<Double> inventoryMeter(String name) {
-        return Optional.empty();
+        return gaugeIn(inventory.bean(MeterRegistry.class), name);
     }
 
-    // 12장 출발 구조: 보낸 결제 결과와 받은 기록을 지우는 정리가 없다
     @Override
     void cleanUpPayments(Instant now) {
+        outboxCleanup.cleanUp(now);
     }
 
     @Override
     void cleanUpOrders(Instant now) {
+        orderServer.bean(ReceivedEventCleanup.class).cleanUp(now);
     }
 
     @Override
     void cleanUpInventory(Instant now) {
+        inventory.bean(ProcessedCommandCleanup.class).cleanUp(now);
     }
 
-    // 12장 출발 구조: 대사가 없다
     @Override
     void reconcile(LocalDate day) {
+        dailyReconciler.reconcile(day);
+    }
+
+    // 그 서비스의 지표 보관함에서 이 이름의 값을 읽는다(읽을 때마다 새로 센다). 없으면 비어 있다
+    static Optional<Double> gaugeIn(MeterRegistry registry, String name) {
+        return Optional.ofNullable(registry.find(name).gauge()).map(Gauge::value);
     }
 }

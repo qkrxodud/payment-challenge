@@ -3,6 +3,7 @@ package com.example.order.infrastructure.persistence.order;
 import com.example.order.domain.order.ReceivedPaymentEvent;
 import com.example.order.domain.order.ReceivedPaymentEventRepository;
 import java.sql.Timestamp;
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -24,5 +25,12 @@ public class ReceivedPaymentEventRepositoryAdapter implements ReceivedPaymentEve
                         + "(event_id, order_id, payment_status, occurred_at, partition_no, offset_no, received_at) values (?, ?, ?, ?, ?, ?, ?)",
                 event.getEventId(), event.getOrderId(), event.getPaymentStatus(), Timestamp.from(event.getOccurredAt()),
                 event.getPartitionNo(), event.getOffsetNo(), Timestamp.from(event.getReceivedAt())) == 1;
+    }
+
+    // 12장 결정 5: 받은 때는 남길 때와 같이 JDBC Timestamp 로 견준다
+    @Override
+    public int deleteReceivedBefore(Instant cutoff, int limit) {
+        return jdbcTemplate.update("delete from received_payment_event where received_at < ? order by id limit ?", Timestamp.from(cutoff),
+                limit);
     }
 }
