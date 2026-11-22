@@ -1,0 +1,838 @@
+# ./gradlew knownFailingTest — 결정 5 커밋(6f9c3b9)과 같은 코드(2026-11-22). 실행 환경은 environment.md. tests=746 failures=214 errors=0 time=2798.4s, BUILD SUCCESSFUL in 47m 22s
+# 12장 비교(9개, 95개 중 46개 실패):
+#   대사(계약 13개씩): 결제마다 카드사 단건 조회 4(결정 1), 기록만 하고 고치지 않음 3, 모두 카드사에 맞춤 7(결정 2)
+#   상태 이력(9개씩): 이력 없음 8, 결제 결과 기록(outbox)으로 대신함 7(결정 3)
+#   카드사 장애(6개씩): 시간 제한만 4, 다시 시도 4(결정 4)
+#   운영 신호(13개씩): 지표 없음 6, 지우지 않음 3(결정 5)
+# 2~11장 비교 651개 중 168개 실패. 11장 기록(docs/ch11/03, 169개)과 달라진 것:
+#   - 10장 '재고 서비스 답이 없으면 실패로만 보고 해제를 보내지 않음'(4 → 3): 몰림 계약(서버 두 대·300건, 겹침을 고정하지 않음) 하나 — docs/ch10/environment.md 에 적은 흔들림.
+#     11장 기록에서도 이 비교는 10장 3 → 11장 4 로 같은 계약이 흔들렸다. 12장 코드가 낳은 변화는 아니라고 보지만 원인을 따로 확인하지는 않았다.
+#   - 그 밖의 2~11장 비교 클래스는 시험 수·실패 수가 11장 기록과 모두 같다.
+# 12장 코드가 앞 장 비교에 닿는 곳: 결제를 지우는 시험 도구 4곳(이력 먼저 지움), 5장 비교 두 개의 PgPaymentGateway 생성(열리지 않는 차단기), 10장 비교 NoReleaseOnTimeoutRecorder 의 생성자(이력).
+#   시험은 차단기를 기본으로 꺼 두어(build.gradle) 앞 장 비교의 승인은 11장과 같게 간다.
+# 뒤이어 도는 7장 jpaVersionTest 결과를 맨 끝에 붙였다: tests=11 failures=4 errors=0 time=33.6s
+## 결제 이벤트 — 비교: 커밋 뒤에 보냄
+FAIL 브로커가 1.5초 늦게 답해도 결제 승인은 1초 안에 답한다 (1.745s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual: 1.53616675S to be less than: 1S
+FAIL 승인된 결제의 주문은 주문 서비스에서 결제 완료가 된다 (15.184s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.OrderServer was not fulfilled within 15 seconds.
+FAIL 승인 기록이 실패한 결제의 승인은 주문 서비스에 가지 않는다 (15.232s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.OrderServer was not fulfilled within 15 seconds.
+FAIL 승인이 거절된 결제의 주문은 주문 서비스에서 결제 실패가 된다 (15.178s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.OrderServer was not fulfilled within 15 seconds.
+FAIL 같은 결제의 승인과 취소는 만든 순서대로 주문 서비스에 도착한다 (10.203s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.OrderServer was not fulfilled within 10 seconds.
+FAIL 브로커가 끊긴 동안 승인된 결제도 브로커가 돌아오면 주문 서비스에 승인이 도착한다 (19.198s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.OrderServer was not fulfilled within 15 seconds.
+FAIL 승인 뒤 전액 취소된 결제의 주문은 주문 서비스에서 취소 상태다 (10.205s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.OrderServer was not fulfilled within 10 seconds.
+## 결제와 나눈 재고를 함께 끝내기 — 비교(결정 1): 승인 먼저, Kafka 로 재고 차감, 모자라면 카드사 취소로 보상
+PASS 승인 요청이 닿지 않아 카드사에서 만료된 결제를 보정이 닫으면 재고는 처음으로 돌아온다 (1.281s)
+PASS 해제가 예약보다 먼저 도착해도 재고는 처음보다 늘지 않는다 (1.651s)
+PASS 결과를 모르던 결제를 보정이 승인 실패로 닫으면 재고는 처음으로 돌아온다 (1.763s)
+FAIL 승인 결과를 모르는 동안은 재고 예약을 그대로 둔다 (1.177s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 3 but was: 5
+PASS 재고 서비스가 예약을 처리하는 동안 시간 제한이 지나도 그 주문이 잡은 재고는 처음으로 돌아온다 (1.339s)
+PASS 승인된 결제를 전액 취소하면 재고는 처음으로 돌아온다 (0.387s)
+PASS 재고 서비스가 멈춘 동안 승인 없이 끝난 주문의 재고는 재고 서비스가 돌아오면 처음으로 돌아온다 (1.295s)
+PASS 해제보다 늦게 도착한 예약은 재고를 줄이지 않는다 (3.289s)
+FAIL 재고 서비스가 재고가 모자라다고 답한 결제는 승인 없이 실패로 끝난다 (0.193s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: APPROVAL_FAILED but was: APPROVAL_CANCELED
+FAIL 재고 100개에 두 서버로 주문 300건이 한꺼번에 와도 승인된 주문은 100건을 넘지 않는다 (6.432s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual: 300L to be less than or equal to: 100L
+FAIL 결과를 모르던 결제를 보정이 승인으로 닫으면 재고 예약은 확정된다 (9.64s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 2 but was: 0
+FAIL 승인된 주문의 재고 예약은 확정된다 (0.309s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 2 but was: 0
+PASS 재고가 모자라 받지 않은 주문은 재고를 그대로 둔다 (0.276s)
+FAIL 재고 서비스가 재고가 모자라다고 답한 주문은 카드사에 승인을 요청하지 않는다 (0.175s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 0 but was: 1
+PASS 카드사가 승인을 거절한 주문의 재고는 처음으로 돌아온다 (0.158s)
+PASS 재고가 모자라 받지 않은 주문은 쓴 쿠폰·포인트를 돌려준다 (0.196s)
+FAIL 재고 서비스의 답이 시간 제한보다 늦은 주문은 카드사에 승인을 요청하지 않는다 (0.186s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 0 but was: 1
+PASS 같은 해제가 두 번 와도 재고는 한 번만 돌아온다 (0.279s)
+PASS 재고 서비스의 답이 시간 제한보다 늦어도 그 주문이 잡은 재고는 처음으로 돌아온다 (0.315s)
+PASS 재고 100개에 두 서버로 주문 300건이 몰린 뒤 일부를 취소해도 남은 재고와 승인이 남은 결제의 수량을 더하면 처음 재고다 (16.258s)
+PASS 같은 확정이 두 번 와도 재고는 승인된 수량만큼만 줄어 있다 (0.406s)
+## 결제 취소 — 비교 B: 요청을 기록하지 않고 지금 결제 상태로 답함
+PASS 승인된 결제를 전액 취소하면 결제는 승인 취소 상태가 된다 (0.081s)
+PASS 부분 취소를 두 번 하면 남은 금액이 카드사 잔액과 같다 (0.065s)
+FAIL 시간 제한을 넘긴 취소가 같은 Idempotency-Key 로 다시 와도 카드사에서 두 번 취소되지 않는다 (1.657s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 1 but was: 2
+PASS 결과를 모르는 취소는 보정 뒤 남은 금액이 카드사 잔액과 같다 (1.635s)
+FAIL 같은 Idempotency-Key 로 다시 온 취소는 처음과 같은 답을 받는다 (0.083s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual: CancelResult[orderId=order-ff3643e9-583b-46af-9b88-b54f0eb031be, cancelAmount=5000.00, cancelStatus=DONE, balanceAmount=5000.00] to be equal to: CancelResult[orderId=order-ff3643e9-583b-46af-9b88-b54f0eb031be, cancelAmount=5000.00, cancelStatus=DONE, balanceAmount=10000.00] when recursively comparing field by field, but found th
+PASS 남은 금액보다 큰 취소는 받지 않는다 (0.046s)
+PASS 전액 취소한 결제는 카드사에도 취소로 남는다 (0.041s)
+PASS 매입된 결제를 전액 취소하면 결제는 매입 취소 상태가 된다 (0.043s)
+FAIL 같은 Idempotency-Key 로 다시 온 취소는 카드사에 한 번만 보낸다 (0.049s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 1 but was: 2
+PASS 부분 취소 뒤 남은 금액이 있으면 결제는 승인 상태 그대로다 (0.041s)
+PASS 승인 전 결제 (0.026s)
+PASS 승인이 거절된 결제 (0.033s)
+PASS 승인 결과를 모르는 결제 (1.584s)
+PASS 남은 금액보다 큰 취소는 카드사에 보내지 않는다 (0.065s)
+PASS Idempotency-Key 가 다르면 같은 금액의 부분 취소도 두 번 모두 카드사에서 취소된다 (0.09s)
+FAIL 시간 제한을 넘긴 취소가 같은 Idempotency-Key 로 다시 오면 카드사 잔액과 같은 남은 금액으로 답한다 (1.598s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 5000.00 but was: 10000.00
+PASS 카드사 취소 답이 시간 제한을 넘기면 그 취소는 결과 모름으로 남는다 (1.59s)
+PASS 승인 전 결제 (0.036s)
+PASS 승인이 거절된 결제 (0.049s)
+PASS 승인 결과를 모르는 결제 (1.596s)
+PASS 카드사 취소 뒤 결과 기록이 실패해도, 보정 뒤 남은 금액이 카드사 잔액과 같다 (0.088s)
+FAIL 같은 Idempotency-Key 에 다른 금액이 오면 받지 않는다 (0.049s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual not to be null
+PASS 부분 취소로 남은 금액이 0원이 되면 결제는 승인 취소 상태가 된다 (0.061s)
+FAIL 이미 전액 취소된 결제의 새 취소는 받지 않는다 (0.041s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual not to be null
+## 결제 결과 받기(주문 서비스) — 비교(결정 3): Spring Kafka 기본 처리(간격 없이 10번, 로그)
+FAIL 모르는 결제 상태가 실린 결과는 실패 모음에 남는다 (30.125s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 실패 모음에서 다시 넣은 결과는 아직 반영되지 않았으면 반영된다 (30.09s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 주문 서비스의 저장소가 잠시 쓰기를 거부한 동안 온 결과도 저장소가 돌아오면 반영된다 (36.072s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract was not fulfilled within 30 seconds.
+PASS 취소 뒤에 그보다 먼저 만든 승인이 늦게 와도 주문은 취소 상태로 남는다 (0.16s)
+FAIL 처리할 수 없는 결과가 있어도 같은 자리의 뒤 결과는 첫 다시 시도 간격 안에 반영된다 (4.632s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual: 4.603585292S to be less than: 2S
+FAIL 읽을 수 없는 결과는 실패 모음에 남는다 (30.18s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 다시 시도를 다 쓴 결과는 실패 모음에 그 원인과 함께 남는다 (30.098s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 같은 주문의 결과는 앞 결과를 다시 시도하는 동안에도 보낸 순서대로 받는다 (36.217s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract was not fulfilled within 30 seconds.
+PASS 결제 서버 시계가 서로 달라 새 결과의 만든 시각이 앞선 결과보다 이르게 찍혀도 새 결과가 반영된다 (0.155s)
+PASS 같은 결제 결과를 다시 읽어도 주문은 다시 바뀌지 않는다 (0.146s)
+FAIL 실패 모음에서 다시 넣은 결과는 그사이 더 새 결과가 반영됐으면 무시된다 (30.135s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+PASS 결제 서버가 같은 결제 결과를 다시 보내도 주문 서비스는 받은 결과를 한 번만 남긴다 (0.245s)
+## 재고 명령 받기(재고 서비스) — 비교(결정 3): Spring Kafka 기본 처리(간격 없이 10번, 로그)
+FAIL 모르는 재고 명령은 실패 모음에 남는다 (30.112s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.StockCommandConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 실패 모음에서 다시 넣은 명령은 아직 반영되지 않았으면 반영된다 (30.179s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.StockCommandConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+PASS 같은 해제를 다시 읽어도 재고는 한 번만 돌아온다 (0.179s)
+PASS 모르는 재고 명령은 예약을 바꾸지 않는다 (4.692s)
+FAIL 읽을 수 없는 재고 명령은 실패 모음에 남는다 (30.092s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.StockCommandConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 실패 모음에서 다시 넣은 명령은 그사이 더 새 명령이 반영됐으면 무시된다 (30.25s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.StockCommandConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 다시 시도를 다 쓴 명령은 실패 모음에 그 원인과 함께 남는다 (30.273s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.StockCommandConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 재고 서비스의 저장소가 잠시 쓰기를 거부한 동안 온 명령도 저장소가 돌아오면 반영된다 (36.157s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.application.payment.StockCommandConsumerContract was not fulfilled within 30 seconds.
+PASS 같은 예약의 확정을 다시 시도하는 동안 해제가 와도 예약은 해제로 끝나고 재고는 돌아온다 (6.229s)
+FAIL 처리할 수 없는 명령이 있어도 같은 자리의 뒤 명령은 첫 다시 시도 간격 안에 반영된다 (4.725s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual: 4.595638666S to be less than: 2S
+PASS 해제 뒤에 그보다 먼저 만든 확정이 늦게 와도 예약은 해제 상태로 남는다 (0.17s)
+PASS 같은 확정을 다시 읽어도 예약이 잡은 재고는 한 번만 줄어 있다 (0.176s)
+## 결제와 나눈 재고를 함께 끝내기 — 비교(결정 5): 상태를 바꾼 자리에서 바로 HTTP 로 확정·해제
+PASS 승인 요청이 닿지 않아 카드사에서 만료된 결제를 보정이 닫으면 재고는 처음으로 돌아온다 (1.289s)
+PASS 해제가 예약보다 먼저 도착해도 재고는 처음보다 늘지 않는다 (1.19s)
+PASS 결과를 모르던 결제를 보정이 승인 실패로 닫으면 재고는 처음으로 돌아온다 (1.741s)
+PASS 승인 결과를 모르는 동안은 재고 예약을 그대로 둔다 (1.154s)
+PASS 재고 서비스가 예약을 처리하는 동안 시간 제한이 지나도 그 주문이 잡은 재고는 처음으로 돌아온다 (1.259s)
+PASS 승인된 결제를 전액 취소하면 재고는 처음으로 돌아온다 (0.189s)
+FAIL 재고 서비스가 멈춘 동안 승인 없이 끝난 주문의 재고는 재고 서비스가 돌아오면 처음으로 돌아온다 (0.49s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 5 but was: 3
+PASS 해제보다 늦게 도착한 예약은 재고를 줄이지 않는다 (1.286s)
+PASS 재고 서비스가 재고가 모자라다고 답한 결제는 승인 없이 실패로 끝난다 (0.066s)
+PASS 재고 100개에 두 서버로 주문 300건이 한꺼번에 와도 승인된 주문은 100건을 넘지 않는다 (3.434s)
+PASS 결과를 모르던 결제를 보정이 승인으로 닫으면 재고 예약은 확정된다 (4.818s)
+PASS 승인된 주문의 재고 예약은 확정된다 (0.154s)
+PASS 재고가 모자라 받지 않은 주문은 재고를 그대로 둔다 (0.129s)
+PASS 재고 서비스가 재고가 모자라다고 답한 주문은 카드사에 승인을 요청하지 않는다 (0.058s)
+PASS 카드사가 승인을 거절한 주문의 재고는 처음으로 돌아온다 (0.144s)
+PASS 재고가 모자라 받지 않은 주문은 쓴 쿠폰·포인트를 돌려준다 (0.081s)
+PASS 재고 서비스의 답이 시간 제한보다 늦은 주문은 카드사에 승인을 요청하지 않는다 (1.107s)
+PASS 같은 해제가 두 번 와도 재고는 한 번만 돌아온다 (0.276s)
+PASS 재고 서비스의 답이 시간 제한보다 늦어도 그 주문이 잡은 재고는 처음으로 돌아온다 (1.185s)
+PASS 재고 100개에 두 서버로 주문 300건이 몰린 뒤 일부를 취소해도 남은 재고와 승인이 남은 결제의 수량을 더하면 처음 재고다 (5.815s)
+PASS 같은 확정이 두 번 와도 재고는 승인된 수량만큼만 줄어 있다 (0.281s)
+## 결과 모름 보정 — 비교 B: 아무것도 하지 않음
+PASS 이미 승인된 결제는 보정해도 승인 상태 그대로다 (0.037s)
+FAIL 카드사 승인 뒤 결과 기록이 실패해도, 보정 뒤 결제 기록이 카드사와 어긋나지 않는다 (0.03s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: [카드사 상태 DONE 와 짝] expected: APPROVED but was: AUTHENTICATED
+FAIL 카드사가 거절했지만 답을 받지 못하면, 보정 뒤 승인 실패로 닫힌다 (1.565s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: APPROVAL_FAILED but was: APPROVAL_UNKNOWN
+FAIL 카드사가 승인했지만 답이 시간 제한을 넘기면, 보정 뒤 결제 기록이 카드사와 어긋나지 않는다 (1.603s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: [카드사 상태 DONE 와 짝] expected: APPROVED but was: APPROVAL_UNKNOWN
+PASS 결과를 모르는 결제에 같은 결제 키로 다시 오면 확인 중이라고 답한다 (1.038s)
+PASS 결과를 모르는 결제에 같은 결제 키로 다시 오면 카드사에 다시 승인을 요청하지 않는다 (1.041s)
+PASS 보정 중 카드사에 보낸 확인 요청에도 답이 없으면 결제 상태를 바꾸지 않는다 (1.591s)
+FAIL 확인 요청에 답이 없던 결제는 다음 보정에서 다시 확인해 카드사와 맞춘다 (1.604s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: [카드사 상태 DONE 와 짝] expected: APPROVED but was: APPROVAL_UNKNOWN
+FAIL 승인 요청이 카드사에 닿지 않았으면, 보정 뒤 승인 실패로 닫힌다 (1.583s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: APPROVAL_FAILED but was: APPROVAL_UNKNOWN
+## 승인 요청 확인 — 비교 B: 금액을 equals 로 비교
+FAIL 승인된 결제에 다른 결제 키로 승인 요청이 오면 받아들이지 않는다 (0.011s) | com.example.payment.domain.error.exception.AmountMismatchException: com.example.payment.domain.error.exception.AmountMismatchException: Requested amount does not match the prepared amount of order order-ec3f3602-1051-440d-9870-92e1a1026b1e.
+FAIL 승인이 거절된 결제에 같은 승인 요청이 다시 오면 카드사에 묻지 않고 거절로 답한다 (0.01s) | com.example.payment.domain.error.exception.AmountMismatchException: com.example.payment.domain.error.exception.AmountMismatchException: Requested amount does not match the prepared amount of order order-6dce232d-8214-4c63-a105-5e36a0283664.
+FAIL 소수 자릿수만 다르게 적은 같은 금액이면 승인한다 (0.011s) | com.example.payment.domain.error.exception.AmountMismatchException: com.example.payment.domain.error.exception.AmountMismatchException: Requested amount does not match the prepared amount of order order-0996c741-ac41-4f50-afef-4929f8324a3c.
+PASS 요청 금액이 준비한 금액과 다르면 결제는 준비 상태 그대로다 (0.015s)
+PASS 요청 금액이 준비한 금액과 다르면 카드사에 승인을 요청하지 않는다 (0.008s)
+FAIL 승인된 결제에 같은 승인 요청이 다시 와도 카드사에는 한 번만 승인을 요청한다 (0.01s) | com.example.payment.domain.error.exception.AmountMismatchException: com.example.payment.domain.error.exception.AmountMismatchException: Requested amount does not match the prepared amount of order order-21a1265d-ea85-438f-a585-ec878034f031.
+FAIL 승인된 결제에 같은 승인 요청이 다시 오면 승인으로 답한다 (0.008s) | com.example.payment.domain.error.exception.AmountMismatchException: com.example.payment.domain.error.exception.AmountMismatchException: Requested amount does not match the prepared amount of order order-4d404440-0ffe-4881-8dca-897587b92fc8.
+## 결제 결과 받기(주문 서비스) — 비교(결정 4): 다시 시도를 다 쓰면 받는 쪽 저장소의 실패 표에 남김
+PASS 모르는 결제 상태가 실린 결과는 실패 모음에 남는다 (0.272s)
+FAIL 실패 모음에서 다시 넣은 결과는 아직 반영되지 않았으면 반영된다 (30.151s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+PASS 주문 서비스의 저장소가 잠시 쓰기를 거부한 동안 온 결과도 저장소가 돌아오면 반영된다 (9.64s)
+PASS 취소 뒤에 그보다 먼저 만든 승인이 늦게 와도 주문은 취소 상태로 남는다 (0.167s)
+PASS 처리할 수 없는 결과가 있어도 같은 자리의 뒤 결과는 첫 다시 시도 간격 안에 반영된다 (0.074s)
+PASS 읽을 수 없는 결과는 실패 모음에 남는다 (0.258s)
+FAIL 다시 시도를 다 쓴 결과는 실패 모음에 그 원인과 함께 남는다 (30.156s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+PASS 같은 주문의 결과는 앞 결과를 다시 시도하는 동안에도 보낸 순서대로 받는다 (6.247s)
+PASS 결제 서버 시계가 서로 달라 새 결과의 만든 시각이 앞선 결과보다 이르게 찍혀도 새 결과가 반영된다 (0.154s)
+PASS 같은 결제 결과를 다시 읽어도 주문은 다시 바뀌지 않는다 (0.155s)
+FAIL 실패 모음에서 다시 넣은 결과는 그사이 더 새 결과가 반영됐으면 무시된다 (30.261s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+PASS 결제 서버가 같은 결제 결과를 다시 보내도 주문 서비스는 받은 결과를 한 번만 남긴다 (1.273s)
+## 재고 명령 받기(재고 서비스) — 비교(결정 4): 다시 시도를 다 쓰면 받는 쪽 저장소의 실패 표에 남김
+PASS 모르는 재고 명령은 실패 모음에 남는다 (0.288s)
+FAIL 실패 모음에서 다시 넣은 명령은 아직 반영되지 않았으면 반영된다 (30.266s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.StockCommandConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+PASS 같은 해제를 다시 읽어도 재고는 한 번만 돌아온다 (1.33s)
+PASS 모르는 재고 명령은 예약을 바꾸지 않는다 (0.176s)
+PASS 읽을 수 없는 재고 명령은 실패 모음에 남는다 (0.308s)
+FAIL 실패 모음에서 다시 넣은 명령은 그사이 더 새 명령이 반영됐으면 무시된다 (30.169s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.StockCommandConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 다시 시도를 다 쓴 명령은 실패 모음에 그 원인과 함께 남는다 (30.273s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.StockCommandConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+PASS 재고 서비스의 저장소가 잠시 쓰기를 거부한 동안 온 명령도 저장소가 돌아오면 반영된다 (6.285s)
+PASS 같은 예약의 확정을 다시 시도하는 동안 해제가 와도 예약은 해제로 끝나고 재고는 돌아온다 (8.43s)
+PASS 처리할 수 없는 명령이 있어도 같은 자리의 뒤 명령은 첫 다시 시도 간격 안에 반영된다 (0.155s)
+PASS 해제 뒤에 그보다 먼저 만든 확정이 늦게 와도 예약은 해제 상태로 남는다 (0.172s)
+PASS 같은 확정을 다시 읽어도 예약이 잡은 재고는 한 번만 줄어 있다 (0.196s)
+## 하루치 대사 — 비교(결정 2): 모두 카드사에 맞춤
+FAIL 우리에게만 있는 승인 결제는 대사가 상태를 바꾸지 않는다 (0.033s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: APPROVED but was: APPROVAL_FAILED
+FAIL 우리 쪽만 취소된 결제는 카드사 승인으로 되돌리지 않고 운영자가 확인할 어긋남으로 남는다 (0.058s) | org.assertj.core.error.AssertJMultipleFailuresError: org.assertj.core.error.AssertJMultipleFailuresError: [List check single element] (1 failure) -- failure 1 -- Expecting value to be true but was false at DailyReconciliationContract.lambda$paymentAheadOfCardCompanyIsLeftForReview$7(DailyReconciliationContract.java:229)
+FAIL 카드사에만 있는 결제는 대사가 우리 쪽에 결제를 만들지 않는다 (0.866s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 0 but was: 1
+PASS 카드사에서만 전액 취소되고 알림이 모두 닿지 않은 승인 결제는 대사 뒤 승인 취소가 된다 (0.866s)
+PASS 대사가 카드사를 따라 맞춘 결제는 맞춘 것으로 대사 결과에 남는다 (0.765s)
+FAIL 카드사와 금액이 다른 결제는 운영자가 확인할 어긋남으로 대사 결과에 남는다 (0.04s) | org.assertj.core.error.AssertJMultipleFailuresError: org.assertj.core.error.AssertJMultipleFailuresError: [List check single element] (1 failure) -- failure 1 -- Expecting value to be true but was false at DailyReconciliationContract.lambda$amountMismatchIsLeftForReview$1(DailyReconciliationContract.java:161)
+PASS 우리 기록과 카드사가 같은 결제는 대사 결과에 남지 않는다 (0.052s)
+PASS 같은 날을 두 번 대사해도 같은 어긋남은 대사 결과에 한 번만 남는다 (0.02s)
+FAIL 우리에게만 있는 승인 결제는 운영자가 확인할 어긋남으로 대사 결과에 남는다 (0.014s) | org.assertj.core.error.AssertJMultipleFailuresError: org.assertj.core.error.AssertJMultipleFailuresError: [List check single element] (1 failure) -- failure 1 -- Expecting value to be true but was false at DailyReconciliationContract.lambda$ourOnlyPaymentIsLeftForReview$3(DailyReconciliationContract.java:184)
+FAIL 카드사와 금액이 다른 결제는 대사가 우리 금액을 바꾸지 않는다 (0.032s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 14000 but was: 15000.00
+PASS 카드사에서만 부분 취소되고 알림이 모두 닿지 않은 승인 결제는 대사 뒤 남은 금액이 카드사 잔액과 같다 (0.88s)
+PASS 두 서버가 같은 때 대사를 시작해도 카드사 거래 내역은 한 번만 읽는다 (0.56s)
+FAIL 카드사에만 있는 결제는 운영자가 확인할 어긋남으로 대사 결과에 남는다 (0.842s) | org.assertj.core.error.AssertJMultipleFailuresError: org.assertj.core.error.AssertJMultipleFailuresError: [List check single element] (1 failure) -- failure 1 -- Expecting value to be true but was false at DailyReconciliationContract.lambda$cardCompanyOnlyPaymentIsLeftForReview$5(DailyReconciliationContract.java:206)
+## 결제 취소 — 비교 C: 카드사 먼저 부르고 답을 받은 뒤에 기록함
+PASS 승인된 결제를 전액 취소하면 결제는 승인 취소 상태가 된다 (0.094s)
+PASS 부분 취소를 두 번 하면 남은 금액이 카드사 잔액과 같다 (0.039s)
+PASS 시간 제한을 넘긴 취소가 같은 Idempotency-Key 로 다시 와도 카드사에서 두 번 취소되지 않는다 (1.574s)
+FAIL 결과를 모르는 취소는 보정 뒤 남은 금액이 카드사 잔액과 같다 (1.554s) | java.lang.AssertionError: java.lang.AssertionError: [결제에 남은 취소] Expecting actual not to be empty
+PASS 같은 Idempotency-Key 로 다시 온 취소는 처음과 같은 답을 받는다 (0.034s)
+PASS 남은 금액보다 큰 취소는 받지 않는다 (0.031s)
+PASS 전액 취소한 결제는 카드사에도 취소로 남는다 (0.023s)
+PASS 매입된 결제를 전액 취소하면 결제는 매입 취소 상태가 된다 (0.035s)
+PASS 같은 Idempotency-Key 로 다시 온 취소는 카드사에 한 번만 보낸다 (0.026s)
+PASS 부분 취소 뒤 남은 금액이 있으면 결제는 승인 상태 그대로다 (0.026s)
+PASS 승인 전 결제 (0.012s)
+PASS 승인이 거절된 결제 (0.029s)
+PASS 승인 결과를 모르는 결제 (1.565s)
+PASS 남은 금액보다 큰 취소는 카드사에 보내지 않는다 (0.028s)
+PASS Idempotency-Key 가 다르면 같은 금액의 부분 취소도 두 번 모두 카드사에서 취소된다 (0.031s)
+PASS 시간 제한을 넘긴 취소가 같은 Idempotency-Key 로 다시 오면 카드사 잔액과 같은 남은 금액으로 답한다 (1.57s)
+FAIL 카드사 취소 답이 시간 제한을 넘기면 그 취소는 결과 모름으로 남는다 (1.037s) | java.lang.AssertionError: java.lang.AssertionError: [결제에 남은 취소] Expecting actual not to be empty
+PASS 승인 전 결제 (0.009s)
+PASS 승인이 거절된 결제 (0.024s)
+PASS 승인 결과를 모르는 결제 (1.555s)
+FAIL 카드사 취소 뒤 결과 기록이 실패해도, 보정 뒤 남은 금액이 카드사 잔액과 같다 (0.055s) | java.lang.AssertionError: java.lang.AssertionError: [결제에 남은 취소] Expecting actual not to be empty
+PASS 같은 Idempotency-Key 에 다른 금액이 오면 받지 않는다 (0.026s)
+PASS 부분 취소로 남은 금액이 0원이 되면 결제는 승인 취소 상태가 된다 (0.032s)
+PASS 이미 전액 취소된 결제의 새 취소는 받지 않는다 (0.024s)
+## 재고를 줄이는 때 — 비교: 카드사 승인 뒤(모자라면 승인 취소)
+PASS 재고가 없는 상품의 주문은 재고가 없다고 받지 않는다 (0.096s)
+FAIL 재고가 없는 상품의 주문은 카드사에 승인을 요청하지 않는다 (0.073s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 0 but was: 1
+PASS 준비만 하고 승인을 요청하지 않은 주문은 재고를 줄이지 않는다 (0.174s)
+FAIL 재고가 없는 상품의 주문은 카드사에서 승인된 뒤 취소되는 일이 없다 (0.071s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 0 but was: 1
+FAIL 카드사 답을 기다리는 주문이 잡은 재고는 다른 주문이 가져가지 못한다 (3.278s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.application.payment.HoldTimingContract was not fulfilled within 3 seconds.
+PASS 승인된 주문은 담은 수량만큼 재고를 줄여 둔다 (0.219s)
+## 재고를 줄이는 때 — 비교: 준비할 때
+PASS 재고가 없는 상품의 주문은 재고가 없다고 받지 않는다 (0.065s)
+PASS 재고가 없는 상품의 주문은 카드사에 승인을 요청하지 않는다 (0.053s)
+FAIL 준비만 하고 승인을 요청하지 않은 주문은 재고를 줄이지 않는다 (0.121s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 3 but was: 2
+PASS 재고가 없는 상품의 주문은 카드사에서 승인된 뒤 취소되는 일이 없다 (0.055s)
+PASS 카드사 답을 기다리는 주문이 잡은 재고는 다른 주문이 가져가지 못한다 (0.266s)
+PASS 승인된 주문은 담은 수량만큼 재고를 줄여 둔다 (0.183s)
+## 결과 모름 보정 — 비교 C: 시간 초과 직후 요청 안에서 바로 조회
+PASS 이미 승인된 결제는 보정해도 승인 상태 그대로다 (0.044s)
+FAIL 카드사 승인 뒤 결과 기록이 실패해도, 보정 뒤 결제 기록이 카드사와 어긋나지 않는다 (0.044s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: [카드사 상태 DONE 와 짝] expected: APPROVED but was: AUTHENTICATED
+PASS 카드사가 거절했지만 답을 받지 못하면, 보정 뒤 승인 실패로 닫힌다 (1.578s)
+FAIL 카드사가 승인했지만 답이 시간 제한을 넘기면, 보정 뒤 결제 기록이 카드사와 어긋나지 않는다 (1.569s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: [카드사 상태 DONE 와 짝] expected: APPROVED but was: APPROVAL_FAILED
+FAIL 결과를 모르는 결제에 같은 결제 키로 다시 오면 확인 중이라고 답한다 (1.038s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: APPROVAL_UNKNOWN but was: APPROVAL_FAILED
+PASS 결과를 모르는 결제에 같은 결제 키로 다시 오면 카드사에 다시 승인을 요청하지 않는다 (1.06s)
+PASS 보정 중 카드사에 보낸 확인 요청에도 답이 없으면 결제 상태를 바꾸지 않는다 (2.184s)
+FAIL 확인 요청에 답이 없던 결제는 다음 보정에서 다시 확인해 카드사와 맞춘다 (2.153s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: [카드사 상태 DONE 와 짝] expected: APPROVED but was: APPROVAL_UNKNOWN
+PASS 승인 요청이 카드사에 닿지 않았으면, 보정 뒤 승인 실패로 닫힌다 (1.564s)
+## 결제 승인 — 비교 A: 하나로 묶고 거절은 실패로 알림
+FAIL 카드사 답을 기다리는 승인이 연결 수만큼 있어도 다른 결제를 조회할 수 있다 (1.371s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: null but was: org.springframework.transaction.CannotCreateTransactionException: Could not open JPA EntityManager for transaction at org.springframework.orm.jpa.JpaTransactionManager.doBegin(JpaTransactionManager.java:457) at org.springframework.transaction.support.AbstractPlatformTransactionManager.startTransaction
+PASS 카드사 답이 정해진 시간 안에 오지 않으면 기다리지 않고 응답 없음을 알린다 (1.02s)
+PASS 카드사가 승인하면 결제는 승인 상태가 된다 (0.014s)
+FAIL 카드사가 승인을 거절하면 결제는 승인 거절 상태로 남는다 (0.01s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: APPROVAL_FAILED but was: READY
+## 결제 이벤트 — 비교: 상태를 바꾼 그 자리에서 바로 보냄(출발 구조)
+FAIL 브로커가 1.5초 늦게 답해도 결제 승인은 1초 안에 답한다 (1.705s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual: 1.53488175S to be less than: 1S
+FAIL 승인된 결제의 주문은 주문 서비스에서 결제 완료가 된다 (15.171s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.OrderServer was not fulfilled within 15 seconds.
+FAIL 승인 기록이 실패한 결제의 승인은 주문 서비스에 가지 않는다 (15.229s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.OrderServer was not fulfilled within 15 seconds.
+FAIL 승인이 거절된 결제의 주문은 주문 서비스에서 결제 실패가 된다 (15.208s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.OrderServer was not fulfilled within 15 seconds.
+FAIL 같은 결제의 승인과 취소는 만든 순서대로 주문 서비스에 도착한다 (10.216s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.OrderServer was not fulfilled within 10 seconds.
+FAIL 브로커가 끊긴 동안 승인된 결제도 브로커가 돌아오면 주문 서비스에 승인이 도착한다 (19.164s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.OrderServer was not fulfilled within 15 seconds.
+FAIL 승인 뒤 전액 취소된 결제의 주문은 주문 서비스에서 취소 상태다 (10.225s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.OrderServer was not fulfilled within 10 seconds.
+## 결제 승인 — 비교 A': 하나로 묶되 거절로 실패해도 기록은 남김
+FAIL 카드사 답을 기다리는 승인이 연결 수만큼 있어도 다른 결제를 조회할 수 있다 (0.858s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: null but was: org.springframework.transaction.CannotCreateTransactionException: Could not open JPA EntityManager for transaction at org.springframework.orm.jpa.JpaTransactionManager.doBegin(JpaTransactionManager.java:457) at org.springframework.transaction.support.AbstractPlatformTransactionManager.startTransaction
+PASS 카드사 답이 정해진 시간 안에 오지 않으면 기다리지 않고 응답 없음을 알린다 (1.017s)
+PASS 카드사가 승인하면 결제는 승인 상태가 된다 (0.016s)
+PASS 카드사가 승인을 거절하면 결제는 승인 거절 상태로 남는다 (0.012s)
+## 결제와 나눈 재고를 함께 끝내기 — 비교(결정 4): 재고 서비스 답이 없으면 예약을 조회해 확인한 뒤 진행
+PASS 승인 요청이 닿지 않아 카드사에서 만료된 결제를 보정이 닫으면 재고는 처음으로 돌아온다 (1.214s)
+PASS 해제가 예약보다 먼저 도착해도 재고는 처음보다 늘지 않는다 (1.16s)
+PASS 결과를 모르던 결제를 보정이 승인 실패로 닫으면 재고는 처음으로 돌아온다 (1.689s)
+PASS 승인 결과를 모르는 동안은 재고 예약을 그대로 둔다 (1.155s)
+FAIL 재고 서비스가 예약을 처리하는 동안 시간 제한이 지나도 그 주문이 잡은 재고는 처음으로 돌아온다 (1.255s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 5 but was: 3
+PASS 승인된 결제를 전액 취소하면 재고는 처음으로 돌아온다 (0.183s)
+PASS 재고 서비스가 멈춘 동안 승인 없이 끝난 주문의 재고는 재고 서비스가 돌아오면 처음으로 돌아온다 (0.544s)
+PASS 해제보다 늦게 도착한 예약은 재고를 줄이지 않는다 (1.25s)
+PASS 재고 서비스가 재고가 모자라다고 답한 결제는 승인 없이 실패로 끝난다 (0.075s)
+PASS 재고 100개에 두 서버로 주문 300건이 한꺼번에 와도 승인된 주문은 100건을 넘지 않는다 (3.524s)
+PASS 결과를 모르던 결제를 보정이 승인으로 닫으면 재고 예약은 확정된다 (8.161s)
+PASS 승인된 주문의 재고 예약은 확정된다 (0.21s)
+PASS 재고가 모자라 받지 않은 주문은 재고를 그대로 둔다 (0.205s)
+PASS 재고 서비스가 재고가 모자라다고 답한 주문은 카드사에 승인을 요청하지 않는다 (0.152s)
+PASS 카드사가 승인을 거절한 주문의 재고는 처음으로 돌아온다 (0.266s)
+PASS 재고가 모자라 받지 않은 주문은 쓴 쿠폰·포인트를 돌려준다 (0.134s)
+PASS 재고 서비스의 답이 시간 제한보다 늦은 주문은 카드사에 승인을 요청하지 않는다 (1.091s)
+PASS 같은 해제가 두 번 와도 재고는 한 번만 돌아온다 (0.319s)
+PASS 재고 서비스의 답이 시간 제한보다 늦어도 그 주문이 잡은 재고는 처음으로 돌아온다 (1.164s)
+PASS 재고 100개에 두 서버로 주문 300건이 몰린 뒤 일부를 취소해도 남은 재고와 승인이 남은 결제의 수량을 더하면 처음 재고다 (14.431s)
+PASS 같은 확정이 두 번 와도 재고는 승인된 수량만큼만 줄어 있다 (0.342s)
+## 결제 결과 받기(주문 서비스) — 비교(결정 4): 다시 시도를 다 쓰면 로그만 남김
+FAIL 모르는 결제 상태가 실린 결과는 실패 모음에 남는다 (30.121s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 실패 모음에서 다시 넣은 결과는 아직 반영되지 않았으면 반영된다 (30.251s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+PASS 주문 서비스의 저장소가 잠시 쓰기를 거부한 동안 온 결과도 저장소가 돌아오면 반영된다 (6.205s)
+PASS 취소 뒤에 그보다 먼저 만든 승인이 늦게 와도 주문은 취소 상태로 남는다 (0.177s)
+PASS 처리할 수 없는 결과가 있어도 같은 자리의 뒤 결과는 첫 다시 시도 간격 안에 반영된다 (0.104s)
+FAIL 읽을 수 없는 결과는 실패 모음에 남는다 (30.211s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 다시 시도를 다 쓴 결과는 실패 모음에 그 원인과 함께 남는다 (30.172s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+PASS 같은 주문의 결과는 앞 결과를 다시 시도하는 동안에도 보낸 순서대로 받는다 (6.296s)
+PASS 결제 서버 시계가 서로 달라 새 결과의 만든 시각이 앞선 결과보다 이르게 찍혀도 새 결과가 반영된다 (0.219s)
+PASS 같은 결제 결과를 다시 읽어도 주문은 다시 바뀌지 않는다 (0.225s)
+FAIL 실패 모음에서 다시 넣은 결과는 그사이 더 새 결과가 반영됐으면 무시된다 (30.185s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.PaymentEventConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+PASS 결제 서버가 같은 결제 결과를 다시 보내도 주문 서비스는 받은 결과를 한 번만 남긴다 (0.285s)
+## 재고 명령 받기(재고 서비스) — 비교(결정 4): 다시 시도를 다 쓰면 로그만 남김
+FAIL 모르는 재고 명령은 실패 모음에 남는다 (30.244s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.StockCommandConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 실패 모음에서 다시 넣은 명령은 아직 반영되지 않았으면 반영된다 (30.165s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.StockCommandConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+PASS 같은 해제를 다시 읽어도 재고는 한 번만 돌아온다 (0.213s)
+PASS 모르는 재고 명령은 예약을 바꾸지 않는다 (0.188s)
+FAIL 읽을 수 없는 재고 명령은 실패 모음에 남는다 (30.147s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.StockCommandConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 실패 모음에서 다시 넣은 명령은 그사이 더 새 명령이 반영됐으면 무시된다 (30.179s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.StockCommandConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+FAIL 다시 시도를 다 쓴 명령은 실패 모음에 그 원인과 함께 남는다 (30.245s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Lambda expression in com.example.payment.application.payment.StockCommandConsumerContract expected the predicate to return <true> but it returned <false> for input of <Optional.empty> within 30 seconds.
+PASS 재고 서비스의 저장소가 잠시 쓰기를 거부한 동안 온 명령도 저장소가 돌아오면 반영된다 (6.278s)
+PASS 같은 예약의 확정을 다시 시도하는 동안 해제가 와도 예약은 해제로 끝나고 재고는 돌아온다 (6.278s)
+PASS 처리할 수 없는 명령이 있어도 같은 자리의 뒤 명령은 첫 다시 시도 간격 안에 반영된다 (0.129s)
+PASS 해제 뒤에 그보다 먼저 만든 확정이 늦게 와도 예약은 해제 상태로 남는다 (0.208s)
+PASS 같은 확정을 다시 읽어도 예약이 잡은 재고는 한 번만 줄어 있다 (0.212s)
+## 결제 취소 — 비교 A: 같은 금액·사유를 같은 요청으로 봄(자연 키)
+PASS 승인된 결제를 전액 취소하면 결제는 승인 취소 상태가 된다 (0.055s)
+PASS 부분 취소를 두 번 하면 남은 금액이 카드사 잔액과 같다 (0.024s)
+PASS 시간 제한을 넘긴 취소가 같은 Idempotency-Key 로 다시 와도 카드사에서 두 번 취소되지 않는다 (1.587s)
+PASS 결과를 모르는 취소는 보정 뒤 남은 금액이 카드사 잔액과 같다 (1.578s)
+PASS 같은 Idempotency-Key 로 다시 온 취소는 처음과 같은 답을 받는다 (0.04s)
+PASS 남은 금액보다 큰 취소는 받지 않는다 (0.028s)
+PASS 전액 취소한 결제는 카드사에도 취소로 남는다 (0.026s)
+PASS 매입된 결제를 전액 취소하면 결제는 매입 취소 상태가 된다 (0.03s)
+PASS 같은 Idempotency-Key 로 다시 온 취소는 카드사에 한 번만 보낸다 (0.032s)
+PASS 부분 취소 뒤 남은 금액이 있으면 결제는 승인 상태 그대로다 (0.036s)
+PASS 승인 전 결제 (0.012s)
+PASS 승인이 거절된 결제 (0.025s)
+PASS 승인 결과를 모르는 결제 (1.561s)
+PASS 남은 금액보다 큰 취소는 카드사에 보내지 않는다 (0.052s)
+FAIL Idempotency-Key 가 다르면 같은 금액의 부분 취소도 두 번 모두 카드사에서 취소된다 (0.07s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 2 but was: 1
+PASS 시간 제한을 넘긴 취소가 같은 Idempotency-Key 로 다시 오면 카드사 잔액과 같은 남은 금액으로 답한다 (1.61s)
+PASS 카드사 취소 답이 시간 제한을 넘기면 그 취소는 결과 모름으로 남는다 (1.557s)
+PASS 승인 전 결제 (0.017s)
+PASS 승인이 거절된 결제 (0.026s)
+PASS 승인 결과를 모르는 결제 (1.582s)
+PASS 카드사 취소 뒤 결과 기록이 실패해도, 보정 뒤 남은 금액이 카드사 잔액과 같다 (0.118s)
+FAIL 같은 Idempotency-Key 에 다른 금액이 오면 받지 않는다 (0.064s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual not to be null
+PASS 부분 취소로 남은 금액이 0원이 되면 결제는 승인 취소 상태가 된다 (0.034s)
+PASS 이미 전액 취소된 결제의 새 취소는 받지 않는다 (0.026s)
+## 결과 모름 보정 — 비교 A: 망취소(카드사에 취소를 보내고 승인 실패로 닫음)
+PASS 이미 승인된 결제는 보정해도 승인 상태 그대로다 (0.034s)
+FAIL 카드사 승인 뒤 결과 기록이 실패해도, 보정 뒤 결제 기록이 카드사와 어긋나지 않는다 (0.039s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: [카드사 상태 CANCELED 와 짝] expected: APPROVAL_CANCELED but was: APPROVAL_FAILED
+PASS 카드사가 거절했지만 답을 받지 못하면, 보정 뒤 승인 실패로 닫힌다 (1.57s)
+FAIL 카드사가 승인했지만 답이 시간 제한을 넘기면, 보정 뒤 결제 기록이 카드사와 어긋나지 않는다 (1.577s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: [카드사 상태 CANCELED 와 짝] expected: APPROVAL_CANCELED but was: APPROVAL_FAILED
+PASS 결과를 모르는 결제에 같은 결제 키로 다시 오면 확인 중이라고 답한다 (1.042s)
+PASS 결과를 모르는 결제에 같은 결제 키로 다시 오면 카드사에 다시 승인을 요청하지 않는다 (1.042s)
+PASS 보정 중 카드사에 보낸 확인 요청에도 답이 없으면 결제 상태를 바꾸지 않는다 (2.585s)
+FAIL 확인 요청에 답이 없던 결제는 다음 보정에서 다시 확인해 카드사와 맞춘다 (2.597s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: [카드사 상태 CANCELED 와 짝] expected: APPROVAL_CANCELED but was: APPROVAL_FAILED
+PASS 승인 요청이 카드사에 닿지 않았으면, 보정 뒤 승인 실패로 닫힌다 (1.597s)
+## 운영 지표와 정리 — 비교(결정 5): 지우지 않음
+FAIL 보존 기간이 지난 주문 서비스의 받은 결제 결과는 정리에서 지워진다 (0.926s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 0 but was: 1
+PASS 받은 결제 결과가 정리된 뒤 같은 결과가 다시 와도 주문은 다시 바뀌지 않는다 (0.298s)
+PASS 운영자가 확인할 대사 어긋남 수가 운영 지표에 보인다 (0.338s)
+FAIL 보존 기간이 지난 보낸 결제 결과는 정리에서 지워진다 (0.136s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 0 but was: 1
+PASS 재고 서비스 실패 모음에 재고 명령이 하나 더 쌓이면 운영 지표도 하나 는다 (1.819s)
+FAIL 보존 기간이 지난 재고 서비스의 처리한 재고 명령은 정리에서 지워진다 (0.209s) | java.lang.AssertionError: java.lang.AssertionError: Expecting empty but was: [{"command"="CONFIRM", "command_id"="1661919008", "id"=3L, "processed_at"=2026-11-07T13:43:35.944681 (java.time.LocalDateTime), "reservation_id"=1661919006L}]
+PASS 보내지 않은 결제 결과 수가 운영 지표에 보인다 (0.063s)
+PASS 주문 서비스 실패 모음에 결제 결과가 하나 더 쌓이면 운영 지표도 하나 는다 (1.815s)
+PASS 보존 기간이 지나지 않은 보낸 결제 결과는 정리에서 남는다 (0.063s)
+PASS 보내지 않은 결제 결과는 오래돼도 정리에서 지우지 않는다 (0.067s)
+PASS 실패 모음에서 다시 넣은 결제 결과는 운영 지표에서 빠진다 (3.199s)
+PASS 보존 기간이 지나지 않은 주문 서비스의 받은 결제 결과는 정리에서 남는다 (0.171s)
+PASS 보내지 않은 결제 결과 가운데 가장 오래 기다린 결과의 나이가 운영 지표에 초로 보인다 (0.067s)
+## 서버 여러 대의 주기 작업 — 비교: 나누지 않음(서버마다 모든 대상을 돎, 6장까지)
+FAIL 서버 두 대가 같은 때 망취소 보정을 돌려도 결과 모름 결제마다 카드사에 취소는 한 번만 보낸다 (3.733s) | java.lang.AssertionError: java.lang.AssertionError: [결제마다 카드사에 보낸 취소 횟수] Expecting ArrayList: [2, 2, 2] to contain only: [1] element(s) not found: [1] and element(s) not expected: [2, 2, 2]
+PASS 서버 두 대가 같은 때 받은 알림을 처리해도 남은 금액은 카드사 잔액과 같다 (1.657s)
+FAIL 서버 두 대가 같은 때 보정을 돌려도 결과 모름 취소가 있는 결제마다 카드사 조회는 한 번이다 (3.38s) | java.lang.AssertionError: java.lang.AssertionError: [결제마다 카드사 조회 횟수] Expecting ArrayList: [2, 2, 2] to contain only: [1] element(s) not found: [1] and element(s) not expected: [2, 2, 2]
+PASS 서버 두 대가 같은 때 보정을 돌려도 결과 모름 결제는 카드사와 같은 승인으로 맞춰진다 (3.369s)
+FAIL 서버 두 대가 같은 때 받은 알림을 처리해도 알림이 온 결제마다 카드사 조회는 한 번이다 (1.661s) | java.lang.AssertionError: java.lang.AssertionError: [결제마다 카드사 조회 횟수] Expecting ArrayList: [2, 2, 2] to contain only: [1] element(s) not found: [1] and element(s) not expected: [2, 2, 2]
+FAIL 서버 두 대가 같은 때 보정을 돌려도 결과 모름 결제마다 카드사 조회는 한 번이다 (3.367s) | java.lang.AssertionError: java.lang.AssertionError: [결제마다 카드사 조회 횟수] Expecting ArrayList: [2, 2, 2] to contain only: [1] element(s) not found: [1] and element(s) not expected: [2, 2, 2]
+## 결제 결과 받기(주문 서비스) — 비교(결정 1): 가리지 않음
+PASS 모르는 결제 상태가 실린 결과는 실패 모음에 남는다 (1.291s)
+PASS 실패 모음에서 다시 넣은 결과는 아직 반영되지 않았으면 반영된다 (15.873s)
+PASS 주문 서비스의 저장소가 잠시 쓰기를 거부한 동안 온 결과도 저장소가 돌아오면 반영된다 (6.197s)
+PASS 취소 뒤에 그보다 먼저 만든 승인이 늦게 와도 주문은 취소 상태로 남는다 (0.22s)
+PASS 처리할 수 없는 결과가 있어도 같은 자리의 뒤 결과는 첫 다시 시도 간격 안에 반영된다 (0.101s)
+PASS 읽을 수 없는 결과는 실패 모음에 남는다 (1.324s)
+PASS 다시 시도를 다 쓴 결과는 실패 모음에 그 원인과 함께 남는다 (15.593s)
+PASS 같은 주문의 결과는 앞 결과를 다시 시도하는 동안에도 보낸 순서대로 받는다 (6.373s)
+PASS 결제 서버 시계가 서로 달라 새 결과의 만든 시각이 앞선 결과보다 이르게 찍혀도 새 결과가 반영된다 (0.166s)
+PASS 같은 결제 결과를 다시 읽어도 주문은 다시 바뀌지 않는다 (0.21s)
+PASS 실패 모음에서 다시 넣은 결과는 그사이 더 새 결과가 반영됐으면 무시된다 (15.942s)
+FAIL 결제 서버가 같은 결제 결과를 다시 보내도 주문 서비스는 받은 결과를 한 번만 남긴다 (0.21s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 1 but was: 2
+## 결제 결과 받기(주문 서비스) — 비교(결정 2): 옛 결과를 거르지 않음
+PASS 모르는 결제 상태가 실린 결과는 실패 모음에 남는다 (1.327s)
+PASS 실패 모음에서 다시 넣은 결과는 아직 반영되지 않았으면 반영된다 (16.316s)
+PASS 주문 서비스의 저장소가 잠시 쓰기를 거부한 동안 온 결과도 저장소가 돌아오면 반영된다 (6.216s)
+FAIL 취소 뒤에 그보다 먼저 만든 승인이 늦게 와도 주문은 취소 상태로 남는다 (0.209s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: "CANCELED" but was: "PAID"
+PASS 처리할 수 없는 결과가 있어도 같은 자리의 뒤 결과는 첫 다시 시도 간격 안에 반영된다 (0.076s)
+PASS 읽을 수 없는 결과는 실패 모음에 남는다 (1.315s)
+PASS 다시 시도를 다 쓴 결과는 실패 모음에 그 원인과 함께 남는다 (15.557s)
+PASS 같은 주문의 결과는 앞 결과를 다시 시도하는 동안에도 보낸 순서대로 받는다 (6.299s)
+PASS 결제 서버 시계가 서로 달라 새 결과의 만든 시각이 앞선 결과보다 이르게 찍혀도 새 결과가 반영된다 (0.201s)
+PASS 같은 결제 결과를 다시 읽어도 주문은 다시 바뀌지 않는다 (0.197s)
+FAIL 실패 모음에서 다시 넣은 결과는 그사이 더 새 결과가 반영됐으면 무시된다 (16.486s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: "CANCELED" but was: "PAID"
+PASS 결제 서버가 같은 결제 결과를 다시 보내도 주문 서비스는 받은 결과를 한 번만 남긴다 (0.266s)
+## 결제 취소 — 비교 D: 카드사에 멱등키를 넘기지 않음
+PASS 승인된 결제를 전액 취소하면 결제는 승인 취소 상태가 된다 (0.058s)
+PASS 부분 취소를 두 번 하면 남은 금액이 카드사 잔액과 같다 (0.035s)
+FAIL 시간 제한을 넘긴 취소가 같은 Idempotency-Key 로 다시 와도 카드사에서 두 번 취소되지 않는다 (1.58s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 1 but was: 2
+PASS 결과를 모르는 취소는 보정 뒤 남은 금액이 카드사 잔액과 같다 (1.617s)
+PASS 같은 Idempotency-Key 로 다시 온 취소는 처음과 같은 답을 받는다 (0.064s)
+PASS 남은 금액보다 큰 취소는 받지 않는다 (0.055s)
+PASS 전액 취소한 결제는 카드사에도 취소로 남는다 (0.055s)
+PASS 매입된 결제를 전액 취소하면 결제는 매입 취소 상태가 된다 (0.068s)
+PASS 같은 Idempotency-Key 로 다시 온 취소는 카드사에 한 번만 보낸다 (0.045s)
+PASS 부분 취소 뒤 남은 금액이 있으면 결제는 승인 상태 그대로다 (0.034s)
+PASS 승인 전 결제 (0.011s)
+PASS 승인이 거절된 결제 (0.022s)
+PASS 승인 결과를 모르는 결제 (1.557s)
+PASS 남은 금액보다 큰 취소는 카드사에 보내지 않는다 (0.064s)
+PASS Idempotency-Key 가 다르면 같은 금액의 부분 취소도 두 번 모두 카드사에서 취소된다 (0.045s)
+FAIL 시간 제한을 넘긴 취소가 같은 Idempotency-Key 로 다시 오면 카드사 잔액과 같은 남은 금액으로 답한다 (1.586s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 5000.00 but was: 10000.00
+PASS 카드사 취소 답이 시간 제한을 넘기면 그 취소는 결과 모름으로 남는다 (1.591s)
+PASS 승인 전 결제 (0.015s)
+PASS 승인이 거절된 결제 (0.037s)
+PASS 승인 결과를 모르는 결제 (1.57s)
+PASS 카드사 취소 뒤 결과 기록이 실패해도, 보정 뒤 남은 금액이 카드사 잔액과 같다 (0.106s)
+PASS 같은 Idempotency-Key 에 다른 금액이 오면 받지 않는다 (0.037s)
+PASS 부분 취소로 남은 금액이 0원이 되면 결제는 승인 취소 상태가 된다 (0.049s)
+PASS 이미 전액 취소된 결제의 새 취소는 받지 않는다 (0.031s)
+## 결제 결과 릴레이 — 비교: 잠그지 않음(서버마다 릴레이)
+FAIL 서버 두 대가 함께 릴레이를 돌아도 같은 이벤트를 두 번 보내지 않는다 (3.648s) | java.lang.AssertionError: java.lang.AssertionError: Found duplicate(s): [1L, 2L] in: [1L, 2L, 1L, 2L]
+PASS 릴레이가 이벤트 하나를 처리하던 중 죽어도 다시 돌면 그 이벤트는 주문 서비스에 도착한다 (0.183s)
+PASS 보내지 못한 결제의 이벤트는 다음 주기에 만든 순서대로 도착한다 (0.244s)
+FAIL 서버 두 대가 함께 릴레이를 돌아도 같은 결제의 이벤트는 만든 순서대로 도착한다 (3.276s) | java.lang.AssertionError: java.lang.AssertionError: group is not sorted because element 1: 7L is not less or equal than element 2: 6L group was: [6L, 7L, 6L, 7L]
+PASS 릴레이가 보낸 뒤 보낸 것을 남기기 전에 죽으면 다시 돌 때 같은 이벤트가 한 번 더 간다 (2.752s)
+PASS 서버 두 대가 함께 릴레이를 돌아도 승인 뒤 취소된 결제의 주문은 취소 상태다 (2.762s)
+PASS 한 결제의 이벤트를 보내지 못해도 그 주기에 다른 결제의 이벤트는 보낸다 (0.145s)
+PASS 한 결제의 앞 이벤트를 보내지 못하면 그 주기에는 그 결제의 다음 이벤트도 보내지 않는다 (1.234s)
+## 같은 결제를 바꾸는 동시 기록 — 비교: 잠그지 않음(6장까지)
+FAIL 다른 결제 키로 승인 두 건이 동시에 오면 카드사에는 한 건만 승인된다 (1.089s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 1 but was: 2
+FAIL 남은 금액을 함께 넘는 취소 두 건이 동시에 오면 나중 취소는 남은 금액보다 크다고 받지 않는다 (1.055s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: CANCEL_AMOUNT_EXCEEDS_BALANCE but was: null
+PASS 부분 취소 두 건의 기록이 겹쳐도 보정 없이 우리 남은 금액이 카드사 잔액과 같다 (2.377s)
+FAIL 같은 결제 키로 승인 두 건이 동시에 와도 카드사에는 승인을 한 번만 요청한다 (1.043s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 1 but was: 2
+FAIL 같은 Idempotency-Key 로 취소 두 건이 동시에 와도 서버 오류로 답하지 않는다 (1.071s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: [나중 취소의 답: org.springframework.dao.DataIntegrityViolationException: could not execute statement [Duplicate entry '5-cancel-1-order-47233113-b0fd-4e75-93b0-e66fb2453a1c' for key 'payment_cancel.uk_payment_cancel_idempotency_key'] [insert into payment_cancel (amount,balance_after,idempotency_key,payment_id,reason,request_diges
+PASS 같은 Idempotency-Key 로 취소 두 건이 동시에 와도 카드사에서는 한 번만 취소된다 (1.047s)
+PASS 같은 Idempotency-Key 로 취소 두 건이 동시에 와도 취소 기록은 하나만 남는다 (1.071s)
+FAIL 알림 반영이 끝나기 전에 승인 답 기록이 겹쳐도 결제는 카드사와 같다 (1.167s) | java.lang.AssertionError: java.lang.AssertionError: [카드사 상태 CANCELED 와 짝] Expecting Set12: [APPROVAL_CANCELED, CAPTURE_CANCELED] to contain: [APPROVED] but could not find the following element(s): [APPROVED]
+PASS 같은 결제 키로 승인 두 건이 동시에 와도 서버 오류로 답하지 않는다 (1.041s)
+FAIL 남은 금액을 함께 넘는 취소 두 건이 동시에 오면 카드사에는 한 건만 보낸다 (1.052s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 1 but was: 2
+PASS 남은 금액을 함께 넘는 취소 두 건이 동시에 와도 카드사에서 취소된 금액은 결제 금액을 넘지 않는다 (1.088s)
+## 같은 상품에 몰린 주문의 재고 — 비교: 잠그지 않고 읽고 확인한 뒤 씀(결정 2까지)
+PASS 재고 10개에 주문 30건이 한꺼번에 와도 재고는 0 아래로 내려가지 않는다 (1.051s)
+FAIL 재고 10개에 주문 30건이 한꺼번에 와도 남은 재고는 승인된 주문 수만큼만 줄어 있다 (0.994s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: -20L but was: 7L
+FAIL 재고 1개에 두 주문이 겹치면 나중 주문은 재고가 없다고 받지 않는다 (1.136s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: OUT_OF_STOCK but was: null
+FAIL 재고 10개에 주문 30건이 한꺼번에 와도 10건만 승인된다 (0.348s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 10L but was: 30L
+FAIL 재고 1개에 두 주문이 겹쳐도 카드사 승인은 한 건이다 (1.112s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 1 but was: 2
+FAIL 재고 1개에 두 주문이 겹치면 한 주문만 승인된다 (1.14s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 1L but was: 2L
+## 운영 지표와 정리 — 비교(결정 5): 지표 없음
+PASS 보존 기간이 지난 주문 서비스의 받은 결제 결과는 정리에서 지워진다 (0.181s)
+PASS 받은 결제 결과가 정리된 뒤 같은 결과가 다시 와도 주문은 다시 바뀌지 않는다 (0.261s)
+FAIL 운영자가 확인할 대사 어긋남 수가 운영 지표에 보인다 (0.054s) | java.lang.AssertionError: java.lang.AssertionError: Expecting Optional to contain a value but it was empty.
+PASS 보존 기간이 지난 보낸 결제 결과는 정리에서 지워진다 (0.064s)
+FAIL 재고 서비스 실패 모음에 재고 명령이 하나 더 쌓이면 운영 지표도 하나 는다 (2.305s) | java.lang.AssertionError: java.lang.AssertionError: Expecting Optional to contain a value but it was empty.
+PASS 보존 기간이 지난 재고 서비스의 처리한 재고 명령은 정리에서 지워진다 (0.21s)
+FAIL 보내지 않은 결제 결과 수가 운영 지표에 보인다 (0.058s) | java.lang.AssertionError: java.lang.AssertionError: Expecting Optional to contain: 2.0 but was empty.
+FAIL 주문 서비스 실패 모음에 결제 결과가 하나 더 쌓이면 운영 지표도 하나 는다 (2.316s) | java.lang.AssertionError: java.lang.AssertionError: Expecting Optional to contain a value but it was empty.
+PASS 보존 기간이 지나지 않은 보낸 결제 결과는 정리에서 남는다 (0.069s)
+PASS 보내지 않은 결제 결과는 오래돼도 정리에서 지우지 않는다 (0.062s)
+FAIL 실패 모음에서 다시 넣은 결제 결과는 운영 지표에서 빠진다 (3.235s) | java.lang.AssertionError: java.lang.AssertionError: Expecting Optional to contain: 0.0 but was empty.
+PASS 보존 기간이 지나지 않은 주문 서비스의 받은 결제 결과는 정리에서 남는다 (0.171s)
+FAIL 보내지 않은 결제 결과 가운데 가장 오래 기다린 결과의 나이가 운영 지표에 초로 보인다 (0.058s) | java.lang.AssertionError: java.lang.AssertionError: Expecting Optional to contain a value but it was empty.
+## 결제와 나눈 재고를 함께 끝내기 — 비교(결정 4): 재고 서비스 답이 없으면 실패로만 보고 해제를 보내지 않음
+PASS 승인 요청이 닿지 않아 카드사에서 만료된 결제를 보정이 닫으면 재고는 처음으로 돌아온다 (1.227s)
+PASS 해제가 예약보다 먼저 도착해도 재고는 처음보다 늘지 않는다 (0.647s)
+PASS 결과를 모르던 결제를 보정이 승인 실패로 닫으면 재고는 처음으로 돌아온다 (1.691s)
+PASS 승인 결과를 모르는 동안은 재고 예약을 그대로 둔다 (1.155s)
+FAIL 재고 서비스가 예약을 처리하는 동안 시간 제한이 지나도 그 주문이 잡은 재고는 처음으로 돌아온다 (1.239s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 5 but was: 3
+PASS 승인된 결제를 전액 취소하면 재고는 처음으로 돌아온다 (0.208s)
+PASS 재고 서비스가 멈춘 동안 승인 없이 끝난 주문의 재고는 재고 서비스가 돌아오면 처음으로 돌아온다 (0.504s)
+FAIL 해제보다 늦게 도착한 예약은 재고를 줄이지 않는다 (0.74s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 5 but was: 3
+PASS 재고 서비스가 재고가 모자라다고 답한 결제는 승인 없이 실패로 끝난다 (0.099s)
+PASS 재고 100개에 두 서버로 주문 300건이 한꺼번에 와도 승인된 주문은 100건을 넘지 않는다 (2.808s)
+PASS 결과를 모르던 결제를 보정이 승인으로 닫으면 재고 예약은 확정된다 (5.065s)
+PASS 승인된 주문의 재고 예약은 확정된다 (0.18s)
+PASS 재고가 모자라 받지 않은 주문은 재고를 그대로 둔다 (0.18s)
+PASS 재고 서비스가 재고가 모자라다고 답한 주문은 카드사에 승인을 요청하지 않는다 (0.066s)
+PASS 카드사가 승인을 거절한 주문의 재고는 처음으로 돌아온다 (0.162s)
+PASS 재고가 모자라 받지 않은 주문은 쓴 쿠폰·포인트를 돌려준다 (0.086s)
+PASS 재고 서비스의 답이 시간 제한보다 늦은 주문은 카드사에 승인을 요청하지 않는다 (0.601s)
+PASS 같은 해제가 두 번 와도 재고는 한 번만 돌아온다 (0.253s)
+FAIL 재고 서비스의 답이 시간 제한보다 늦어도 그 주문이 잡은 재고는 처음으로 돌아온다 (0.671s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 5 but was: 3
+PASS 재고 100개에 두 서버로 주문 300건이 몰린 뒤 일부를 취소해도 남은 재고와 승인이 남은 결제의 수량을 더하면 처음 재고다 (6.768s)
+PASS 같은 확정이 두 번 와도 재고는 승인된 수량만큼만 줄어 있다 (0.297s)
+## 결제 상태 이력 — 비교(결정 3): 이력 없음
+FAIL 카드사 알림으로 따라간 취소는 알림이 바꿨다고 이력에 남는다 (0.045s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual not to be empty
+FAIL 상태가 그대로인 부분 취소는 이력을 남기지 않는다 (0.043s) | java.lang.AssertionError: java.lang.AssertionError: Expected size: 2 but was: 0 in: []
+FAIL 승인된 결제에는 인증과 승인이 차례로 한 줄씩 이력에 남는다 (0.022s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Expecting actual: [] to contain exactly (and in same order): ["READY -> AUTHENTICATED (AUTHENTICATE)", "AUTHENTICATED -> APPROVED (APPROVE)"] but could not find the following elements: ["READY -> AUTHENTICATED (AUTHENTICATE)", "AUTHENTICATED -> APPROVED (APPROVE)"]
+FAIL 카드사 답을 받지 못한 결제가 보정으로 승인되면 결과 모름을 거친 이력이 남는다 (1.569s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Expecting actual: [] to contain exactly (and in same order): ["AUTHENTICATED", "APPROVAL_UNKNOWN", "APPROVED"] but could not find the following elements: ["AUTHENTICATED", "APPROVAL_UNKNOWN", "APPROVED"]
+PASS 승인 기록이 되돌려지면 승인 이력도 남지 않는다 (0.035s)
+FAIL 보정이 바꾼 상태는 보정이 바꿨다고 이력에 남는다 (1.572s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual not to be empty
+FAIL 이력에는 상태를 바꾼 요청을 처리하던 때가 바뀐 때로 남는다 (0.022s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual not to be empty
+FAIL 승인을 요청한 결제의 이력은 승인 요청이 바꿨다고 남는다 (0.021s) | java.lang.AssertionError: java.lang.AssertionError: Expecting ArrayList: [] to contain only: ["CONFIRM"] but could not find the following element(s): ["CONFIRM"]
+FAIL 고객이 전액 취소한 결제에는 승인에서 승인 취소로 바뀐 한 줄이 더 남는다 (0.031s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual not to be empty
+## 결제 결과 받기(주문 서비스) — 비교(결정 2): 만든 시각으로 비교
+PASS 모르는 결제 상태가 실린 결과는 실패 모음에 남는다 (1.281s)
+PASS 실패 모음에서 다시 넣은 결과는 아직 반영되지 않았으면 반영된다 (15.908s)
+PASS 주문 서비스의 저장소가 잠시 쓰기를 거부한 동안 온 결과도 저장소가 돌아오면 반영된다 (6.201s)
+PASS 취소 뒤에 그보다 먼저 만든 승인이 늦게 와도 주문은 취소 상태로 남는다 (0.201s)
+PASS 처리할 수 없는 결과가 있어도 같은 자리의 뒤 결과는 첫 다시 시도 간격 안에 반영된다 (0.116s)
+PASS 읽을 수 없는 결과는 실패 모음에 남는다 (1.338s)
+PASS 다시 시도를 다 쓴 결과는 실패 모음에 그 원인과 함께 남는다 (15.589s)
+PASS 같은 주문의 결과는 앞 결과를 다시 시도하는 동안에도 보낸 순서대로 받는다 (6.259s)
+FAIL 결제 서버 시계가 서로 달라 새 결과의 만든 시각이 앞선 결과보다 이르게 찍혀도 새 결과가 반영된다 (0.178s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: "CANCELED" but was: "PAID"
+PASS 같은 결제 결과를 다시 읽어도 주문은 다시 바뀌지 않는다 (0.179s)
+PASS 실패 모음에서 다시 넣은 결과는 그사이 더 새 결과가 반영됐으면 무시된다 (16.485s)
+PASS 결제 서버가 같은 결제 결과를 다시 보내도 주문 서비스는 받은 결과를 한 번만 남긴다 (0.276s)
+## 결제 상태 이력 — 비교(결정 3): 결제 결과 기록(outbox)으로 대신함
+FAIL 카드사 알림으로 따라간 취소는 알림이 바꿨다고 이력에 남는다 (0.035s) | org.assertj.core.error.AssertJMultipleFailuresError: org.assertj.core.error.AssertJMultipleFailuresError: [List check last element] (1 failure) -- failure 1 -- expected: "APPROVED -> APPROVAL_CANCELED (CANCEL)" but was: "null -> APPROVAL_CANCELED (null)" at StatusHistoryContract.lambda$webhookCancelIsRecordedAsTrigger$0(StatusHistoryContract.java:124)
+FAIL 상태가 그대로인 부분 취소는 이력을 남기지 않는다 (0.024s) | java.lang.AssertionError: java.lang.AssertionError: Expected size: 2 but was: 1 in: [null -> APPROVED (null) by null at 2026-11-22T14:16:07.531276Z]
+FAIL 승인된 결제에는 인증과 승인이 차례로 한 줄씩 이력에 남는다 (0.018s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Expecting actual: ["null -> APPROVED (null)"] to contain exactly (and in same order): ["READY -> AUTHENTICATED (AUTHENTICATE)", "AUTHENTICATED -> APPROVED (APPROVE)"] but some elements were not found: ["READY -> AUTHENTICATED (AUTHENTICATE)", "AUTHENTICATED -> APPROVED (APPROVE)"] and others were not expected: ["null -> APPR
+FAIL 카드사 답을 받지 못한 결제가 보정으로 승인되면 결과 모름을 거친 이력이 남는다 (1.553s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Expecting actual: ["APPROVED"] to contain exactly (and in same order): ["AUTHENTICATED", "APPROVAL_UNKNOWN", "APPROVED"] but could not find the following elements: ["AUTHENTICATED", "APPROVAL_UNKNOWN"]
+PASS 승인 기록이 되돌려지면 승인 이력도 남지 않는다 (0.034s)
+FAIL 보정이 바꾼 상태는 보정이 바꿨다고 이력에 남는다 (1.58s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: [List check last element] expected: "APPROVAL_RECONCILIATION" but was: null
+PASS 이력에는 상태를 바꾼 요청을 처리하던 때가 바뀐 때로 남는다 (0.028s)
+FAIL 승인을 요청한 결제의 이력은 승인 요청이 바꿨다고 남는다 (0.018s) | java.lang.AssertionError: java.lang.AssertionError: Expecting ArrayList: [null] to contain only: ["CONFIRM"] element(s) not found: ["CONFIRM"] and element(s) not expected: [null]
+FAIL 고객이 전액 취소한 결제에는 승인에서 승인 취소로 바뀐 한 줄이 더 남는다 (0.04s) | org.assertj.core.error.AssertJMultipleFailuresError: org.assertj.core.error.AssertJMultipleFailuresError: [List check last element] (1 failure) -- failure 1 -- expected: "APPROVED -> APPROVAL_CANCELED (CANCEL)" but was: "null -> APPROVAL_CANCELED (null)" at StatusHistoryContract.lambda$fullCancelAddsOneLine$2(StatusHistoryContract.java:136)
+## 하루치 대사 — 비교(결정 1): 결제마다 카드사 단건 조회
+PASS 우리에게만 있는 승인 결제는 대사가 상태를 바꾸지 않는다 (0.122s)
+FAIL 우리 쪽만 취소된 결제는 카드사 승인으로 되돌리지 않고 운영자가 확인할 어긋남으로 남는다 (0.117s) | java.lang.AssertionError: java.lang.AssertionError: Expected size: 1 but was: 0 in: []
+PASS 카드사에만 있는 결제는 대사가 우리 쪽에 결제를 만들지 않는다 (0.962s)
+PASS 카드사에서만 전액 취소되고 알림이 모두 닿지 않은 승인 결제는 대사 뒤 승인 취소가 된다 (0.984s)
+PASS 대사가 카드사를 따라 맞춘 결제는 맞춘 것으로 대사 결과에 남는다 (0.99s)
+FAIL 카드사와 금액이 다른 결제는 운영자가 확인할 어긋남으로 대사 결과에 남는다 (0.119s) | java.lang.AssertionError: java.lang.AssertionError: Expected size: 1 but was: 0 in: []
+PASS 우리 기록과 카드사가 같은 결제는 대사 결과에 남지 않는다 (0.115s)
+PASS 같은 날을 두 번 대사해도 같은 어긋남은 대사 결과에 한 번만 남는다 (0.282s)
+PASS 우리에게만 있는 승인 결제는 운영자가 확인할 어긋남으로 대사 결과에 남는다 (0.116s)
+PASS 카드사와 금액이 다른 결제는 대사가 우리 금액을 바꾸지 않는다 (0.12s)
+PASS 카드사에서만 부분 취소되고 알림이 모두 닿지 않은 승인 결제는 대사 뒤 남은 금액이 카드사 잔액과 같다 (0.987s)
+FAIL 두 서버가 같은 때 대사를 시작해도 카드사 거래 내역은 한 번만 읽는다 (5.488s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.application.payment.DailyReconciliationContract was not fulfilled within 5 seconds.
+FAIL 카드사에만 있는 결제는 운영자가 확인할 어긋남으로 대사 결과에 남는다 (0.996s) | java.lang.AssertionError: java.lang.AssertionError: Expected size: 1 but was: 0 in: []
+## 결제와 나눈 재고를 함께 끝내기 — 비교(결정 3): 예약 기록 없이 수량만 바로 줄이고 늘림
+PASS 승인 요청이 닿지 않아 카드사에서 만료된 결제를 보정이 닫으면 재고는 처음으로 돌아온다 (1.244s)
+FAIL 해제가 예약보다 먼저 도착해도 재고는 처음보다 늘지 않는다 (0.709s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 5 but was: 7
+PASS 결과를 모르던 결제를 보정이 승인 실패로 닫으면 재고는 처음으로 돌아온다 (1.721s)
+PASS 승인 결과를 모르는 동안은 재고 예약을 그대로 둔다 (1.187s)
+PASS 재고 서비스가 예약을 처리하는 동안 시간 제한이 지나도 그 주문이 잡은 재고는 처음으로 돌아온다 (1.263s)
+PASS 승인된 결제를 전액 취소하면 재고는 처음으로 돌아온다 (0.241s)
+PASS 재고 서비스가 멈춘 동안 승인 없이 끝난 주문의 재고는 재고 서비스가 돌아오면 처음으로 돌아온다 (1.025s)
+PASS 해제보다 늦게 도착한 예약은 재고를 줄이지 않는다 (0.735s)
+PASS 재고 서비스가 재고가 모자라다고 답한 결제는 승인 없이 실패로 끝난다 (0.131s)
+PASS 재고 100개에 두 서버로 주문 300건이 한꺼번에 와도 승인된 주문은 100건을 넘지 않는다 (2.544s)
+FAIL 결과를 모르던 결제를 보정이 승인으로 닫으면 재고 예약은 확정된다 (5.371s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 2 but was: 0
+FAIL 승인된 주문의 재고 예약은 확정된다 (0.167s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 2 but was: 0
+PASS 재고가 모자라 받지 않은 주문은 재고를 그대로 둔다 (0.178s)
+PASS 재고 서비스가 재고가 모자라다고 답한 주문은 카드사에 승인을 요청하지 않는다 (0.081s)
+PASS 카드사가 승인을 거절한 주문의 재고는 처음으로 돌아온다 (0.149s)
+PASS 재고가 모자라 받지 않은 주문은 쓴 쿠폰·포인트를 돌려준다 (0.057s)
+PASS 재고 서비스의 답이 시간 제한보다 늦은 주문은 카드사에 승인을 요청하지 않는다 (0.593s)
+FAIL 같은 해제가 두 번 와도 재고는 한 번만 돌아온다 (0.291s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 5 but was: 7
+PASS 재고 서비스의 답이 시간 제한보다 늦어도 그 주문이 잡은 재고는 처음으로 돌아온다 (0.716s)
+FAIL 재고 100개에 두 서버로 주문 300건이 몰린 뒤 일부를 취소해도 남은 재고와 승인이 남은 결제의 수량을 더하면 처음 재고다 (6.595s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 100 but was: 101
+PASS 같은 확정이 두 번 와도 재고는 승인된 수량만큼만 줄어 있다 (0.25s)
+## 쿠폰 한 장을 두 주문에 — 비교: 읽고 확인한 뒤 저장(결정 4까지)
+PASS 다른 결제에 이미 쓴 쿠폰을 담은 주문은 카드사에 승인을 요청하지 않는다 (0.095s)
+FAIL 같은 쿠폰을 담은 두 주문이 겹치면 한 주문만 승인된다 (2.128s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 1L but was: 2L
+FAIL 같은 쿠폰을 담은 두 주문이 겹치면 나중 주문은 쓸 수 없는 쿠폰이라고 받지 않는다 (2.19s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: COUPON_NOT_AVAILABLE but was: null
+## 결제 결과 릴레이 — 비교: 보낸 것을 먼저 남기고 보냄(최대 한 번)
+PASS 서버 두 대가 함께 릴레이를 돌아도 같은 이벤트를 두 번 보내지 않는다 (3.627s)
+FAIL 릴레이가 이벤트 하나를 처리하던 중 죽어도 다시 돌면 그 이벤트는 주문 서비스에 도착한다 (15.079s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.OrderServer was not fulfilled within 15 seconds.
+FAIL 보내지 못한 결제의 이벤트는 다음 주기에 만든 순서대로 도착한다 (15.14s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.application.payment.OutboxRelayContract was not fulfilled within 15 seconds.
+PASS 서버 두 대가 함께 릴레이를 돌아도 같은 결제의 이벤트는 만든 순서대로 도착한다 (3.342s)
+FAIL 릴레이가 보낸 뒤 보낸 것을 남기기 전에 죽으면 다시 돌 때 같은 이벤트가 한 번 더 간다 (15.1s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.application.payment.OutboxRelayContract was not fulfilled within 15 seconds.
+PASS 서버 두 대가 함께 릴레이를 돌아도 승인 뒤 취소된 결제의 주문은 취소 상태다 (2.775s)
+PASS 한 결제의 이벤트를 보내지 못해도 그 주기에 다른 결제의 이벤트는 보낸다 (0.198s)
+PASS 한 결제의 앞 이벤트를 보내지 못하면 그 주기에는 그 결제의 다음 이벤트도 보내지 않는다 (1.223s)
+## 하루치 대사 — 비교(결정 2): 기록만 하고 고치지 않음
+PASS 우리에게만 있는 승인 결제는 대사가 상태를 바꾸지 않는다 (0.037s)
+PASS 우리 쪽만 취소된 결제는 카드사 승인으로 되돌리지 않고 운영자가 확인할 어긋남으로 남는다 (0.033s)
+PASS 카드사에만 있는 결제는 대사가 우리 쪽에 결제를 만들지 않는다 (0.848s)
+FAIL 카드사에서만 전액 취소되고 알림이 모두 닿지 않은 승인 결제는 대사 뒤 승인 취소가 된다 (0.879s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: APPROVAL_CANCELED but was: APPROVED
+FAIL 대사가 카드사를 따라 맞춘 결제는 맞춘 것으로 대사 결과에 남는다 (0.917s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Expecting actual: ["NEEDS_REVIEW"] to contain exactly (and in same order): ["FOLLOWED"] but some elements were not found: ["FOLLOWED"] and others were not expected: ["NEEDS_REVIEW"]
+PASS 카드사와 금액이 다른 결제는 운영자가 확인할 어긋남으로 대사 결과에 남는다 (0.067s)
+PASS 우리 기록과 카드사가 같은 결제는 대사 결과에 남지 않는다 (0.039s)
+PASS 같은 날을 두 번 대사해도 같은 어긋남은 대사 결과에 한 번만 남는다 (0.041s)
+PASS 우리에게만 있는 승인 결제는 운영자가 확인할 어긋남으로 대사 결과에 남는다 (0.024s)
+PASS 카드사와 금액이 다른 결제는 대사가 우리 금액을 바꾸지 않는다 (0.038s)
+FAIL 카드사에서만 부분 취소되고 알림이 모두 닿지 않은 승인 결제는 대사 뒤 남은 금액이 카드사 잔액과 같다 (0.887s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 10000.00 but was: 15000
+PASS 두 서버가 같은 때 대사를 시작해도 카드사 거래 내역은 한 번만 읽는다 (0.514s)
+PASS 카드사에만 있는 결제는 운영자가 확인할 어긋남으로 대사 결과에 남는다 (0.873s)
+## 카드사 답을 기다리는 결제에 다시 온 승인 — 비교: 지금처럼 할 수 없다고 답함(409)
+PASS 카드사 답을 기다리는 결제에 다른 결제 키로 승인이 오면 지금 상태에서는 할 수 없다고 답한다 (0.853s)
+PASS 카드사 답을 기다리는 결제에 다른 결제 키로 승인이 와도 카드사에 요청하지 않는다 (0.832s)
+PASS 카드사 답을 기다리는 결제에 같은 결제 키로 승인이 다시 오면 카드사에 다시 요청하지 않는다 (0.845s)
+FAIL 카드사 답을 기다리는 결제에 같은 결제 키로 승인이 다시 와도 할 수 없다고 답하지 않는다 (0.832s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: [다시 온 승인의 답: com.example.payment.domain.error.exception.InvalidPaymentTransitionException: Cannot AUTHENTICATE a payment in AUTHENTICATED status.] expected: null but was: INVALID_PAYMENT_TRANSITION
+## 승인 요청 확인 — 비교 C: 다시 온 요청을 가리지 않음
+PASS 승인된 결제에 다른 결제 키로 승인 요청이 오면 받아들이지 않는다 (0.02s)
+FAIL 승인이 거절된 결제에 같은 승인 요청이 다시 오면 카드사에 묻지 않고 거절로 답한다 (0.011s) | com.example.payment.domain.error.exception.InvalidPaymentTransitionException: com.example.payment.domain.error.exception.InvalidPaymentTransitionException: Cannot AUTHENTICATE a payment in APPROVAL_FAILED status.
+PASS 소수 자릿수만 다르게 적은 같은 금액이면 승인한다 (0.013s)
+PASS 요청 금액이 준비한 금액과 다르면 결제는 준비 상태 그대로다 (0.006s)
+PASS 요청 금액이 준비한 금액과 다르면 카드사에 승인을 요청하지 않는다 (0.005s)
+PASS 승인된 결제에 같은 승인 요청이 다시 와도 카드사에는 한 번만 승인을 요청한다 (0.011s)
+FAIL 승인된 결제에 같은 승인 요청이 다시 오면 승인으로 답한다 (0.011s) | com.example.payment.domain.error.exception.InvalidPaymentTransitionException: com.example.payment.domain.error.exception.InvalidPaymentTransitionException: Cannot AUTHENTICATE a payment in APPROVED status.
+## 결과 모름 보정 — 비교 D: 기록 실패를 요청 안에서 다시 시도하고 결과 모름만 보정
+PASS 이미 승인된 결제는 보정해도 승인 상태 그대로다 (0.034s)
+FAIL 카드사 승인 뒤 결과 기록이 실패해도, 보정 뒤 결제 기록이 카드사와 어긋나지 않는다 (0.258s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: [카드사 상태 DONE 와 짝] expected: APPROVED but was: AUTHENTICATED
+PASS 카드사가 거절했지만 답을 받지 못하면, 보정 뒤 승인 실패로 닫힌다 (1.584s)
+PASS 카드사가 승인했지만 답이 시간 제한을 넘기면, 보정 뒤 결제 기록이 카드사와 어긋나지 않는다 (1.581s)
+PASS 결과를 모르는 결제에 같은 결제 키로 다시 오면 확인 중이라고 답한다 (1.035s)
+PASS 결과를 모르는 결제에 같은 결제 키로 다시 오면 카드사에 다시 승인을 요청하지 않는다 (1.043s)
+PASS 보정 중 카드사에 보낸 확인 요청에도 답이 없으면 결제 상태를 바꾸지 않는다 (2.577s)
+PASS 확인 요청에 답이 없던 결제는 다음 보정에서 다시 확인해 카드사와 맞춘다 (2.587s)
+PASS 승인 요청이 카드사에 닿지 않았으면, 보정 뒤 승인 실패로 닫힌다 (1.592s)
+## 결제 결과 받기(주문 서비스) — 비교(결정 3): 다시 시도 토픽(non-blocking)
+PASS 모르는 결제 상태가 실린 결과는 실패 모음에 남는다 (1.299s)
+PASS 실패 모음에서 다시 넣은 결과는 아직 반영되지 않았으면 반영된다 (15.749s)
+PASS 주문 서비스의 저장소가 잠시 쓰기를 거부한 동안 온 결과도 저장소가 돌아오면 반영된다 (6.125s)
+PASS 취소 뒤에 그보다 먼저 만든 승인이 늦게 와도 주문은 취소 상태로 남는다 (0.149s)
+PASS 처리할 수 없는 결과가 있어도 같은 자리의 뒤 결과는 첫 다시 시도 간격 안에 반영된다 (0.083s)
+PASS 읽을 수 없는 결과는 실패 모음에 남는다 (1.301s)
+FAIL 다시 시도를 다 쓴 결과는 실패 모음에 그 원인과 함께 남는다 (15.362s) | java.lang.AssertionError: java.lang.AssertionError: Expecting not blank but was: ""
+FAIL 같은 주문의 결과는 앞 결과를 다시 시도하는 동안에도 보낸 순서대로 받는다 (6.278s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Expecting actual: ["APPROVAL_CANCELED", "APPROVED"] to contain exactly (and in same order): ["APPROVED", "APPROVAL_CANCELED"] but there were differences at these indexes: - element at index 0: expected "APPROVED" but was "APPROVAL_CANCELED" - element at index 1: expected "APPROVAL_CANCELED" but was "APPROVED"
+PASS 결제 서버 시계가 서로 달라 새 결과의 만든 시각이 앞선 결과보다 이르게 찍혀도 새 결과가 반영된다 (0.195s)
+PASS 같은 결제 결과를 다시 읽어도 주문은 다시 바뀌지 않는다 (0.201s)
+PASS 실패 모음에서 다시 넣은 결과는 그사이 더 새 결과가 반영됐으면 무시된다 (16.252s)
+PASS 결제 서버가 같은 결제 결과를 다시 보내도 주문 서비스는 받은 결과를 한 번만 남긴다 (0.231s)
+## 재고 명령 받기(재고 서비스) — 비교(결정 3): 다시 시도 토픽(non-blocking)
+PASS 모르는 재고 명령은 실패 모음에 남는다 (4.049s)
+PASS 실패 모음에서 다시 넣은 명령은 아직 반영되지 않았으면 반영된다 (15.548s)
+PASS 같은 해제를 다시 읽어도 재고는 한 번만 돌아온다 (0.169s)
+PASS 모르는 재고 명령은 예약을 바꾸지 않는다 (0.644s)
+PASS 읽을 수 없는 재고 명령은 실패 모음에 남는다 (1.372s)
+PASS 실패 모음에서 다시 넣은 명령은 그사이 더 새 명령이 반영됐으면 무시된다 (16.2s)
+FAIL 다시 시도를 다 쓴 명령은 실패 모음에 그 원인과 함께 남는다 (15.218s) | java.lang.AssertionError: java.lang.AssertionError: Expecting not blank but was: ""
+PASS 재고 서비스의 저장소가 잠시 쓰기를 거부한 동안 온 명령도 저장소가 돌아오면 반영된다 (10.183s)
+PASS 같은 예약의 확정을 다시 시도하는 동안 해제가 와도 예약은 해제로 끝나고 재고는 돌아온다 (6.229s)
+PASS 처리할 수 없는 명령이 있어도 같은 자리의 뒤 명령은 첫 다시 시도 간격 안에 반영된다 (0.147s)
+PASS 해제 뒤에 그보다 먼저 만든 확정이 늦게 와도 예약은 해제 상태로 남는다 (0.161s)
+PASS 같은 확정을 다시 읽어도 예약이 잡은 재고는 한 번만 줄어 있다 (0.174s)
+## 카드사 장애 동안의 승인 — 비교(결정 4): 다시 시도
+PASS 카드사가 돌아오고 열린 시간이 지나면 새 결제는 다시 승인된다 (14.406s)
+FAIL 차단기가 열린 동안 실패한 결제는 결과 모름으로 남지 않는다 (15.205s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual: APPROVAL_UNKNOWN not to be equal to: APPROVAL_UNKNOWN
+FAIL 차단기가 열리면 운영 지표에 열림으로 보인다 (12.133s) | java.lang.AssertionError: java.lang.AssertionError: Expecting Optional to contain: 1.0 but was empty.
+FAIL 카드사가 답하지 않는 승인이 기준만큼 쌓이면 그 뒤 승인 요청은 카드사에 보내지 않는다 (15.217s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 0 but was: 3
+FAIL 차단기가 열린 동안 승인 요청은 읽기 시간 제한을 기다리지 않고 바로 실패한다 (15.179s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual: 3.02947225S to be less than: 0.3S
+PASS 카드사가 거절한 승인은 여러 번 쌓여도 그 뒤 승인 요청을 막지 않는다 (0.105s)
+## 결제 승인 — 비교: 같은 클래스 안에서 기록 메서드 부르기
+PASS 카드사 답을 기다리는 승인이 연결 수만큼 있어도 다른 결제를 조회할 수 있다 (0.852s)
+PASS 카드사 답이 정해진 시간 안에 오지 않으면 기다리지 않고 응답 없음을 알린다 (1.015s)
+FAIL 카드사가 승인하면 결제는 승인 상태가 된다 (0.009s) | com.example.payment.domain.error.exception.InvalidPaymentTransitionException: com.example.payment.domain.error.exception.InvalidPaymentTransitionException: Cannot APPROVE a payment in READY status.
+FAIL 카드사가 승인을 거절하면 결제는 승인 거절 상태로 남는다 (0.013s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: APPROVAL_FAILED but was: READY
+## 승인 없이 끝난 결제가 잡아 둔 재고·포인트·쿠폰 — 비교: 곳마다 따로 되돌리기 + 포인트 이력 없이 잔액만
+PASS 승인된 결제를 전액 취소하면 잡아 둔 재고·포인트·쿠폰이 돌아온다 (0.208s)
+PASS 부분 취소가 쌓여 남은 금액이 0원이 되면 잡아 둔 재고·포인트·쿠폰이 돌아온다 (0.187s)
+PASS 승인 요청이 닿지 않아 카드사에서 만료된 결제를 보정이 승인 실패로 닫으면 잡아 둔 것이 돌아온다 (1.196s)
+FAIL 승인 거절의 기록·보정·알림 처리가 겹쳐도 포인트는 한 번만 돌아온다 (1.217s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 3000 but was: 5000.00
+PASS 결과를 모르던 결제를 보정이 승인으로 닫으면 잡아 둔 재고·포인트·쿠폰은 그대로다 (1.769s)
+PASS 승인 결과를 모르는 동안은 잡아 둔 재고·포인트·쿠폰을 그대로 둔다 (1.147s)
+PASS 승인이 거절되면 잡아 둔 재고·포인트·쿠폰이 처음으로 돌아온다 (0.149s)
+PASS 승인 요청이 닿지 않아 카드사에서 만료된 결제를 알림 처리가 승인 실패로 닫으면 잡아 둔 것이 돌아온다 (1.211s)
+PASS 결과를 모르던 결제를 보정이 승인 실패로 닫으면 잡아 둔 것이 돌아온다 (1.735s)
+PASS 승인된 결제를 부분 취소하면 재고·포인트·쿠폰은 그대로다 (0.22s)
+PASS 승인 거절의 기록·보정·알림 처리가 겹쳐도 재고는 한 번만 돌아온다 (1.306s)
+## 승인 없이 끝난 결제가 잡아 둔 재고·포인트·쿠폰 — 비교: 실패를 기록하는 곳마다 따로 되돌리기(포인트 이력은 운영과 같음)
+PASS 승인된 결제를 전액 취소하면 잡아 둔 재고·포인트·쿠폰이 돌아온다 (0.263s)
+PASS 부분 취소가 쌓여 남은 금액이 0원이 되면 잡아 둔 재고·포인트·쿠폰이 돌아온다 (0.216s)
+PASS 승인 요청이 닿지 않아 카드사에서 만료된 결제를 보정이 승인 실패로 닫으면 잡아 둔 것이 돌아온다 (1.221s)
+PASS 승인 거절의 기록·보정·알림 처리가 겹쳐도 포인트는 한 번만 돌아온다 (1.239s)
+PASS 결과를 모르던 결제를 보정이 승인으로 닫으면 잡아 둔 재고·포인트·쿠폰은 그대로다 (1.739s)
+PASS 승인 결과를 모르는 동안은 잡아 둔 재고·포인트·쿠폰을 그대로 둔다 (1.161s)
+PASS 승인이 거절되면 잡아 둔 재고·포인트·쿠폰이 처음으로 돌아온다 (0.189s)
+PASS 승인 요청이 닿지 않아 카드사에서 만료된 결제를 알림 처리가 승인 실패로 닫으면 잡아 둔 것이 돌아온다 (1.22s)
+PASS 결과를 모르던 결제를 보정이 승인 실패로 닫으면 잡아 둔 것이 돌아온다 (1.75s)
+PASS 승인된 결제를 부분 취소하면 재고·포인트·쿠폰은 그대로다 (0.171s)
+PASS 승인 거절의 기록·보정·알림 처리가 겹쳐도 재고는 한 번만 돌아온다 (1.312s)
+## 결제 결과 릴레이 — 비교: 한 줄씩 잠가 나눠 보내기(select … for update skip locked)
+PASS 서버 두 대가 함께 릴레이를 돌아도 같은 이벤트를 두 번 보내지 않는다 (3.63s)
+PASS 릴레이가 이벤트 하나를 처리하던 중 죽어도 다시 돌면 그 이벤트는 주문 서비스에 도착한다 (0.177s)
+PASS 보내지 못한 결제의 이벤트는 다음 주기에 만든 순서대로 도착한다 (0.197s)
+FAIL 서버 두 대가 함께 릴레이를 돌아도 같은 결제의 이벤트는 만든 순서대로 도착한다 (3.257s) | java.lang.AssertionError: java.lang.AssertionError: group is not sorted because element 0: 7L is not less or equal than element 1: 6L group was: [7L, 6L]
+PASS 릴레이가 보낸 뒤 보낸 것을 남기기 전에 죽으면 다시 돌 때 같은 이벤트가 한 번 더 간다 (2.732s)
+PASS 서버 두 대가 함께 릴레이를 돌아도 승인 뒤 취소된 결제의 주문은 취소 상태다 (2.745s)
+FAIL 한 결제의 이벤트를 보내지 못해도 그 주기에 다른 결제의 이벤트는 보낸다 (15.118s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.OrderServer was not fulfilled within 15 seconds.
+PASS 한 결제의 앞 이벤트를 보내지 못하면 그 주기에는 그 결제의 다음 이벤트도 보내지 않는다 (1.216s)
+## 같은 결제를 바꾸는 동시 기록 — 비교: 상태 조건 UPDATE(where status = 읽은 상태), 어긋나면 409
+PASS 다른 결제 키로 승인 두 건이 동시에 오면 카드사에는 한 건만 승인된다 (1.076s)
+FAIL 남은 금액을 함께 넘는 취소 두 건이 동시에 오면 나중 취소는 남은 금액보다 크다고 받지 않는다 (2.057s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: CANCEL_AMOUNT_EXCEEDS_BALANCE but was: null
+PASS 부분 취소 두 건의 기록이 겹쳐도 보정 없이 우리 남은 금액이 카드사 잔액과 같다 (2.382s)
+PASS 같은 결제 키로 승인 두 건이 동시에 와도 카드사에는 승인을 한 번만 요청한다 (1.04s)
+FAIL 같은 Idempotency-Key 로 취소 두 건이 동시에 와도 서버 오류로 답하지 않는다 (1.101s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: [나중 취소의 답: org.springframework.dao.DataIntegrityViolationException: could not execute statement [Duplicate entry '5-cancel-1-order-1c40c42a-c0b9-463a-8eb7-8f2cbff4034a' for key 'payment_cancel.uk_payment_cancel_idempotency_key'] [insert into payment_cancel (amount,balance_after,idempotency_key,payment_id,reason,request_diges
+PASS 같은 Idempotency-Key 로 취소 두 건이 동시에 와도 카드사에서는 한 번만 취소된다 (1.079s)
+PASS 같은 Idempotency-Key 로 취소 두 건이 동시에 와도 취소 기록은 하나만 남는다 (1.052s)
+PASS 알림 반영이 끝나기 전에 승인 답 기록이 겹쳐도 결제는 카드사와 같다 (1.218s)
+PASS 같은 결제 키로 승인 두 건이 동시에 와도 서버 오류로 답하지 않는다 (1.039s)
+FAIL 남은 금액을 함께 넘는 취소 두 건이 동시에 오면 카드사에는 한 건만 보낸다 (2.071s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 1 but was: 2
+PASS 남은 금액을 함께 넘는 취소 두 건이 동시에 와도 카드사에서 취소된 금액은 결제 금액을 넘지 않는다 (2.088s)
+## 승인 요청 확인 — 비교 D: 결제 키 없이 상태만으로 가림
+FAIL 승인된 결제에 다른 결제 키로 승인 요청이 오면 받아들이지 않는다 (0.041s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual not to be null
+PASS 승인이 거절된 결제에 같은 승인 요청이 다시 오면 카드사에 묻지 않고 거절로 답한다 (0.029s)
+PASS 소수 자릿수만 다르게 적은 같은 금액이면 승인한다 (0.024s)
+PASS 요청 금액이 준비한 금액과 다르면 결제는 준비 상태 그대로다 (0.025s)
+PASS 요청 금액이 준비한 금액과 다르면 카드사에 승인을 요청하지 않는다 (0.008s)
+PASS 승인된 결제에 같은 승인 요청이 다시 와도 카드사에는 한 번만 승인을 요청한다 (0.012s)
+PASS 승인된 결제에 같은 승인 요청이 다시 오면 승인으로 답한다 (0.013s)
+## 카드사 장애 동안의 승인 — 비교(결정 4): 시간 제한만
+PASS 카드사가 돌아오고 열린 시간이 지나면 새 결제는 다시 승인된다 (6.337s)
+FAIL 차단기가 열린 동안 실패한 결제는 결과 모름으로 남지 않는다 (5.182s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual: APPROVAL_UNKNOWN not to be equal to: APPROVAL_UNKNOWN
+FAIL 차단기가 열리면 운영 지표에 열림으로 보인다 (4.116s) | java.lang.AssertionError: java.lang.AssertionError: Expecting Optional to contain: 1.0 but was empty.
+FAIL 카드사가 답하지 않는 승인이 기준만큼 쌓이면 그 뒤 승인 요청은 카드사에 보내지 않는다 (5.128s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 0 but was: 1
+FAIL 차단기가 열린 동안 승인 요청은 읽기 시간 제한을 기다리지 않고 바로 실패한다 (5.201s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual: 1.023554584S to be less than: 0.3S
+PASS 카드사가 거절한 승인은 여러 번 쌓여도 그 뒤 승인 요청을 막지 않는다 (0.097s)
+## 결제 결과 받기(주문 서비스) — 비교(결정 1): 상태 전이 규칙만으로 흡수
+PASS 모르는 결제 상태가 실린 결과는 실패 모음에 남는다 (1.231s)
+PASS 실패 모음에서 다시 넣은 결과는 아직 반영되지 않았으면 반영된다 (15.895s)
+PASS 주문 서비스의 저장소가 잠시 쓰기를 거부한 동안 온 결과도 저장소가 돌아오면 반영된다 (6.196s)
+PASS 취소 뒤에 그보다 먼저 만든 승인이 늦게 와도 주문은 취소 상태로 남는다 (0.187s)
+PASS 처리할 수 없는 결과가 있어도 같은 자리의 뒤 결과는 첫 다시 시도 간격 안에 반영된다 (0.108s)
+PASS 읽을 수 없는 결과는 실패 모음에 남는다 (1.359s)
+PASS 다시 시도를 다 쓴 결과는 실패 모음에 그 원인과 함께 남는다 (15.63s)
+PASS 같은 주문의 결과는 앞 결과를 다시 시도하는 동안에도 보낸 순서대로 받는다 (6.26s)
+PASS 결제 서버 시계가 서로 달라 새 결과의 만든 시각이 앞선 결과보다 이르게 찍혀도 새 결과가 반영된다 (0.183s)
+PASS 같은 결제 결과를 다시 읽어도 주문은 다시 바뀌지 않는다 (0.196s)
+PASS 실패 모음에서 다시 넣은 결과는 그사이 더 새 결과가 반영됐으면 무시된다 (16.385s)
+FAIL 결제 서버가 같은 결제 결과를 다시 보내도 주문 서비스는 받은 결과를 한 번만 남긴다 (0.287s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 1 but was: 2
+## 결제 금액 — 비교: 고객이 보낸 금액을 믿음
+FAIL 금액을 낮춰 보낸 주문으로 승인을 요청해도 카드사에서 낮춘 금액이 승인되지 않는다 (0.073s) | java.lang.AssertionError: java.lang.AssertionError: Expecting [1000.00] not to contain [1000] but found [1000] when comparing values using ServerPriceContract$$Lambda$5164/0x000000b0025a3220
+FAIL 고객이 보낸 금액이 상품가·쿠폰·포인트로 계산한 금액과 다르면 준비를 받지 않는다 (0.043s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: AMOUNT_MISMATCH but was: null
+PASS 상품을 담아 준비하면 결제 금액은 상품가 합에서 쿠폰 할인과 쓴 포인트를 뺀 금액이다 (0.043s)
+PASS 상품을 담지 않고 금액만 보낸 준비는 보낸 금액으로 준비된다 (0.046s)
+## 승인 요청 확인 — 비교 A: 요청 금액을 그대로 PG에 보냄
+PASS 승인된 결제에 다른 결제 키로 승인 요청이 오면 받아들이지 않는다 (0.025s)
+PASS 승인이 거절된 결제에 같은 승인 요청이 다시 오면 카드사에 묻지 않고 거절로 답한다 (0.016s)
+PASS 소수 자릿수만 다르게 적은 같은 금액이면 승인한다 (0.011s)
+FAIL 요청 금액이 준비한 금액과 다르면 결제는 준비 상태 그대로다 (0.011s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: READY but was: APPROVED
+FAIL 요청 금액이 준비한 금액과 다르면 카드사에 승인을 요청하지 않는다 (0.016s) | java.lang.AssertionError: java.lang.AssertionError: Expecting empty but was: [100]
+PASS 승인된 결제에 같은 승인 요청이 다시 와도 카드사에는 한 번만 승인을 요청한다 (0.011s)
+PASS 승인된 결제에 같은 승인 요청이 다시 오면 승인으로 답한다 (0.015s)
+## 같은 주문의 동시 준비 — 비교: 잡지 않음(6장까지, 주문번호 중복 거부를 그대로 알림)
+PASS 같은 주문을 다른 금액으로 동시에 준비해도 결제 금액은 먼저 준비한 금액이다 (1.057s)
+PASS 같은 주문을 같은 금액으로 동시에 두 번 준비해도 결제는 하나만 생긴다 (1.029s)
+FAIL 같은 주문을 다른 금액으로 동시에 준비하면 나중 준비는 이미 있는 주문이라고 받지 않는다 (1.045s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: DUPLICATE_ORDER but was: INTERNAL_ERROR
+FAIL 같은 주문을 같은 금액으로 동시에 두 번 준비하면 나중 준비도 준비된 결제로 답을 받는다 (1.034s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: [나중 준비의 답: org.springframework.dao.DataIntegrityViolationException: could not execute statement [Duplicate entry 'order-9f47847f-5052-4cf0-bc16-f10264d4afa1' for key 'payment.uk_payment_order_id'] [insert into payment (amount,authenticated_at,coupon_id,member_id,order_id,payment_key,point_amount,status) values (?,?,?,?,?,?,?
+## 결제 이벤트 — 비교: 키 없이 보냄(남겨 두고 릴레이로)
+PASS 브로커가 1.5초 늦게 답해도 결제 승인은 1초 안에 답한다 (0.154s)
+PASS 승인된 결제의 주문은 주문 서비스에서 결제 완료가 된다 (0.258s)
+PASS 승인 기록이 실패한 결제의 승인은 주문 서비스에 가지 않는다 (1.375s)
+PASS 승인이 거절된 결제의 주문은 주문 서비스에서 결제 실패가 된다 (0.283s)
+FAIL 같은 결제의 승인과 취소는 만든 순서대로 주문 서비스에 도착한다 (1.202s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Expecting actual: ["APPROVAL_CANCELED", "APPROVED"] to contain exactly (and in same order): ["APPROVED", "APPROVAL_CANCELED"] but there were differences at these indexes: - element at index 0: expected "APPROVED" but was "APPROVAL_CANCELED" - element at index 1: expected "APPROVAL_CANCELED" but was "APPROVED"
+PASS 브로커가 끊긴 동안 승인된 결제도 브로커가 돌아오면 주문 서비스에 승인이 도착한다 (5.088s)
+PASS 승인 뒤 전액 취소된 결제의 주문은 주문 서비스에서 취소 상태다 (1.288s)
+## 같은 결제를 바꾸는 동시 기록 — 비교: 변경 번호 비교(낙관적 잠금), 어긋나면 409
+PASS 다른 결제 키로 승인 두 건이 동시에 오면 카드사에는 한 건만 승인된다 (1.055s)
+FAIL 남은 금액을 함께 넘는 취소 두 건이 동시에 오면 나중 취소는 남은 금액보다 크다고 받지 않는다 (1.08s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: CANCEL_AMOUNT_EXCEEDS_BALANCE but was: INVALID_PAYMENT_TRANSITION
+FAIL 부분 취소 두 건의 기록이 겹쳐도 보정 없이 우리 남은 금액이 카드사 잔액과 같다 (2.373s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 5000.00 but was: 10000.00
+PASS 같은 결제 키로 승인 두 건이 동시에 와도 카드사에는 승인을 한 번만 요청한다 (1.038s)
+PASS 같은 Idempotency-Key 로 취소 두 건이 동시에 와도 서버 오류로 답하지 않는다 (1.049s)
+PASS 같은 Idempotency-Key 로 취소 두 건이 동시에 와도 카드사에서는 한 번만 취소된다 (1.051s)
+PASS 같은 Idempotency-Key 로 취소 두 건이 동시에 와도 취소 기록은 하나만 남는다 (1.055s)
+PASS 알림 반영이 끝나기 전에 승인 답 기록이 겹쳐도 결제는 카드사와 같다 (1.181s)
+PASS 같은 결제 키로 승인 두 건이 동시에 와도 서버 오류로 답하지 않는다 (1.046s)
+PASS 남은 금액을 함께 넘는 취소 두 건이 동시에 오면 카드사에는 한 건만 보낸다 (1.056s)
+PASS 남은 금액을 함께 넘는 취소 두 건이 동시에 와도 카드사에서 취소된 금액은 결제 금액을 넘지 않는다 (1.048s)
+## 승인 대기 중 조회 — 비교: Open Session In View 켬
+FAIL 카드사 답을 기다리는 승인 요청이 연결 수만큼 있어도 다른 결제를 조회할 수 있다 (0.879s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 200 but was: 500
+## 카드사 웹훅 처리 — 비교 D: 받은 본문을 남겨 같은 본문을 거르고, 알림 한 건을 변화 한 건으로 처리함
+FAIL 같은 상태의 알림이 다른 때에 다시 와도 취소 기록은 하나만 생긴다 (0.275s) | java.lang.AssertionError: java.lang.AssertionError: Expected size: 1 but was: 2 in: [CancelResult[orderId=order-10ff0d65-5c26-4801-a53a-ba987be4f032, cancelAmount=5000.00, cancelStatus=DONE, balanceAmount=10000.00], CancelResult[orderId=order-10ff0d65-5c26-4801-a53a-ba987be4f032, cancelAmount=5000.00, cancelStatus=DONE, balanceAmount=5000.00]]
+PASS 결과 모름 결제에 승인 알림이 오면 보정 대기 시간 전에 승인으로 맞춰진다 (1.69s)
+PASS 취소 알림이 승인 알림보다 먼저 와도 결제는 카드사와 같아진다 (1.781s)
+PASS 승인 알림이 승인 응답보다 먼저 와도 결제는 승인 하나로 맞는다 (0.12s)
+PASS 결과 모름 취소에 알림이 와도 카드사 취소를 따로 한 번 더 기록하지 않는다 (1.692s)
+PASS 모르는 주문의 알림에도 받았다고 답한다 (0.106s)
+PASS 카드사에서만 일어난 부분 취소 알림이 오면 남은 금액이 카드사 잔액과 같아진다 (0.154s)
+PASS 같은 취소 알림이 두 번 와도 취소 기록은 하나만 생긴다 (0.189s)
+PASS 모르는 주문의 알림으로 결제를 만들지 않는다 (0.119s)
+PASS 카드사 조회가 늦어도 알림에는 10초 안에 받았다고 답한다 (0.126s)
+PASS 결과 모름 취소에 알림이 오면 보정 대기 시간 전에 그 취소가 결과 모름에서 벗어난다 (1.729s)
+PASS 카드사 기록과 다른 취소 알림이 와도 결제를 취소하지 않는다 (0.137s)
+PASS 같은 알림이 두 번 와도 두 번 모두 받았다고 답한다 (0.121s)
+PASS 카드사에 승인이 없는 결과 모름 결제에 승인 알림이 와도 승인으로 바꾸지 않는다 (1.68s)
+PASS 결과 모름 취소에 알림이 오면 보정 대기 시간 전에 남은 금액이 카드사 잔액과 같아진다 (1.709s)
+## 카드사 웹훅 처리 — 비교 A: 본문의 상태를 그대로 믿음
+PASS 같은 상태의 알림이 다른 때에 다시 와도 취소 기록은 하나만 생긴다 (0.234s)
+PASS 결과 모름 결제에 승인 알림이 오면 보정 대기 시간 전에 승인으로 맞춰진다 (1.673s)
+PASS 취소 알림이 승인 알림보다 먼저 와도 결제는 카드사와 같아진다 (1.781s)
+PASS 승인 알림이 승인 응답보다 먼저 와도 결제는 승인 하나로 맞는다 (0.114s)
+PASS 결과 모름 취소에 알림이 와도 카드사 취소를 따로 한 번 더 기록하지 않는다 (1.679s)
+PASS 모르는 주문의 알림에도 받았다고 답한다 (0.102s)
+PASS 카드사에서만 일어난 부분 취소 알림이 오면 남은 금액이 카드사 잔액과 같아진다 (0.124s)
+PASS 같은 취소 알림이 두 번 와도 취소 기록은 하나만 생긴다 (0.125s)
+PASS 모르는 주문의 알림으로 결제를 만들지 않는다 (0.108s)
+PASS 카드사 조회가 늦어도 알림에는 10초 안에 받았다고 답한다 (0.123s)
+PASS 결과 모름 취소에 알림이 오면 보정 대기 시간 전에 그 취소가 결과 모름에서 벗어난다 (1.673s)
+FAIL 카드사 기록과 다른 취소 알림이 와도 결제를 취소하지 않는다 (0.137s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: APPROVED but was: APPROVAL_CANCELED
+PASS 같은 알림이 두 번 와도 두 번 모두 받았다고 답한다 (0.138s)
+FAIL 카드사에 승인이 없는 결과 모름 결제에 승인 알림이 와도 승인으로 바꾸지 않는다 (1.682s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: APPROVAL_UNKNOWN but was: APPROVED
+PASS 결과 모름 취소에 알림이 오면 보정 대기 시간 전에 남은 금액이 카드사 잔액과 같아진다 (1.681s)
+## 카드사 웹훅 처리 — 비교 F: 알림을 무시하고 주기 보정만 함
+FAIL 같은 상태의 알림이 다른 때에 다시 와도 취소 기록은 하나만 생긴다 (0.28s) | java.lang.AssertionError: java.lang.AssertionError: Expected size: 1 but was: 0 in: []
+FAIL 결과 모름 결제에 승인 알림이 오면 보정 대기 시간 전에 승인으로 맞춰진다 (1.664s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: APPROVED but was: APPROVAL_UNKNOWN
+FAIL 취소 알림이 승인 알림보다 먼저 와도 결제는 카드사와 같아진다 (1.776s) | java.lang.AssertionError: java.lang.AssertionError: [카드사 상태 CANCELED 와 짝] Expecting Set12: [APPROVAL_CANCELED, CAPTURE_CANCELED] to contain: [APPROVAL_UNKNOWN] but could not find the following element(s): [APPROVAL_UNKNOWN]
+PASS 승인 알림이 승인 응답보다 먼저 와도 결제는 승인 하나로 맞는다 (0.129s)
+PASS 결과 모름 취소에 알림이 와도 카드사 취소를 따로 한 번 더 기록하지 않는다 (1.674s)
+PASS 모르는 주문의 알림에도 받았다고 답한다 (0.104s)
+FAIL 카드사에서만 일어난 부분 취소 알림이 오면 남은 금액이 카드사 잔액과 같아진다 (0.143s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 10000.00 but was: 15000
+FAIL 같은 취소 알림이 두 번 와도 취소 기록은 하나만 생긴다 (0.127s) | java.lang.AssertionError: java.lang.AssertionError: Expected size: 1 but was: 0 in: []
+PASS 모르는 주문의 알림으로 결제를 만들지 않는다 (0.11s)
+PASS 카드사 조회가 늦어도 알림에는 10초 안에 받았다고 답한다 (0.121s)
+FAIL 결과 모름 취소에 알림이 오면 보정 대기 시간 전에 그 취소가 결과 모름에서 벗어난다 (1.685s) | java.lang.AssertionError: java.lang.AssertionError: Expecting no elements of: [CancelResult[orderId=order-733df679-bc7e-44cc-a2ed-e83da8c0acc4, cancelAmount=5000.00, cancelStatus=UNKNOWN, balanceAmount=null]] to match given predicate but this element did: CancelResult[orderId=order-733df679-bc7e-44cc-a2ed-e83da8c0acc4, cancelAmount=5000.00, cancelStatus=UNKNOWN, balanceAmount=null]
+PASS 카드사 기록과 다른 취소 알림이 와도 결제를 취소하지 않는다 (0.138s)
+PASS 같은 알림이 두 번 와도 두 번 모두 받았다고 답한다 (0.125s)
+PASS 카드사에 승인이 없는 결과 모름 결제에 승인 알림이 와도 승인으로 바꾸지 않는다 (1.651s)
+FAIL 결과 모름 취소에 알림이 오면 보정 대기 시간 전에 남은 금액이 카드사 잔액과 같아진다 (1.709s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 10000.00 but was: 15000
+## 카드사 웹훅 처리 — 비교 E: 받은 요청 안에서 카드사 조회와 반영까지 끝내고 답함
+PASS 같은 상태의 알림이 다른 때에 다시 와도 취소 기록은 하나만 생긴다 (0.235s)
+PASS 결과 모름 결제에 승인 알림이 오면 보정 대기 시간 전에 승인으로 맞춰진다 (1.653s)
+PASS 취소 알림이 승인 알림보다 먼저 와도 결제는 카드사와 같아진다 (1.761s)
+PASS 승인 알림이 승인 응답보다 먼저 와도 결제는 승인 하나로 맞는다 (0.116s)
+PASS 결과 모름 취소에 알림이 와도 카드사 취소를 따로 한 번 더 기록하지 않는다 (1.661s)
+PASS 모르는 주문의 알림에도 받았다고 답한다 (0.106s)
+PASS 카드사에서만 일어난 부분 취소 알림이 오면 남은 금액이 카드사 잔액과 같아진다 (0.128s)
+PASS 같은 취소 알림이 두 번 와도 취소 기록은 하나만 생긴다 (0.131s)
+PASS 모르는 주문의 알림으로 결제를 만들지 않는다 (0.115s)
+FAIL 카드사 조회가 늦어도 알림에는 10초 안에 받았다고 답한다 (1.069s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 200 but was: 504
+PASS 결과 모름 취소에 알림이 오면 보정 대기 시간 전에 그 취소가 결과 모름에서 벗어난다 (1.678s)
+PASS 카드사 기록과 다른 취소 알림이 와도 결제를 취소하지 않는다 (0.133s)
+PASS 같은 알림이 두 번 와도 두 번 모두 받았다고 답한다 (0.131s)
+PASS 카드사에 승인이 없는 결과 모름 결제에 승인 알림이 와도 승인으로 바꾸지 않는다 (1.662s)
+PASS 결과 모름 취소에 알림이 오면 보정 대기 시간 전에 남은 금액이 카드사 잔액과 같아진다 (1.685s)
+## 카드사 웹훅 처리 — 비교 C: 본문을 믿고 createdAt 이 가장 늦은 알림만 받음
+PASS 같은 상태의 알림이 다른 때에 다시 와도 취소 기록은 하나만 생긴다 (0.252s)
+PASS 결과 모름 결제에 승인 알림이 오면 보정 대기 시간 전에 승인으로 맞춰진다 (1.669s)
+PASS 취소 알림이 승인 알림보다 먼저 와도 결제는 카드사와 같아진다 (1.761s)
+PASS 승인 알림이 승인 응답보다 먼저 와도 결제는 승인 하나로 맞는다 (0.136s)
+PASS 결과 모름 취소에 알림이 와도 카드사 취소를 따로 한 번 더 기록하지 않는다 (1.676s)
+PASS 모르는 주문의 알림에도 받았다고 답한다 (0.106s)
+PASS 카드사에서만 일어난 부분 취소 알림이 오면 남은 금액이 카드사 잔액과 같아진다 (0.137s)
+PASS 같은 취소 알림이 두 번 와도 취소 기록은 하나만 생긴다 (0.131s)
+PASS 모르는 주문의 알림으로 결제를 만들지 않는다 (0.106s)
+PASS 카드사 조회가 늦어도 알림에는 10초 안에 받았다고 답한다 (0.118s)
+PASS 결과 모름 취소에 알림이 오면 보정 대기 시간 전에 그 취소가 결과 모름에서 벗어난다 (1.662s)
+FAIL 카드사 기록과 다른 취소 알림이 와도 결제를 취소하지 않는다 (0.128s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: APPROVED but was: APPROVAL_CANCELED
+PASS 같은 알림이 두 번 와도 두 번 모두 받았다고 답한다 (0.13s)
+FAIL 카드사에 승인이 없는 결과 모름 결제에 승인 알림이 와도 승인으로 바꾸지 않는다 (1.64s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: APPROVAL_UNKNOWN but was: APPROVED
+PASS 결과 모름 취소에 알림이 오면 보정 대기 시간 전에 남은 금액이 카드사 잔액과 같아진다 (1.685s)
+## 카드사 웹훅 처리 — 비교 B: 허용 전이 표에 없는 전이는 오류로 답함
+PASS 같은 상태의 알림이 다른 때에 다시 와도 취소 기록은 하나만 생긴다 (0.229s)
+PASS 결과 모름 결제에 승인 알림이 오면 보정 대기 시간 전에 승인으로 맞춰진다 (1.674s)
+FAIL 취소 알림이 승인 알림보다 먼저 와도 결제는 카드사와 같아진다 (2.488s) | java.lang.AssertionError: java.lang.AssertionError: [카드사 상태 CANCELED 와 짝] Expecting Set12: [APPROVAL_CANCELED, CAPTURE_CANCELED] to contain: [APPROVAL_UNKNOWN] but could not find the following element(s): [APPROVAL_UNKNOWN]
+PASS 승인 알림이 승인 응답보다 먼저 와도 결제는 승인 하나로 맞는다 (0.114s)
+PASS 결과 모름 취소에 알림이 와도 카드사 취소를 따로 한 번 더 기록하지 않는다 (1.677s)
+PASS 모르는 주문의 알림에도 받았다고 답한다 (0.103s)
+PASS 카드사에서만 일어난 부분 취소 알림이 오면 남은 금액이 카드사 잔액과 같아진다 (0.131s)
+PASS 같은 취소 알림이 두 번 와도 취소 기록은 하나만 생긴다 (0.141s)
+PASS 모르는 주문의 알림으로 결제를 만들지 않는다 (0.111s)
+FAIL 카드사 조회가 늦어도 알림에는 10초 안에 받았다고 답한다 (1.077s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 200 but was: 504
+PASS 결과 모름 취소에 알림이 오면 보정 대기 시간 전에 그 취소가 결과 모름에서 벗어난다 (1.676s)
+PASS 카드사 기록과 다른 취소 알림이 와도 결제를 취소하지 않는다 (0.855s)
+FAIL 같은 알림이 두 번 와도 두 번 모두 받았다고 답한다 (0.858s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Expecting actual: [409, 409] to contain exactly (and in same order): [200, 200] but some elements were not found: [200, 200] and others were not expected: [409, 409]
+PASS 카드사에 승인이 없는 결과 모름 결제에 승인 알림이 와도 승인으로 바꾸지 않는다 (1.666s)
+PASS 결과 모름 취소에 알림이 오면 보정 대기 시간 전에 남은 금액이 카드사 잔액과 같아진다 (1.689s)
+## 같은 결제를 바꾸는 동시 기록 — 비교: @Version 그대로(결제 줄이 바뀔 때만 비교), 어긋나면 그대로 오류
+PASS 다른 결제 키로 승인 두 건이 동시에 오면 카드사에는 한 건만 승인된다 (1.843s)
+FAIL 남은 금액을 함께 넘는 취소 두 건이 동시에 오면 나중 취소는 남은 금액보다 크다고 받지 않는다 (1.143s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: CANCEL_AMOUNT_EXCEEDS_BALANCE but was: null
+PASS 부분 취소 두 건의 기록이 겹쳐도 보정 없이 우리 남은 금액이 카드사 잔액과 같다 (2.457s)
+PASS 같은 결제 키로 승인 두 건이 동시에 와도 카드사에는 승인을 한 번만 요청한다 (1.071s)
+FAIL 같은 Idempotency-Key 로 취소 두 건이 동시에 와도 서버 오류로 답하지 않는다 (1.118s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: [나중 취소의 답: org.springframework.dao.DataIntegrityViolationException: could not execute statement [Duplicate entry '5-cancel-1-order-26564810-07c5-4787-a8e8-91bc26527f1d' for key 'payment_cancel.uk_payment_cancel_idempotency_key'] [insert into payment_cancel (amount,balance_after,idempotency_key,payment_id,reason,request_diges
+PASS 같은 Idempotency-Key 로 취소 두 건이 동시에 와도 카드사에서는 한 번만 취소된다 (1.083s)
+PASS 같은 Idempotency-Key 로 취소 두 건이 동시에 와도 취소 기록은 하나만 남는다 (1.086s)
+PASS 알림 반영이 끝나기 전에 승인 답 기록이 겹쳐도 결제는 카드사와 같다 (1.256s)
+FAIL 같은 결제 키로 승인 두 건이 동시에 와도 서버 오류로 답하지 않는다 (1.067s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: [나중 승인의 답: org.springframework.orm.ObjectOptimisticLockingFailureException: Unexpected row count (expected row count 1 but was 0) [update payment set authenticated_at=?,payment_key=?,status=?,version=? where id=? and version=?] for entity [com.example.payment.domain.payment.Payment with id '9']] Expecting value to be false b
+FAIL 남은 금액을 함께 넘는 취소 두 건이 동시에 오면 카드사에는 한 건만 보낸다 (1.09s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 1 but was: 2
+PASS 남은 금액을 함께 넘는 취소 두 건이 동시에 와도 카드사에서 취소된 금액은 결제 금액을 넘지 않는다 (1.083s)
