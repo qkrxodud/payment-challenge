@@ -1,0 +1,52 @@
+# 태그 ch12-start 의 코드(운영 코드는 11장 그대로)에서 ./gradlew clean test(별도 worktree) — 전체 tests=802 failures=30 errors=0 time=1071.1s, 빌드 18분 3초 (2026-11-22)
+# 12장 계약 41개(DailyReconciliationContract 13, StatusHistoryContract 9, PgOutageContract 6, OperationalSignalsContract 13)만 뽑았다. 앞 장 시험 761개는 모두 통과했다.
+# 실패 30개는 모두 12장 계약이다 — 대사 13개 중 9개, 상태 이력 9개 중 8개, 카드사 장애 6개 중 4개, 운영 신호 13개 중 9개.
+# 출발 구조 시험 구현: 대사는 지금 있는 맞추기(4장 보정·5장 취소 보정·6장 받은 알림 처리)를 한 번씩 돌리고, 대사 결과·이력·지표는 비어 있고, 정리는 하지 않는다.
+# 통과한 11개는 '고치지 않음'·'남지 않음'·'지우지 않음' 쪽 계약이라 아무것도 하지 않는 출발 코드에서도 맞다(대사 4, 이력 1(되돌려진 승인), 장애 2(돌아온 뒤 승인, 거절은 막지 않음), 운영 신호 4).
+# 뒤 커밋에서 고친 출발 구조 계약: OperationalSignalsContract 의 시각 고치기(결정 3 — JPA 가 UTC 로 남긴 칸을 이 JVM 시간대로 고쳤다), 가장 오래 기다린 결과의 나이(결정 5 —
+# 앞 시험이 남긴 결과를 읽음), PgOutageContract 에 차단기 켜기(결정 4 — 시험은 차단기를 기본으로 끈다). 이 실행은 고치기 전 계약이다.
+## 하루치 대사 — 운영 구현
+PASS 우리에게만 있는 승인 결제는 대사가 상태를 바꾸지 않는다 (0.062s)
+FAIL 우리 쪽만 취소된 결제는 카드사 승인으로 되돌리지 않고 운영자가 확인할 어긋남으로 남는다 (0.063s) | java.lang.AssertionError: java.lang.AssertionError: Expected size: 1 but was: 0 in: []
+PASS 카드사에만 있는 결제는 대사가 우리 쪽에 결제를 만들지 않는다 (0.849s)
+FAIL 카드사에서만 전액 취소되고 알림이 모두 닿지 않은 승인 결제는 대사 뒤 승인 취소가 된다 (0.9s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: APPROVAL_CANCELED but was: APPROVED
+FAIL 대사가 카드사를 따라 맞춘 결제는 맞춘 것으로 대사 결과에 남는다 (0.903s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Expecting actual: [] to contain exactly (and in same order): ["FOLLOWED"] but could not find the following elements: ["FOLLOWED"]
+FAIL 카드사와 금액이 다른 결제는 운영자가 확인할 어긋남으로 대사 결과에 남는다 (0.045s) | java.lang.AssertionError: java.lang.AssertionError: Expected size: 1 but was: 0 in: []
+PASS 우리 기록과 카드사가 같은 결제는 대사 결과에 남지 않는다 (0.072s)
+FAIL 같은 날을 두 번 대사해도 같은 어긋남은 대사 결과에 한 번만 남는다 (0.038s) | java.lang.AssertionError: java.lang.AssertionError: Expected size: 1 but was: 0 in: []
+FAIL 우리에게만 있는 승인 결제는 운영자가 확인할 어긋남으로 대사 결과에 남는다 (0.02s) | java.lang.AssertionError: java.lang.AssertionError: Expected size: 1 but was: 0 in: []
+PASS 카드사와 금액이 다른 결제는 대사가 우리 금액을 바꾸지 않는다 (0.045s)
+FAIL 카드사에서만 부분 취소되고 알림이 모두 닿지 않은 승인 결제는 대사 뒤 남은 금액이 카드사 잔액과 같다 (0.882s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 10000.00 but was: 15000
+FAIL 두 서버가 같은 때 대사를 시작해도 카드사 거래 내역은 한 번만 읽는다 (5.46s) | org.awaitility.core.ConditionTimeoutException: org.awaitility.core.ConditionTimeoutException: Condition with Lambda expression in com.example.payment.application.payment.DailyReconciliationContract was not fulfilled within 5 seconds.
+FAIL 카드사에만 있는 결제는 운영자가 확인할 어긋남으로 대사 결과에 남는다 (0.847s) | java.lang.AssertionError: java.lang.AssertionError: Expected size: 1 but was: 0 in: []
+## 운영 지표와 정리 — 운영 구현
+FAIL 보존 기간이 지난 주문 서비스의 받은 결제 결과는 정리에서 지워진다 (0.245s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 0 but was: 1
+PASS 받은 결제 결과가 정리된 뒤 같은 결과가 다시 와도 주문은 다시 바뀌지 않는다 (0.288s)
+FAIL 운영자가 확인할 대사 어긋남 수가 운영 지표에 보인다 (0.059s) | java.lang.AssertionError: java.lang.AssertionError: Expecting Optional to contain a value but it was empty.
+FAIL 보존 기간이 지난 보낸 결제 결과는 정리에서 지워진다 (0.174s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 0 but was: 1
+FAIL 재고 서비스 실패 모음에 재고 명령이 하나 더 쌓이면 운영 지표도 하나 는다 (1.705s) | java.lang.AssertionError: java.lang.AssertionError: Expecting Optional to contain a value but it was empty.
+FAIL 보존 기간이 지난 재고 서비스의 처리한 재고 명령은 정리에서 지워진다 (0.205s) | java.lang.AssertionError: java.lang.AssertionError: Expecting empty but was: [{"command"="CONFIRM", "command_id"="1369309008", "id"=3L, "processed_at"=2026-11-07T13:06:43.272250 (java.time.LocalDateTime), "reservation_id"=1369309006L}]
+FAIL 보내지 않은 결제 결과 수가 운영 지표에 보인다 (0.166s) | java.lang.AssertionError: java.lang.AssertionError: Expecting Optional to contain: 1.0 but was empty.
+FAIL 주문 서비스 실패 모음에 결제 결과가 하나 더 쌓이면 운영 지표도 하나 는다 (1.763s) | java.lang.AssertionError: java.lang.AssertionError: Expecting Optional to contain a value but it was empty.
+PASS 보존 기간이 지나지 않은 보낸 결제 결과는 정리에서 남는다 (0.064s)
+PASS 보내지 않은 결제 결과는 오래돼도 정리에서 지우지 않는다 (0.057s)
+FAIL 실패 모음에서 다시 넣은 결제 결과는 운영 지표에서 빠진다 (3.123s) | java.lang.AssertionError: java.lang.AssertionError: Expecting Optional to contain: 0.0 but was empty.
+PASS 보존 기간이 지나지 않은 주문 서비스의 받은 결제 결과는 정리에서 남는다 (0.185s)
+FAIL 보내지 않은 결제 결과 가운데 가장 오래 기다린 결과의 나이가 운영 지표에 초로 보인다 (0.054s) | java.lang.AssertionError: java.lang.AssertionError: Expecting Optional to contain a value but it was empty.
+## 카드사 장애 동안의 승인 — 운영 구현
+PASS 카드사가 돌아오고 열린 시간이 지나면 새 결제는 다시 승인된다 (6.375s)
+FAIL 차단기가 열린 동안 실패한 결제는 결과 모름으로 남지 않는다 (5.221s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual: APPROVAL_UNKNOWN not to be equal to: APPROVAL_UNKNOWN
+FAIL 차단기가 열리면 운영 지표에 열림으로 보인다 (4.123s) | java.lang.AssertionError: java.lang.AssertionError: Expecting Optional to contain: 1.0 but was empty.
+FAIL 카드사가 답하지 않는 승인이 기준만큼 쌓이면 그 뒤 승인 요청은 카드사에 보내지 않는다 (5.162s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: 0 but was: 1
+FAIL 차단기가 열린 동안 승인 요청은 읽기 시간 제한을 기다리지 않고 바로 실패한다 (5.165s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual: 1.021767375S to be less than: 0.3S
+PASS 카드사가 거절한 승인은 여러 번 쌓여도 그 뒤 승인 요청을 막지 않는다 (0.115s)
+## 결제 상태 이력 — 운영 구현
+FAIL 카드사 알림으로 따라간 취소는 알림이 바꿨다고 이력에 남는다 (0.126s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual not to be empty
+FAIL 상태가 그대로인 부분 취소는 이력을 남기지 않는다 (0.166s) | java.lang.AssertionError: java.lang.AssertionError: Expected size: 2 but was: 0 in: []
+FAIL 승인된 결제에는 인증과 승인이 차례로 한 줄씩 이력에 남는다 (0.071s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Expecting actual: [] to contain exactly (and in same order): ["READY -> AUTHENTICATED (AUTHENTICATE)", "AUTHENTICATED -> APPROVED (APPROVE)"] but could not find the following elements: ["READY -> AUTHENTICATED (AUTHENTICATE)", "AUTHENTICATED -> APPROVED (APPROVE)"]
+FAIL 카드사 답을 받지 못한 결제가 보정으로 승인되면 결과 모름을 거친 이력이 남는다 (1.661s) | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Expecting actual: [] to contain exactly (and in same order): ["AUTHENTICATED", "APPROVAL_UNKNOWN", "APPROVED"] but could not find the following elements: ["AUTHENTICATED", "APPROVAL_UNKNOWN", "APPROVED"]
+PASS 승인 기록이 되돌려지면 승인 이력도 남지 않는다 (0.085s)
+FAIL 보정이 바꾼 상태는 보정이 바꿨다고 이력에 남는다 (1.66s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual not to be empty
+FAIL 이력에는 상태를 바꾼 요청을 처리하던 때가 바뀐 때로 남는다 (0.04s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual not to be empty
+FAIL 승인을 요청한 결제의 이력은 승인 요청이 바꿨다고 남는다 (0.062s) | java.lang.AssertionError: java.lang.AssertionError: Expecting ArrayList: [] to contain only: ["CONFIRM"] but could not find the following element(s): ["CONFIRM"]
+FAIL 고객이 전액 취소한 결제에는 승인에서 승인 취소로 바뀐 한 줄이 더 남는다 (0.121s) | java.lang.AssertionError: java.lang.AssertionError: Expecting actual not to be empty
