@@ -296,6 +296,8 @@ tasks.register('consumerMeasurement', Test) {
 // 컨테이너가 한꺼번에 많이 떠 있다가 새 컨테이너에 접속하지 못했다. 캐시를 10개로 묶어 오래 안 쓴 컨텍스트(와 그 컨테이너)를 닫는다
 tasks.withType(Test).configureEach {
 	systemProperty 'spring.test.context.cache.maxSize', '10'
+	// 12장부터: 하루치 대사도 시험이 직접 부른다(새벽 일정이 시험 도중 끼어들지 않게 끈다)
+	systemProperty 'payment.daily-reconciliation.enabled', 'false'
 }
 
 def jacocoExcludes = ['com/example/payment/PaymentChallengeApplication*']

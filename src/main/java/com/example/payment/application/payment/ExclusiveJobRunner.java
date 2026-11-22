@@ -24,6 +24,8 @@ public class ExclusiveJobRunner {
     public static final String WEBHOOK = "payment-webhook";
     // 9장 결정 3: 남긴 결제 결과를 보내는 릴레이. 한 대가 번호 순으로 보내야 같은 결제의 이벤트 순서를 지키기 쉽다
     public static final String OUTBOX = "payment-outbox-relay";
+    // 12장 결정 1: 하루치 대사. 같은 날을 서버마다 돌면 카드사 거래 내역을 서버 수만큼 읽는다
+    public static final String DAILY_RECONCILIATION = "payment-daily-reconciliation";
 
     private final JobLockRepository jobLockRepository;
     private final JobLockProperties jobLockProperties;

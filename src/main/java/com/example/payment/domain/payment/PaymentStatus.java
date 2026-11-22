@@ -87,6 +87,11 @@ public enum PaymentStatus {
         return holdsApproval() || dropsHoldings();
     }
 
+    // 12장: 승인이 있은 뒤 모두 취소된 상태인가(승인 취소, 매입 취소)
+    public boolean isCanceledAfterApproval() {
+        return this == APPROVAL_CANCELED || this == CAPTURE_CANCELED;
+    }
+
     public boolean isApprovalUnknown() {
         return this == APPROVAL_UNKNOWN;
     }

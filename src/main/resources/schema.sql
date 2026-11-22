@@ -72,6 +72,8 @@ insert ignore into job_lock (name, locked_until) values ('payment-reconciliation
 insert ignore into job_lock (name, locked_until) values ('payment-webhook', '1970-01-01 00:00:00');
 -- 9장 결정 3: 남긴 결제 결과를 보내는 릴레이도 한 대만 돈다
 insert ignore into job_lock (name, locked_until) values ('payment-outbox-relay', '1970-01-01 00:00:00');
+-- 12장 결정 1: 하루치 대사도 한 대만 돈다(같은 날의 카드사 거래 내역을 서버마다 읽지 않는다)
+insert ignore into job_lock (name, locked_until) values ('payment-daily-reconciliation', '1970-01-01 00:00:00');
 
 -- 8장: 상품. 10장부터 재고는 재고 서비스(inventory-service)의 DB 에 있다
 create table if not exists product (
@@ -139,4 +141,29 @@ create table if not exists payment_outbox (
     sent_at     datetime(6),
     primary key (id),
     key idx_payment_outbox_sent_at_id (sent_at, id)
+);
+
+-- 12장 결정 1: 하루치 대사에서 찾은 어긋남. 같은 날·같은 결제 키·같은 종류는 한 줄이다 — 같은 날을 다시 대사하면 그 줄을 고쳐 쓴다.
+-- 우리 쪽·카드사 쪽 값을 찾은 그대로 남긴다(한쪽에만 있으면 다른 쪽은 비어 있다). 결제를 가리키는 외래 키는 두지 않는다(카드사에만 있는 결제도 남긴다)
+create table if not exists reconciliation_result (
+    id              bigint         not null auto_increment,
+    -- 대사한 날(대사 시간대 기준)
+    business_date   date           not null,
+    payment_key     varchar(200)   not null,
+    order_id        varchar(64),
+    -- STATUS_BEHIND, STATUS_MISMATCH, AMOUNT_MISMATCH, OURS_ONLY, PG_ONLY
+    mismatch_type   varchar(30)    not null,
+    our_status      varchar(30),
+    our_amount      decimal(19, 2),
+    our_balance     decimal(19, 2),
+    gateway_status  varchar(30),
+    -- 그날 승인 거래의 금액과 그 뒤 남은 금액. 그날 승인 거래가 없으면 비어 있다
+    gateway_amount  decimal(19, 2),
+    gateway_balance decimal(19, 2),
+    -- FOLLOWED(대사가 카드사를 따라 맞춤), NEEDS_REVIEW(운영자가 확인할 것)
+    resolution      varchar(20)    not null,
+    found_at        datetime(6)    not null,
+    primary key (id),
+    unique key uk_reconciliation_result (business_date, payment_key, mismatch_type),
+    key idx_reconciliation_result_resolution (resolution)
 );
