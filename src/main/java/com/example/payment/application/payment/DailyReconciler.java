@@ -29,6 +29,7 @@ import org.springframework.stereotype.Component;
  * 결제 키로 맞춰 본다. 상태가 다르거나 금액이 다르거나 한쪽에만 있는 결제를 대사 결과 표에 남긴다.
  * 4장 보정과 6장 따라가기는 결과 모름·인증 상태와 받은 알림만 본다 — 알림이 모두 닿지 않은 카드사 쪽 변화와, 한쪽에만 있는 결제는 이 대사로만 찾는다.
  * 결제마다 카드사에 묻지 않고 거래 내역을 쪽 단위로 읽는다 — 결제 수만큼 조회하지 않고, 카드사에만 있는 결제도 거래 내역에서 찾는다.
+ * 12장 결정 2부터 찾은 어긋남은 MismatchResolver 가 처리한다(우리 기록이 뒤처진 결제만 6장 따라가기로 맞추고 나머지는 운영자 확인).
  * 서버 여러 대 가운데 작업 잠금(7장 job_lock)을 맡은 한 대만 돈다. 같은 날을 다시 돌려도 같은 어긋남은 한 줄만 남는다(대사 결과 표의 고유 키).
  * 카드사가 답하지 않으면 아무것도 남기지 않고 끝낸다 — 다음에 같은 날을 다시 돌린다.
  */
@@ -40,6 +41,7 @@ public class DailyReconciler {
     private final ExclusiveJobRunner exclusiveJobRunner;
     private final GatewayTransactionSource gatewayTransactionSource;
     private final ReconciliationRepository reconciliationRepository;
+    private final MismatchResolver mismatchResolver;
     private final DailyReconciliationProperties dailyReconciliationProperties;
     private final Clock clock;
 
@@ -64,6 +66,7 @@ public class DailyReconciler {
         return paymentKeys.stream()
                 .map(paymentKey -> Mismatch.between(ours.get(paymentKey), gateway.get(paymentKey)))
                 .flatMap(Optional::stream)
+                .map(mismatchResolver::resolve)
                 .toList();
     }
 
