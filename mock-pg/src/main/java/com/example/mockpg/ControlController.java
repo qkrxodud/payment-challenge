@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 따로 띄운 가짜 PG(부하 테스트 등)를 밖에서 조작하는 API. 6장부터 웹훅 설정·쌓인 알림 보내기·위조 알림·관리 화면 취소를 더한다.
- * 8장부터 카드사 쪽 만료를 더한다
+ * 8장부터 카드사 쪽 만료를 더한다. 12장부터 거래 조회 횟수를 센다
  */
 @RestController
 @RequiredArgsConstructor
@@ -55,6 +55,12 @@ public class ControlController {
     @GetMapping("/control/inquiries/{orderId}")
     public int inquiryCount(@PathVariable String orderId) {
         return scenarioStore.inquiryCount(orderId);
+    }
+
+    // 12장: 거래 조회를 받은 횟수(쪽마다 한 번)
+    @GetMapping("/control/transaction-lists")
+    public int transactionListCount() {
+        return scenarioStore.transactionListCount();
     }
 
     // 6장: 웹훅을 받을 주소와 시험용 조작(쌓아 두기, 두 번 보내기, 늦게 보내기, 재전송 간격)

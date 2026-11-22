@@ -102,6 +102,25 @@ public class MockPgServer {
         context.getBean(PaymentExpiry.class).expire(orderId, paymentKey, amount);
     }
 
+    // 12장: 결제 서버를 거치지 않은 승인이 카드사에만 남는다(우리 쪽에는 이 결제가 없다). 웹훅을 켜 두었으면 알림도 간다
+    public void approveAtCardCompany(String orderId, String paymentKey, BigDecimal amount) {
+        context.getBean(WebhookSender.class).statusChanged(scenarios().recordApproval(paymentKey, orderId, amount));
+    }
+
+    // 12장: 거래 조회를 받은 횟수(쪽마다 한 번)
+    public int transactionListCount() {
+        return scenarios().transactionListCount();
+    }
+
+    // 12장: 거래 조회 답을 releaseTransactionAnswers 까지 보내지 않는다
+    public void holdTransactionAnswers() {
+        scenarios().holdTransactionAnswers();
+    }
+
+    public void releaseTransactionAnswers() {
+        scenarios().releaseTransactionAnswers();
+    }
+
     // 6장: 결제 상태가 바뀔 때 이 주소로 웹훅을 보낸다. 재전송은 7회, 간격은 시험용으로 줄인 값
     public void sendWebhooksTo(String targetUrl) {
         webhooks().change(WebhookSettings.sendTo(targetUrl, TEST_RETRY_INTERVALS));

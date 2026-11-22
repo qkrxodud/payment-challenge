@@ -1,6 +1,7 @@
 package com.example.mockpg;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Component;
  * 6장부터 승인을 기록한 뒤 답을 붙잡아 두는 문(시험이 열 때까지 승인 답을 보내지 않음)을 더한다.
  * 7장부터 주문번호 결제 조회를 받은 횟수를 센다(서버 여러 대가 같은 결제를 몇 번 조회하는지 본다).
  * 8장부터 카드사 쪽에서 만료된 결제를 남길 수 있고, 붙잡은 승인 답의 문이 거절 답도 붙잡는다.
+ * 12장부터 거래 조회(기간 안의 승인·취소 거래)를 돌려주고, 거래 조회를 받은 횟수를 세며, 거래 조회 답을 붙잡아 두는 문을 더한다.
  * 상태를 두는 것 자체가 목적인 시험 도구라 스레드 안전 저장소만 쓴다.
  */
 @Component
@@ -39,6 +41,8 @@ public class ScenarioStore {
     private final Set<String> idempotentInFlight = ConcurrentHashMap.newKeySet();
     private final AtomicReference<CountDownLatch> confirmAnswerGate = new AtomicReference<>();
     private final Map<String, AtomicInteger> inquiries = new ConcurrentHashMap<>();
+    private final AtomicInteger transactionLists = new AtomicInteger();
+    private final AtomicReference<CountDownLatch> transactionAnswerGate = new AtomicReference<>();
 
     public Scenario current() {
         return scenario.get();
@@ -51,6 +55,7 @@ public class ScenarioStore {
     public void reset() {
         scenario.set(Scenario.immediateApproval());
         releaseConfirmAnswers();
+        releaseTransactionAnswers();
     }
 
     // 6장: 승인은 기록하되 그 답은 시험이 문을 열 때까지 보내지 않는다(알림이 승인 답보다 먼저 닿는 경우를 만든다)
@@ -220,5 +225,47 @@ public class ScenarioStore {
     // 실제로 취소한 횟수(부분 취소 포함)
     public int cancelCount(String orderId) {
         return Optional.ofNullable(cancels.get(orderId)).map(AtomicInteger::get).orElse(0);
+    }
+
+    // 12장: 처리한 때가 [from, to] 안인 승인·취소 거래. 처리한 때 순(같으면 거래 키 순)이다
+    public List<TransactionRecord> transactionsBetween(Instant from, Instant to) {
+        return payments.values().stream()
+                .flatMap(record -> TransactionRecord.of(record).stream())
+                .filter(transaction -> isBetween(transaction.getTransactionAt().toInstant(), from, to))
+                .sorted(TransactionRecord.BY_TIME)
+                .toList();
+    }
+
+    private static boolean isBetween(Instant at, Instant from, Instant to) {
+        return at.compareTo(from) >= 0 && at.compareTo(to) <= 0;
+    }
+
+    // 12장: 결과와 상관없이 거래 조회를 받은 횟수(쪽마다 한 번)
+    public void countTransactionList() {
+        transactionLists.incrementAndGet();
+    }
+
+    public int transactionListCount() {
+        return transactionLists.get();
+    }
+
+    // 12장: 거래 조회 답을 시험이 문을 열 때까지 보내지 않는다(서버 두 대가 같은 때 대사를 도는 경우를 만든다)
+    public void holdTransactionAnswers() {
+        transactionAnswerGate.set(new CountDownLatch(1));
+    }
+
+    public void releaseTransactionAnswers() {
+        CountDownLatch gate = transactionAnswerGate.getAndSet(null);
+        if (Objects.nonNull(gate)) {
+            gate.countDown();
+        }
+    }
+
+    // 문이 닫혀 있으면 열릴 때까지(최대 10초) 기다린다
+    public void awaitTransactionAnswer() throws InterruptedException {
+        CountDownLatch gate = transactionAnswerGate.get();
+        if (Objects.nonNull(gate)) {
+            gate.await(10, TimeUnit.SECONDS);
+        }
     }
 }

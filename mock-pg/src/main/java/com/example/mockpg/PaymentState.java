@@ -14,6 +14,11 @@ public enum PaymentState {
     // 부르지 않으면 만료). 승인이 없으니 취소할 수 없다
     EXPIRED;
 
+    // 12장: 한 번은 승인된 결제인가(승인, 부분 취소, 취소)
+    public boolean hasApproval() {
+        return this == DONE || this == PARTIAL_CANCELED || this == CANCELED;
+    }
+
     public boolean isCanceled() {
         return this == CANCELED;
     }

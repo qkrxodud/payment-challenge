@@ -280,6 +280,11 @@ public class OrderServer {
         orders.execute(sql);
     }
 
+    // 12장: 이 서비스 컨텍스트의 빈(운영 지표 보관함, 정리 작업 등)을 시험이 직접 쓴다
+    public <T> T bean(Class<T> type) {
+        return context.getBean(type);
+    }
+
     public void stop() {
         context.close();
     }
